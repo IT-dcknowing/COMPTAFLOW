@@ -20,6 +20,7 @@ return [
         'Gouvernance (Super Admin)' => [
             'superadmin.entities' => 'Gestion des Entités',
             'superadmin.companies.create' => 'Créer Entreprise',
+            'superadmin.accounting.index' => 'Gestion des Comptabilités',
             'superadmin.accounting.create' => 'Créer Comptabilité',
             'superadmin.users' => 'Gestion Utilisateurs',
             'superadmin.users.create' => 'Créer Comptable',
