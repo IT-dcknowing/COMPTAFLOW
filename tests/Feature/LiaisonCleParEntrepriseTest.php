@@ -849,6 +849,58 @@ class LiaisonCleParEntrepriseTest extends TestCase
 
     private function monterLeSchema(): void
     {
+        // L'import de Comptaflow, par lequel le référentiel passe désormais :
+        // ses lignes déposées, les sections qu'il consulte, et la trésorerie
+        // où il cherche la séquence d'un code journal.
+        // Comptaflow journalise toute modification faite au nom d'un
+        // utilisateur, et l'import travaille au nom de l'administrateur.
+        Schema::create('audit_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->unsignedBigInteger('company_id')->nullable();
+            $table->string('action')->nullable();
+            $table->string('model_type')->nullable();
+            $table->unsignedBigInteger('model_id')->nullable();
+            $table->text('description')->nullable();
+            $table->longText('payload')->nullable();
+            $table->string('ip_address')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('import_stagings', function (Blueprint $table) {
+            $table->id();
+            $table->string('batch_id')->nullable();
+            $table->unsignedBigInteger('company_id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('exercice_id')->nullable();
+            $table->string('source')->nullable();
+            $table->string('type')->default('courant');
+            $table->string('file_name')->nullable();
+            $table->longText('raw_data')->nullable();
+            $table->text('mapping')->nullable();
+            $table->text('metadata')->nullable();
+            $table->string('status')->default('pending');
+            $table->text('error_log')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('sections_analytiques', function (Blueprint $table) {
+            $table->id();
+            $table->string('code')->nullable();
+            $table->unsignedBigInteger('company_id');
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('tresorerie', function (Blueprint $table) {
+            $table->id();
+            $table->string('code_journal');
+            $table->string('intitule')->nullable();
+            $table->unsignedBigInteger('company_id');
+            $table->timestamps();
+        });
+
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
@@ -985,6 +1037,8 @@ class LiaisonCleParEntrepriseTest extends TestCase
             // La colonne s'appelle `intitule`, non `libelle` : le provisionnement
             // y écrivait sous le mauvais nom et l'exercice naissait sans titre.
             $table->string('intitule')->nullable();
+            // L'import ne range rien dans un exercice clos.
+            $table->boolean('cloturer')->default(false);
             $table->boolean('is_active')->default(true);
             $table->date('date_debut')->nullable();
             $table->date('date_fin')->nullable();

@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\AdminConfigController;
+use App\Jobs\ImportCommitJob;
 use App\Models\CodeJournal;
 use App\Models\Company;
 use App\Models\EcritureComptable;
+use App\Models\ImportStaging;
 use App\Models\ExerciceComptable;
 use App\Models\PlanComptable;
 use App\Models\PlanTiers;
 use App\Models\User;
 use App\Services\UniformisationImport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -748,288 +752,209 @@ class ExternalSyncController extends Controller
             ], 404);
         }
 
-        $comptes  = ['crees' => 0, 'completes' => 0, 'inchanges' => 0];
-        $journaux = ['crees' => 0, 'completes' => 0, 'inchanges' => 0];
-        $tiers    = ['crees' => 0, 'completes' => 0, 'inchanges' => 0];
-        $refus    = [];
+        // L'import de Comptaflow travaille au nom d'un utilisateur du dossier :
+        // c'est lui que l'historique des imports nommera.
+        $admin = User::find($company->user_id)
+            ?? User::where('company_id', $company->id)->where('role', 'admin')->first();
 
-        DB::beginTransaction();
+        if (!$admin) {
+            return response()->json([
+                'success' => false,
+                'message' => "Le dossier Comptaflow n° {$company->id} n'a pas d'administrateur : "
+                    . "l'import ne peut pas travailler en son nom.",
+            ], 422);
+        }
+
+        $refus = [];
+
+        // ── Un déversement est un import ──
+        //
+        // Le référentiel entrait par une voie à part, qui rangeait les numéros
+        // tels que Selflow les nomme, puis par une copie de la normalisation
+        // qui donnait `VTE0` là où l'import de Comptaflow donne `VTE1`. Il passe
+        // maintenant par l'import lui-même : même préparation, mêmes codes
+        // générés, même dédoublonnage, même rangement du numéro d'origine.
+        //
+        // L'ordre compte, comme à l'écran : un journal de trésorerie renvoie à
+        // son compte, et un tiers à son compte collectif.
         try {
-            foreach ((array) $request->input('plan_comptable', []) as $ligne) {
-                self::recevoirUnCompte($company, (array) $ligne, $comptes, $refus);
-            }
+            $bilan = [
+                'plan_comptable' => self::importer($company, $admin, 'initial',
+                    ['numero_de_compte', 'intitule'],
+                    array_map(fn ($l) => [
+                        trim((string) ($l['numero_de_compte'] ?? '')),
+                        trim((string) ($l['intitule'] ?? '')),
+                    ], (array) $request->input('plan_comptable', [])),
+                    $refus),
 
-            foreach ((array) $request->input('codes_journaux', []) as $ligne) {
-                self::recevoirUnJournal($company, (array) $ligne, $journaux, $refus);
-            }
+                // Le type est détecté par l'import, comme sur l'écran où il est
+                // marqué « auto-généré par défaut ».
+                'codes_journaux' => self::importer($company, $admin, 'journals',
+                    ['code_journal', 'intitule', 'type', 'compte_de_tresorerie'],
+                    array_map(fn ($l) => [
+                        strtoupper(trim((string) ($l['code_journal'] ?? ''))),
+                        trim((string) ($l['intitule'] ?? '')),
+                        trim((string) ($l['type'] ?? '')),
+                        trim((string) ($l['compte_numero'] ?? '')),
+                    ], (array) $request->input('codes_journaux', [])),
+                    $refus, ['type']),
 
-            foreach ((array) $request->input('tiers', []) as $ligne) {
-                self::recevoirUnTiers($company, (array) $ligne, $tiers, $refus);
-            }
+                // Seuls les champs nécessaires passent par l'import : le numéro,
+                // l'intitulé, le compte collectif. La catégorie se déduit du
+                // préfixe, comme à l'écran.
+                'tiers' => self::importer($company, $admin, 'tiers',
+                    ['numero_de_tiers', 'intitule', 'compte_general'],
+                    array_map(fn ($l) => [
+                        strtoupper(trim((string) ($l['numero_de_tiers'] ?? ''))),
+                        trim((string) ($l['intitule'] ?? '')),
+                        trim((string) ($l['compte_general'] ?? '')),
+                    ], (array) $request->input('tiers', [])),
+                    $refus),
+            ];
+
+            // Le reste de la fiche d'un tiers ne demande aucune vérification.
+            self::completerLesTiers($company, (array) $request->input('tiers', []));
 
             self::daterLaReception($company);
-
-            DB::commit();
-
-            // Le compte rendu dit ce qui a été créé, ce qui a été complété et
-            // ce qui a été écarté. Une synchronisation qui annonce « succès »
-            // en ayant laissé la moitié des lignes de côté est pire qu'un
-            // échec : elle installe une confiance fausse.
-            return response()->json([
-                'success'  => true,
-                'comptes'  => $comptes['crees'] + $comptes['completes'] + $comptes['inchanges'],
-                'journaux' => $journaux['crees'] + $journaux['completes'] + $journaux['inchanges'],
-                'tiers'    => $tiers['crees'] + $tiers['completes'] + $tiers['inchanges'],
-                'detail'   => [
-                    'plan_comptable' => $comptes,
-                    'codes_journaux' => $journaux,
-                    'tiers'          => $tiers,
-                ],
-                'refus'    => $refus,
-                'message'  => sprintf(
-                    '%d compte(s), %d journal(aux) et %d tiers reçus : %d créé(s), %d complété(s), %d déjà conforme(s)%s.',
-                    $comptes['crees'] + $comptes['completes'] + $comptes['inchanges'],
-                    $journaux['crees'] + $journaux['completes'] + $journaux['inchanges'],
-                    $tiers['crees'] + $tiers['completes'] + $tiers['inchanges'],
-                    $comptes['crees'] + $journaux['crees'] + $tiers['crees'],
-                    $comptes['completes'] + $journaux['completes'] + $tiers['completes'],
-                    $comptes['inchanges'] + $journaux['inchanges'] + $tiers['inchanges'],
-                    $refus ? ', ' . count($refus) . ' ligne(s) écartée(s)' : ''
-                ),
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
+        } catch (\Throwable $e) {
             Log::error('ExternalSync deverserReferentiel error', [
                 'company_id' => $company->id,
                 'error'      => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du déversement du référentiel : ' . $e->getMessage(),
             ], 500);
         }
+
+        $total = fn (string $cle) => array_sum(array_column($bilan, $cle));
+
+        // Le compte rendu dit ce qui est entré, ce qui était déjà là et ce qui
+        // a été écarté. Une synchronisation qui annonce « succès » en ayant
+        // laissé la moitié des lignes de côté est pire qu'un échec.
+        return response()->json([
+            'success'  => true,
+            'comptes'  => $bilan['plan_comptable']['recues'],
+            'journaux' => $bilan['codes_journaux']['recues'],
+            'tiers'    => $bilan['tiers']['recues'],
+            'detail'   => $bilan,
+            'refus'    => $refus,
+            'message'  => sprintf(
+                '%d compte(s), %d journal(aux) et %d tiers reçus par l\'import : %d créé(s), %d déjà présent(s)%s.',
+                $bilan['plan_comptable']['recues'],
+                $bilan['codes_journaux']['recues'],
+                $bilan['tiers']['recues'],
+                $total('creees'),
+                $total('deja_la'),
+                $refus ? ', ' . count($refus) . ' ligne(s) écartée(s)' : ''
+            ),
+        ]);
     }
 
     /**
-     * Un compte du plan de Selflow.
+     * Faire passer des lignes par l'import de Comptaflow.
      *
-     * Les champs reprennent les colonnes du modèle d'import
-     * (`modele_plan_comptable.xlsx` : « N° compte » ; « Intitulé du compte »),
-     * délibérément : le déversement passe par la même logique que l'import,
-     * pas par une seconde voie à maintenir en parallèle.
+     * Rien n'est réécrit ici : on dépose les lignes comme l'écran d'import les
+     * dépose, avec la correspondance des colonnes que l'écran ferait choisir —
+     * elle ne change jamais, puisque Selflow envoie toujours les mêmes champs.
+     * Puis `ImportCommitJob` fait ce qu'il fait pour un fichier.
+     *
+     * La préparation est lue une fois de notre côté, pour **dire** ce que
+     * l'import écarte et pourquoi. Le job ne le rapporte pas ligne à ligne, et
+     * une ligne écartée sans motif est une ligne perdue.
+     *
+     * @param list<string> $colonnes les champs de l'import, dans l'ordre des colonnes
+     * @param list<list<string>> $lignes
+     * @param list<string> $auto les champs laissés à la détection de l'import
+     * @return array{recues: int, creees: int, deja_la: int, ecartees: int}
      */
-    private static function recevoirUnCompte($company, array $ligne, array &$compteur, array &$refus): void
+    private static function importer(Company $company, User $admin, string $type, array $colonnes,
+        array $lignes, array &$refus, array $auto = []): array
     {
-        $numero   = trim((string) ($ligne['numero_de_compte'] ?? ''));
-        $intitule = trim((string) ($ligne['intitule'] ?? ''));
+        $lignes = array_values(array_filter($lignes, fn ($l) => ($l[0] ?? '') !== '' || ($l[1] ?? '') !== ''));
 
-        if ($numero === '') {
-            $refus[] = 'Compte sans numéro : ' . ($intitule ?: 'ligne vide');
-            return;
+        if ($lignes === []) {
+            return ['recues' => 0, 'creees' => 0, 'deja_la' => 0, 'ecartees' => 0];
         }
 
-        $existant = UniformisationImport::compte($company, $numero);
-
-        if (!$existant) {
-            // `compteGeneral()` uniformise le numéro et range l'original
-            // dessous. La ligne peut porter son propre `numero_original` —
-            // c'est celui d'un import antérieur chez Selflow : il ne prime pas
-            // sur ce que Selflow nous envoie aujourd'hui.
-            $cree = self::compteGeneral($company, $numero, $intitule, 'imported');
-            self::completer($cree, ['numero_original' => $ligne['numero_original'] ?? $numero]);
-            $compteur['crees']++;
-            return;
+        $mapping = ['_header_index' => 0];
+        foreach ($colonnes as $index => $champ) {
+            $mapping[$champ] = in_array($champ, $auto, true) ? 'AUTO' : $index;
         }
 
-        // Le compte existe : son intitulé et son type appartiennent au
-        // comptable. On ne remplit que ce qui est resté vide.
-        $uniforme = $existant->numero_de_compte;
-
-        $modifie = self::completer($existant, [
-            'numero_original' => $ligne['numero_original'] ?? $numero,
-            'type_de_compte'  => self::typeDeCompte($uniforme),
-            'classe'          => is_numeric(substr($uniforme, 0, 1)) ? substr($uniforme, 0, 1) : null,
+        $import = ImportStaging::create([
+            'company_id' => $company->id,
+            'user_id'    => $admin->id,
+            'source'     => 'SELFLOW',
+            'type'       => $type,
+            'file_name'  => 'Déversement Selflow',
+            'raw_data'   => array_merge([$colonnes], $lignes),
+            'mapping'    => $mapping,
+            'status'     => 'staging',
         ]);
 
-        $modifie ? $compteur['completes']++ : $compteur['inchanges']++;
+        Auth::setUser($admin);
+        session()->put('current_company_id', $company->id);
+
+        $apercu  = app(AdminConfigController::class)->importStaging($import->id, true);
+        $statuts = collect($apercu['rowsWithStatus'] ?? []);
+
+        foreach ($statuts->where('status', 'error') as $ligne) {
+            $source = $lignes[((int) $ligne['index']) - 1] ?? [];
+            $refus[] = sprintf('%s « %s » : %s', self::NOMS_D_IMPORT[$type] ?? $type,
+                trim(($source[0] ?? '') . ' ' . ($source[1] ?? '')),
+                implode(' ', (array) $ligne['errors']));
+        }
+
+        ImportCommitJob::dispatchSync($import->id, $admin->id);
+
+        $rapport = $import->fresh()->metadata['commit_report'] ?? [];
+
+        if (($rapport['status'] ?? '') === 'error') {
+            foreach ((array) ($rapport['errors'] ?? []) as $erreur) {
+                $refus[] = (self::NOMS_D_IMPORT[$type] ?? $type) . ' : ' . $erreur;
+            }
+        }
+
+        return [
+            'recues'   => count($lignes),
+            'creees'   => ($rapport['status'] ?? '') === 'success' ? (int) ($rapport['processed_g'] ?? 0) : 0,
+            'deja_la'  => $statuts->where('status', 'duplicate')->count(),
+            'ecartees' => $statuts->where('status', 'error')->count(),
+        ];
     }
 
+    private const NOMS_D_IMPORT = [
+        'initial'  => 'Compte',
+        'journals' => 'Journal',
+        'tiers'    => 'Tiers',
+    ];
+
     /**
-     * Un code journal de Selflow.
+     * Le reste de la fiche d'un tiers : téléphone, adresse, NCC, régime.
      *
-     * Colonnes du modèle `modele_codes_journaux.xlsx` : « Code » ; « Intitulé » ;
-     * « Type ». `compte_numero` porte le compte de trésorerie des journaux de
-     * banque et de caisse.
+     * Rien de comptable n'en dépend, et l'import ne le lit pas. On complète
+     * ce qui est resté vide sur le tiers que l'import a rangé — retrouvé par
+     * le numéro de Selflow, puisque l'import a régénéré le sien.
      */
-    private static function recevoirUnJournal($company, array $ligne, array &$compteur, array &$refus): void
+    private static function completerLesTiers(Company $company, array $lignes): void
     {
-        $code     = strtoupper(trim((string) ($ligne['code_journal'] ?? '')));
-        $intitule = trim((string) ($ligne['intitule'] ?? ''));
-        $type     = trim((string) ($ligne['type'] ?? ''));
+        foreach ($lignes as $ligne) {
+            $ligne = (array) $ligne;
+            $numero = strtoupper(trim((string) ($ligne['numero_de_tiers'] ?? '')));
+            $informations = self::informationsDuTiers((array) ($ligne['informations'] ?? []));
 
-        if ($code === '') {
-            $refus[] = 'Journal sans code : ' . ($intitule ?: 'ligne vide');
-            return;
+            if ($numero === '' || $informations === []) {
+                continue;
+            }
+
+            $tiers = UniformisationImport::tiers($company, $numero);
+
+            if ($tiers) {
+                self::completer($tiers, $informations);
+            }
         }
-
-        // Le compte de trésorerie, s'il est annoncé. Le plan comptable vient
-        // d'être déversé : il y est déjà, sauf numérotation exotique.
-        $compteTresorerie = null;
-        $compteNumero = trim((string) ($ligne['compte_numero'] ?? ''));
-        if ($compteNumero !== '') {
-            $compteTresorerie = self::compteGeneral($company, $compteNumero, $intitule, 'imported')->id;
-        }
-
-        $existant = UniformisationImport::journal($company, $code);
-
-        if (!$existant) {
-            // Le code prend la longueur du dossier — `OD` devient `OD00` sur
-            // quatre caractères — et le code de Selflow se range dessous.
-            $uniforme = UniformisationImport::codeJournal(
-                $code, UniformisationImport::caracteresDeJournal($company)
-            ) ?: $code;
-
-            CodeJournal::create([
-                'code_journal'          => $uniforme,
-                'numero_original'      => $ligne['numero_original'] ?? $code,
-                'intitule'             => $intitule ?: $code,
-                'type'                 => $type ?: 'Opérations Diverses',
-                'compte_de_tresorerie' => $compteTresorerie,
-                'traitement_analytique' => false,
-                'user_id'              => $company->user_id,
-                'company_id'           => $company->id,
-            ]);
-            $compteur['crees']++;
-            return;
-        }
-
-        // Le journal de Comptaflow fait foi — c'est sa configuration d'origine.
-        $modifie = self::completer($existant, [
-            'numero_original'      => $ligne['numero_original'] ?? $code,
-            'type'                 => $type ?: null,
-            'compte_de_tresorerie' => $compteTresorerie,
-        ]);
-
-        $modifie ? $compteur['completes']++ : $compteur['inchanges']++;
-    }
-
-    /**
-     * Un tiers de Selflow.
-     *
-     * Colonnes du modèle `modele_plan_tiers.xlsx` : « N° tiers » ; « Intitulé
-     * du tiers » ; « Type ». Selflow transmet en plus `compte_general` — le
-     * numéro du compte collectif — et `informations`, tout ce qui n'est pas
-     * comptable.
-     */
-    private static function recevoirUnTiers($company, array $ligne, array &$compteur, array &$refus): void
-    {
-        $numero   = strtoupper(trim((string) ($ligne['numero_de_tiers'] ?? '')));
-        $intitule = trim((string) ($ligne['intitule'] ?? ''));
-        $type     = trim((string) ($ligne['type_de_tiers'] ?? ''));
-
-        if ($numero === '' || $intitule === '') {
-            $refus[] = 'Tiers incomplet : ' . ($numero ?: '(sans numéro)') . ' ' . ($intitule ?: '(sans intitulé)');
-            return;
-        }
-
-        $compteGeneralId = self::compteGeneralDuTiers($company, $ligne['compte_general'] ?? null, $numero, $type);
-
-        // `informations` — téléphone, adresse, courriel, NCC, RCCM, régime —
-        // ne passe aucun contrôle : rien de comptable n'en dépend. Un champ
-        // vide n'est pas transmis, il écraserait ce que Comptaflow détient
-        // peut-être déjà.
-        $informations = self::informationsDuTiers((array) ($ligne['informations'] ?? []));
-
-        $existant = UniformisationImport::tiers($company, $numero);
-
-        if (!$existant) {
-            // **Comptaflow régénère le numéro de tiers**, comme le fait son
-            // écran d'importation : « tout numéro présent dans votre fichier
-            // sera ignoré et remplacé, mais restera visible comme référence ».
-            // La catégorie se déduit du préfixe du numéro reçu.
-            //
-            // Le numéro de Selflow part dans `numero_original`, et c'est par
-            // lui que les écritures retrouveront le tiers : elles le désignent
-            // à la manière de Selflow, pas à la nôtre.
-            [$prefixe, $categorie] = UniformisationImport::prefixeDeTiers($numero, $type);
-
-            PlanTiers::create(array_merge([
-                'numero_de_tiers' => UniformisationImport::numeroDeTiers($company, $prefixe, $intitule),
-                'numero_original' => $numero,
-                'intitule'        => mb_strtoupper($intitule),
-                'type_de_tiers'   => $categorie ?: ($type ?: 'Autre'),
-                'compte_general'  => $compteGeneralId,
-                'user_id'         => $company->user_id,
-                'company_id'      => $company->id,
-            ], $informations));
-            $compteur['crees']++;
-            return;
-        }
-
-        // La fiche du comptable fait foi : on complète, on ne réécrit pas.
-        $modifie = self::completer($existant, array_merge([
-            'numero_original' => $numero,
-            'compte_general'  => $compteGeneralId,
-            'type_de_tiers'   => $type ?: null,
-        ], $informations));
-
-        $modifie ? $compteur['completes']++ : $compteur['inchanges']++;
-    }
-
-    /**
-     * Le compte collectif d'un tiers.
-     *
-     * Selflow le transmet — c'est précisément ce qui manquait à
-     * `MasterTiersImport`, dont l'import échouait sur la contrainte
-     * d'intégrité. À défaut, on le déduit du préfixe du numéro de tiers, puis
-     * de son type, comme le fait déjà `linkCompany`.
-     */
-    private static function compteGeneralDuTiers($company, ?string $numeroCompte, string $numeroTiers, ?string $type): ?int
-    {
-        $numeroCompte = trim((string) $numeroCompte);
-
-        if ($numeroCompte !== '') {
-            return self::compteGeneral($company, $numeroCompte, '', 'imported')->id;
-        }
-
-        $prefixe = self::prefixeCollectif($numeroTiers, $type);
-
-        if (!$prefixe) {
-            return null;
-        }
-
-        return PlanComptable::where('company_id', $company->id)
-            ->where('numero_de_compte', 'like', $prefixe . '%')
-            ->orderBy('numero_de_compte')
-            ->value('id');
-    }
-
-    /**
-     * Le compte collectif déduit d'un numéro de tiers, ou de son type :
-     * `401…` fournisseurs, `410…` / `411…` clients.
-     */
-    private static function prefixeCollectif(string $numeroTiers, ?string $type): ?string
-    {
-        if (str_starts_with($numeroTiers, '401')) {
-            return '401';
-        }
-
-        if (str_starts_with($numeroTiers, '410') || str_starts_with($numeroTiers, '411')) {
-            return '411';
-        }
-
-        $type = strtolower(trim((string) $type));
-
-        if (str_contains($type, 'fourn')) {
-            return '401';
-        }
-
-        if (str_contains($type, 'client')) {
-            return '411';
-        }
-
-        return null;
     }
 
     /**

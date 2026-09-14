@@ -183,15 +183,31 @@ class SuperAdminLiaisonController extends Controller
             $selflowUrl = config('app.selflow_api_url', 'http://127.0.0.1:8003');
             $secret     = config('external_sync.external_sync_secret');
 
+            // La réponse n'était pas lue : Selflow n'avait pas la route, rendait
+            // 404 (Not Found — introuvable), et l'écran annonçait « créé et lié
+            // avec succès » pour une liaison dont Selflow ignorait tout.
+            $cleRangee = false;
+            $motif     = null;
+
             try {
-                Http::timeout(10)->post("{$selflowUrl}/api/external/link-company", [
+                $reponse = Http::timeout(10)->post("{$selflowUrl}/api/external/link-company", [
                     'secret'               => $secret,
                     'selflow_company_id'   => $request->selflow_company_id,
                     'comptaflow_company_id'=> $company->id,
                     'comptaflow_sync_key'  => $syncKey,
                 ]);
+
+                $cleRangee = $reponse->successful() && $reponse->json('success');
+                $motif     = $reponse->json('message') ?? ('réponse ' . $reponse->status());
             } catch (\Exception $e) {
-                Log::warning('[LIAISON COMPTAFLOW] Auto-link Selflow notification failed: ' . $e->getMessage());
+                $motif = $e->getMessage();
+                Log::warning('[LIAISON COMPTAFLOW] Auto-link Selflow notification failed: ' . $motif);
+            }
+
+            if (!$cleRangee) {
+                return redirect()->route('superadmin.liaisons.index')
+                    ->with('error', "Le dossier «{$company->company_name}» est créé (ID COMPTAFLOW: #{$company->id}), "
+                        . "mais Selflow n'a pas rangé la clé ({$motif}). Relancez la liaison : sans la clé, aucun déversement ne passera.");
             }
 
             return redirect()->route('superadmin.liaisons.index')

@@ -4735,7 +4735,9 @@ class AdminConfigController extends Controller
         return response()->json(['success' => true, 'message' => 'Aucun compte n\'a eu besoin d\'être uniformisé.']);
     }
 
-    private function standardizeAccountNumber($number, $digits)
+    // Publique pour que le déversement de Selflow retrouve ses lignes avec la
+    // règle même de l'import, et non avec une copie qui avait déjà divergé.
+    public function standardizeAccountNumber($number, $digits)
     {
         $number = trim($number ?? '');
         if (empty($number)) {
@@ -4763,7 +4765,9 @@ class AdminConfigController extends Controller
     /**
      * Standardise un code journal sur la longueur configurée
      */
-    private function standardizeJournalCode($code, $digits)
+    // Publique pour que le déversement de Selflow retrouve ses lignes avec la
+    // règle même de l'import, et non avec une copie qui avait déjà divergé.
+    public function standardizeJournalCode($code, $digits)
     {
         $code = strtoupper(trim($code ?? ''));
         if (empty($code)) {

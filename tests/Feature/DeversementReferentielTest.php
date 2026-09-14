@@ -81,7 +81,8 @@ class DeversementReferentielTest extends TestCase
 
     public function test_amorce_le_referentiel_quand_comptaflow_est_vide(): void
     {
-        $reponse = $this->deverser($this->referentiel())->assertOk();
+        $reponse = $this->deverser($this->referentiel());
+        $reponse->assertOk();
 
         $reponse->assertJson([
             'success'  => true,
@@ -94,13 +95,13 @@ class DeversementReferentielTest extends TestCase
         $this->assertSame(2, DB::table('code_journals')->count());
         $this->assertSame(2, DB::table('plan_tiers')->count());
 
-        // Le type suit la classe SYSCOHADA : un compte de vente n'arrive pas
-        // à l'actif du bilan.
-        $this->assertSame('produit', DB::table('plan_comptables')
+        // Le type est celui que l'import de Comptaflow donne : un compte de
+        // classe 7 va au compte de résultat, pas au bilan.
+        $this->assertSame('Compte de résultat', DB::table('plan_comptables')
             ->where('numero_de_compte', '70100000')->value('type_de_compte'));
 
         // Le journal de trésorerie porte son compte.
-        $mtn = DB::table('code_journals')->where('code_journal', 'MTN0')->first();
+        $mtn = DB::table('code_journals')->where('code_journal', 'MTN1')->first();
         $this->assertSame(
             DB::table('plan_comptables')->where('numero_de_compte', '52150000')->value('id'),
             $mtn->compte_de_tresorerie
@@ -147,17 +148,16 @@ class DeversementReferentielTest extends TestCase
         $this->assertSame(0, DB::table('plan_comptables')->where('numero_de_compte', '411000')->count(),
             'Aucun compte ne doit rester à la convention de Selflow.');
 
-        // Le journal : quatre caractères, complétés par des zéros.
-        $journal = DB::table('code_journals')->where('code_journal', 'VTE0')->first();
+        // Le journal : la règle de l'import, et non une copie. `VTE` sur quatre
+        // caractères devient `VTE1` — la copie du lot 23 donnait `VTE0`.
+        $journal = DB::table('code_journals')->where('code_journal', 'VTE1')->first();
         $this->assertNotNull($journal);
         $this->assertSame('VTE', $journal->numero_original);
 
-        // Le tiers : un numéro régénéré par Comptaflow, à six caractères, et
-        // la catégorie déduite du préfixe.
+        // Le tiers : déjà conforme — six caractères, préfixe 41, numérique —,
+        // l'import le garde tel quel, et en déduit la catégorie.
         $tiers = DB::table('plan_tiers')->where('numero_original', '410007')->first();
-        $this->assertNotSame('410007', $tiers->numero_de_tiers);
-        $this->assertSame(6, strlen($tiers->numero_de_tiers));
-        $this->assertStringStartsWith('41', $tiers->numero_de_tiers);
+        $this->assertSame('410007', $tiers->numero_de_tiers);
         $this->assertSame('Client', $tiers->type_de_tiers);
     }
 
@@ -180,7 +180,7 @@ class DeversementReferentielTest extends TestCase
 
         $this->assertSame(0, DB::table('plan_comptables')->where('numero_de_compte', '41100000')->count(),
             'Le compte brut existait : il ne devait pas être créé une seconde fois.');
-        $this->assertSame(0, DB::table('code_journals')->where('code_journal', 'VTE0')->count(),
+        $this->assertSame(0, DB::table('code_journals')->where('code_journal', 'VTE1')->count(),
             'Le journal brut existait : il ne devait pas être créé une seconde fois.');
     }
 
@@ -202,7 +202,7 @@ class DeversementReferentielTest extends TestCase
 
         DB::table('plan_comptables')->where('numero_de_compte', '41100000')
             ->update(['intitule' => 'CLIENTS — LIBELLÉ DU COMPTABLE']);
-        DB::table('code_journals')->where('code_journal', 'VTE0')
+        DB::table('code_journals')->where('code_journal', 'VTE1')
             ->update(['intitule' => 'VENTES BOUTIQUE', 'type' => 'Ventes détail']);
         DB::table('plan_tiers')->where('numero_original', '410007')
             ->update(['intitule' => 'KONAN YAO (ABIDJAN)', 'telephone' => '+225 01 02 03 04']);
@@ -212,9 +212,9 @@ class DeversementReferentielTest extends TestCase
         $this->assertSame('CLIENTS — LIBELLÉ DU COMPTABLE', DB::table('plan_comptables')
             ->where('numero_de_compte', '41100000')->value('intitule'));
         $this->assertSame('VENTES BOUTIQUE', DB::table('code_journals')
-            ->where('code_journal', 'VTE0')->value('intitule'));
+            ->where('code_journal', 'VTE1')->value('intitule'));
         $this->assertSame('Ventes détail', DB::table('code_journals')
-            ->where('code_journal', 'VTE0')->value('type'));
+            ->where('code_journal', 'VTE1')->value('type'));
 
         $tiers = DB::table('plan_tiers')->where('numero_original', '410007')->first();
         $this->assertSame('KONAN YAO (ABIDJAN)', $tiers->intitule);
@@ -223,7 +223,10 @@ class DeversementReferentielTest extends TestCase
 
     public function test_un_champ_reste_vide_est_complete(): void
     {
+        // L'import refuse un tiers qu'il ne peut rattacher à aucun compte de
+        // classe 4 : le compte collectif part avec lui, comme Selflow l'envoie.
         $this->deverser([
+            'plan_comptable' => [['numero_de_compte' => '411000', 'intitule' => 'Clients']],
             'tiers' => [[
                 'numero_de_tiers' => '410007',
                 'intitule'        => 'Konan Yao',
@@ -234,13 +237,14 @@ class DeversementReferentielTest extends TestCase
         $this->assertNull(DB::table('plan_tiers')->where('numero_original', '410007')->value('telephone'));
 
         $this->deverser([
+            'plan_comptable' => [['numero_de_compte' => '411000', 'intitule' => 'Clients']],
             'tiers' => [[
                 'numero_de_tiers' => '410007',
                 'intitule'        => 'Konan Yao',
                 'type_de_tiers'   => 'client',
                 'informations'    => ['telephone' => '+225 07 00 00 00', 'adresse' => ''],
             ]],
-        ])->assertOk()->assertJson(['detail' => ['tiers' => ['completes' => 1]]]);
+        ])->assertOk();
 
         $tiers = DB::table('plan_tiers')->where('numero_original', '410007')->first();
         $this->assertSame('+225 07 00 00 00', $tiers->telephone);
@@ -275,7 +279,10 @@ class DeversementReferentielTest extends TestCase
         $this->deverser([
             'plan_comptable' => [['numero_de_compte' => '', 'intitule' => 'Compte sans numéro']],
             'tiers'          => [['numero_de_tiers' => '410009', 'intitule' => '']],
-        ])->assertOk()->assertJson(['comptes' => 0, 'tiers' => 0]);
+        ])->assertOk()->assertJson(['detail' => [
+            'plan_comptable' => ['creees' => 0, 'ecartees' => 1],
+            'tiers'          => ['creees' => 0, 'ecartees' => 1],
+        ]]);
 
         $this->assertSame(0, DB::table('plan_comptables')->count());
         $this->assertSame(0, DB::table('plan_tiers')->count());
@@ -322,6 +329,58 @@ class DeversementReferentielTest extends TestCase
 
     private function monterLeSchema(): void
     {
+        // L'import de Comptaflow, par lequel le référentiel passe désormais :
+        // ses lignes déposées, les sections qu'il consulte, et la trésorerie
+        // où il cherche la séquence d'un code journal.
+        // Comptaflow journalise toute modification faite au nom d'un
+        // utilisateur, et l'import travaille au nom de l'administrateur.
+        Schema::create('audit_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->unsignedBigInteger('company_id')->nullable();
+            $table->string('action')->nullable();
+            $table->string('model_type')->nullable();
+            $table->unsignedBigInteger('model_id')->nullable();
+            $table->text('description')->nullable();
+            $table->longText('payload')->nullable();
+            $table->string('ip_address')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('import_stagings', function (Blueprint $table) {
+            $table->id();
+            $table->string('batch_id')->nullable();
+            $table->unsignedBigInteger('company_id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('exercice_id')->nullable();
+            $table->string('source')->nullable();
+            $table->string('type')->default('courant');
+            $table->string('file_name')->nullable();
+            $table->longText('raw_data')->nullable();
+            $table->text('mapping')->nullable();
+            $table->text('metadata')->nullable();
+            $table->string('status')->default('pending');
+            $table->text('error_log')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('sections_analytiques', function (Blueprint $table) {
+            $table->id();
+            $table->string('code')->nullable();
+            $table->unsignedBigInteger('company_id');
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('tresorerie', function (Blueprint $table) {
+            $table->id();
+            $table->string('code_journal');
+            $table->string('intitule')->nullable();
+            $table->unsignedBigInteger('company_id');
+            $table->timestamps();
+        });
+
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
@@ -407,6 +466,8 @@ class DeversementReferentielTest extends TestCase
         Schema::create('exercices_comptables', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('company_id');
+            // L'import ne range rien dans un exercice clos.
+            $table->boolean('cloturer')->default(false);
             $table->boolean('is_active')->default(true);
             $table->date('date_debut')->nullable();
             $table->date('date_fin')->nullable();

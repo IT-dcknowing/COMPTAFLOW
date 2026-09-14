@@ -214,8 +214,10 @@ class ExternalCompanyController extends Controller
                 // annoncée au provisionnement. C'était prendre le problème par
                 // le mauvais bout — le comptable règle son dossier, l'import
                 // s'y plie, jamais le contraire.
-                'tier_digits'         => $request->input('longueur_tiers', 6),
-                'tier_id_type'        => $request->input('numerotation_tiers', 'numeric'),
+                // Les tiers suivent la même règle : leur longueur et leur forme
+                // sont celles que Comptaflow donne à un dossier neuf, et que le
+                // comptable règle ensuite. Selflow les annonce encore ; elles
+                // ne commandent plus rien.
             ]);
 
             $activationRequise = false;
