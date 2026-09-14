@@ -133,34 +133,12 @@ class LiaisonCleParEntrepriseTest extends TestCase
     // L'authentification
     // ═════════════════════════════════════════════════════════════════════════
 
-    public function test_la_tolerance_de_transition_laisse_encore_passer_le_secret_seul(): void
+    public function test_sans_cle_le_refus_est_401(): void
     {
-        // Cette épreuve **documente la porte encore ouverte**, elle ne la
-        // valide pas : tant que la tolérance est là, le secret partagé suffit à
-        // écrire dans n'importe quel dossier. Elle échouera le jour où la
-        // tolérance tombera — et ce jour-là, c'est
-        // `test_sans_cle_le_refus_sera_401` qu'il faudra activer à sa place.
-        $this->postJson('/api/external/ecritures/deverser', [
-            'secret'             => self::SECRET,
-            'selflow_company_id' => self::SELFLOW_B,
-            'ecritures'          => [$this->uneEcriture()],
-        ])->assertOk();
-
-        $this->assertSame(1, DB::table('ecriture_comptables')
-            ->where('company_id', self::DOSSIER_B)->count());
-    }
-
-    public function test_sans_cle_le_refus_sera_401(): void
-    {
-        $this->markTestSkipped(
-            'À activer quand les tolérances de transition tombent. Il y en a '
-            . 'QUATRE, et elles se retirent ensemble : VerifieCleEntreprise::handle(), '
-            . 'le repli de ExternalSyncController::entrepriseDeLaRequete(), celui de '
-            . 'ExternalCompanyController::entrepriseDeLaRequete() — ce troisième ne '
-            . 'figurait dans aucun décompte avant le lot 22 de Selflow — et, chez '
-            . 'Selflow, ExternalSyncControleur::entrepriseDeLaCle(). Puis supprimer '
-            . 'cette ligne et test_la_tolerance_de_transition_laisse_encore_passer_le_secret_seul().'
-        );
+        // Le secret seul suffisait à écrire dans n'importe quel dossier, tant
+        // que les tolérances de transition étaient là. Elles sont tombées
+        // ensemble, les quatre : il dit que l'appel vient de Selflow, pas de
+        // quelle entreprise.
 
         $this->postJson('/api/external/ecritures/deverser', [
             'secret'             => self::SECRET,
@@ -445,11 +423,11 @@ class LiaisonCleParEntrepriseTest extends TestCase
         // une violation d'intégrité et **aucun tiers n'entrait**.
         $this->deverserLeReferentiel($this->cleA)->assertOk();
 
-        $tiers = DB::table('plan_tiers')->where('numero_de_tiers', '411001')->first();
+        $tiers = DB::table('plan_tiers')->where('numero_original', '411001')->first();
 
         $this->assertNotNull($tiers, 'Le tiers n\'est pas entré.');
         $this->assertSame(
-            DB::table('plan_comptables')->where('numero_de_compte', '411000')->value('id'),
+            DB::table('plan_comptables')->where('numero_original', '411000')->value('id'),
             $tiers->compte_general
         );
     }
@@ -467,7 +445,7 @@ class LiaisonCleParEntrepriseTest extends TestCase
             ])],
         ], ['X-Company-Key' => $this->cleA])->assertOk();
 
-        $tiersId = DB::table('plan_tiers')->where('numero_de_tiers', '411001')->value('id');
+        $tiersId = DB::table('plan_tiers')->where('numero_original', '411001')->value('id');
 
         // Le relevé du client : ses lignes, et non celles du compte collectif.
         $releve = DB::table('ecriture_comptables')

@@ -110,9 +110,6 @@ class ExternalCompanyController extends Controller
             'entreprise.admin_password_hash' => ['nullable', 'string', 'max:255', 'regex:/^\$2[aby]?\$\d{2}\$.{53}$/'],
             'numerotation_tiers'          => 'nullable|in:numeric,alphanumeric',
             'longueur_tiers'              => 'nullable|integer|min:3|max:20',
-            // La longueur des numeros de compte chez Selflow. Voir plus bas :
-            // sans elle le dossier gardait `account_digits = 8` par defaut.
-            'longueur_comptes'            => 'nullable|integer|min:2|max:12',
             // L'exercice ouvert chez Selflow. Voir `ouvrirLExercice()`.
             'exercice'                    => 'nullable|array',
             'exercice.debut'              => 'required_with:exercice|date',
@@ -157,7 +154,6 @@ class ExternalCompanyController extends Controller
             // refusaient chaque écriture faute d'exercice. Sans cette ligne, un
             // dossier déjà lié restait inguérissable — la seule issue aurait
             // été de le délier pour le relier.
-            $this->alignerLaConfiguration($existante, $request);
             $this->ouvrirLExercice($existante, $existante->admin, $request->input('exercice'));
 
             Log::info('Liaison Selflow : provision rejouée, même dossier et même clé', [
@@ -205,21 +201,19 @@ class ExternalCompanyController extends Controller
                 'regime'              => $entreprise['regime_imposition'] ?? null,
                 'is_active'           => true,
                 'selflow_company_id'  => $request->input('selflow_company_id'),
-                // Selflow numérote ses tiers sur six caractères, préfixe
-                // compris — `411001` en numérique, `41KON1` en alphanumérique.
-                // Deux longueurs différentes de part et d'autre empêchent de
-                // retrouver un tiers par son numéro exact, et chaque écriture
-                // retombe alors sur le compte collectif.
-                // Le dossier se configure sur la convention de Selflow, non
-                // sur le defaut de Comptaflow.
+                // **La configuration du dossier appartient à Comptaflow**, et
+                // Selflow ne la dicte pas. Un déversement est un import : ce
+                // qui arrive passe par la machine d'uniformisation et prend la
+                // convention du dossier — voir `UniformisationImport`. Un
+                // compte `411100` devient donc `41110000` dans un dossier à
+                // huit chiffres, avec `411100` rangé dessous pour que les
+                // écritures le retrouvent.
                 //
-                // `account_digits` valait 8 par defaut pendant que Selflow
-                // deversait des comptes a six chiffres. Rien ne cassait tout de
-                // suite — le deversement range les numeros tels quels et les
-                // ecritures les retrouvent —, mais le premier import ou le
-                // premier compte cree a la main aurait produit `41110000` a
-                // cote de `411100` : deux conventions dans un meme dossier.
-                'account_digits'      => $request->input('longueur_comptes', 6),
+                // Une version précédente faisait l'inverse : elle alignait le
+                // dossier sur Selflow, en acceptant une `longueur_comptes`
+                // annoncée au provisionnement. C'était prendre le problème par
+                // le mauvais bout — le comptable règle son dossier, l'import
+                // s'y plie, jamais le contraire.
                 'tier_digits'         => $request->input('longueur_tiers', 6),
                 'tier_id_type'        => $request->input('numerotation_tiers', 'numeric'),
             ]);
@@ -561,48 +555,13 @@ class ExternalCompanyController extends Controller
      * Le dossier visé par la requête.
      *
      * `entreprise_liee` est posé par le filtre `cle.entreprise` depuis la clé
-     * d'en-tête, seule source digne de foi. Le repli sur le corps est la
-     * **tolérance de transition** : il se retire en même temps que celle du
-     * filtre, les deux vont par paire.
-     */
-    /**
-     * Aligner la configuration du dossier sur celle de Selflow.
+     * d'en-tête, et c'est désormais la seule source.
      *
-     * Sert au rejeu du provisionnement : un dossier lie avant que Selflow
-     * n'annonce ses conventions garde les valeurs par defaut de Comptaflow —
-     * `account_digits = 8` pendant que Selflow deverse des comptes a six
-     * chiffres. Le desaccord ne se voit pas tout de suite, parce que le
-     * deversement range les numeros tels quels et que les ecritures les
-     * retrouvent ; il se voit au premier import ou au premier compte cree a la
-     * main, quand Comptaflow applique sa configuration et produit `41110000` a
-     * cote de `411100`.
-     *
-     * Seules les longueurs sont alignees. Le reste de la fiche — nom, NCC,
-     * regime — appartient au dossier : Selflow n'a pas a le corriger apres
-     * coup.
+     * Les deux replis sur le corps ont été retirés. C'était une **tolérance de
+     * transition**, et la plus discrète des quatre : elle ne figurait dans
+     * aucun décompte, alors que `revoke` et `verify` passent par ici. Elle
+     * laissait l'appelant désigner lui-même le dossier dont il révoque la clé.
      */
-    private function alignerLaConfiguration(Company $company, Request $request): void
-    {
-        $voulu = array_filter([
-            'account_digits' => $request->input('longueur_comptes'),
-            'tier_digits'    => $request->input('longueur_tiers'),
-            'tier_id_type'   => $request->input('numerotation_tiers'),
-        ], fn ($v) => $v !== null);
-
-        $change = array_filter($voulu, fn ($v, $k) => (string) $company->$k !== (string) $v, ARRAY_FILTER_USE_BOTH);
-
-        if ($change === []) {
-            return;
-        }
-
-        $company->update($change);
-
-        Log::info('Liaison Selflow : configuration du dossier alignee', [
-            'company_id' => $company->id,
-            'change'     => $change,
-        ]);
-    }
-
     /**
      * Ouvrir le premier exercice comptable du dossier.
      *
@@ -681,15 +640,6 @@ class ExternalCompanyController extends Controller
     {
         $entreprise = $request->attributes->get('entreprise_liee');
 
-        if ($entreprise instanceof Company) {
-            return $entreprise;
-        }
-
-        // TOLÉRANCE DE TRANSITION — à retirer avec celle de VerifieCleEntreprise.
-        if ($request->filled('comptaflow_company_id')) {
-            return Company::find($request->input('comptaflow_company_id'));
-        }
-
-        return Company::where('selflow_company_id', $request->input('selflow_company_id'))->first();
+        return $entreprise instanceof Company ? $entreprise : null;
     }
 }

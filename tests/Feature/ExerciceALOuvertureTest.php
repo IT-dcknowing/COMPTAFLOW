@@ -165,10 +165,13 @@ class ExerciceALOuvertureTest extends TestCase
             "Une charge utile refusée ne doit pas laisser un dossier à moitié créé.");
     }
 
-    // ── La configuration du dossier ──────────────────────────────────
+    // ── La configuration du dossier appartient à Comptaflow ──────────
 
-    public function test_le_dossier_se_configure_sur_la_convention_de_selflow(): void
+    public function test_le_dossier_naît_sur_la_convention_de_comptaflow(): void
     {
+        // Selflow ne dicte plus la longueur des comptes : un déversement est
+        // un import, et il se plie au dossier. Une `longueur_comptes` encore
+        // envoyée par un Selflow d'avant ce changement est ignorée.
         $charge = $this->dossier(['debut' => '2026-01-01', 'fin' => '2026-12-31']);
         $charge['longueur_comptes'] = 6;
 
@@ -176,30 +179,24 @@ class ExerciceALOuvertureTest extends TestCase
 
         $dossier = DB::table('companies')->where('selflow_company_id', self::SELFLOW_ID)->first();
 
-        // Le défaut de Comptaflow est 8. Selflow numérote sur six chiffres, et
-        // c'est le format « COMPTES SAGE (6) » de son propre référentiel.
-        $this->assertSame(6, (int) $dossier->account_digits);
-        $this->assertSame(6, (int) $dossier->tier_digits);
+        $this->assertSame(8, (int) $dossier->account_digits);
     }
 
-    public function test_le_rejeu_aligne_un_dossier_reste_sur_le_defaut(): void
+    public function test_le_rejeu_ne_touche_pas_a_la_configuration_du_comptable(): void
     {
-        // Un dossier né avant que Selflow n'annonce ses conventions.
         $this->postJson('/api/external/companies/provision', $this->dossier(null))->assertOk();
 
         $dossier = DB::table('companies')->where('selflow_company_id', self::SELFLOW_ID)->first();
-        DB::table('companies')->where('id', $dossier->id)->update(['account_digits' => 8]);
 
-        $charge = $this->dossier(['debut' => '2026-01-01', 'fin' => '2026-12-31']);
-        $charge['longueur_comptes'] = 6;
+        // Le comptable règle son dossier sur six chiffres, puis Selflow rejoue.
+        DB::table('companies')->where('id', $dossier->id)->update(['account_digits' => 6]);
 
-        $this->postJson('/api/external/companies/provision', $charge)->assertOk();
+        $this->postJson('/api/external/companies/provision',
+            $this->dossier(['debut' => '2026-01-01', 'fin' => '2026-12-31']))->assertOk();
 
         $this->assertSame(6,
             (int) DB::table('companies')->where('id', $dossier->id)->value('account_digits'),
-            "Un dossier resté sur `account_digits = 8` recevrait des comptes à six "
-            . 'chiffres de Selflow, et en produirait à huit dès le premier import : '
-            . 'deux conventions dans un même dossier.');
+            "Le rejeu d'un provisionnement ne doit pas défaire le réglage du comptable.");
     }
 
     // ── Le schéma minimal ────────────────────────────────────────────

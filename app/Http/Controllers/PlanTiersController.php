@@ -335,11 +335,10 @@ class PlanTiersController extends Controller
                 try {
                     $selflowUrl = config('app.selflow_api_url', 'http://127.0.0.1:8003');
                     $secret     = config('external_sync.external_sync_secret');
-                    // `tier-info` de Selflow honore désormais `X-Company-Key` :
-                    // sans lui, le secret partagé suffisait à lire la fiche d'un
-                    // tiers de n'importe quelle entreprise. Sans en-tête, sa
-                    // tolérance de transition laisse encore passer — elle tombera
-                    // en même temps que les nôtres.
+                    // `tier-info` de Selflow exige `X-Company-Key` : sans lui, le
+                    // secret partagé suffisait à lire la fiche d'un tiers de
+                    // n'importe quelle entreprise. Sa tolérance de transition est
+                    // tombée en même temps que les nôtres.
                     $response = \Illuminate\Support\Facades\Http::timeout(4)
                         ->withHeaders($company->enTeteDeLiaison())
                         ->post("{$selflowUrl}/api/external/tier-info", [

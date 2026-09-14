@@ -51,43 +51,30 @@ class VerifieCleEntreprise
 
         if (!is_string($cle) || trim($cle) === '') {
             // ══════════════════════════════════════════════════════════════
-            // TOLÉRANCE DE TRANSITION — À RETIRER, C'EST L'OBJET DU LOT.
+            // LA PORTE EST FERMÉE.
             //
-            // Selflow et Comptaflow ne sont pas déployés au même instant :
-            // pendant la bascule, un Selflow d'avant ce lot appelle encore
-            // sans en-tête, et refuser le ferait tomber la synchronisation
-            // de toutes les entreprises déjà liées.
+            // Ces lignes acceptaient l'appel sur le seul secret partagé, le
+            // temps que les deux applications soient déployées ensemble. Tant
+            // qu'elles étaient là, **le secret partagé suffisait à écrire dans
+            // n'importe quel dossier** : la porte que la clé par entreprise
+            // devait fermer restait entrouverte, et les deux épreuves de garde
+            // passaient au vert par-dessus.
             //
-            // TANT QUE CES LIGNES SONT LÀ, LE SECRET PARTAGÉ SUFFIT
-            // TOUJOURS À ÉCRIRE DANS N'IMPORTE QUEL DOSSIER : la porte que
-            // ce lot ferme reste entrouverte.
+            // Elles tombent avec leurs trois jumelles — le repli de
+            // `ExternalSyncController::entrepriseDeLaRequete()`, celui de
+            // `ExternalCompanyController::entrepriseDeLaRequete()`, et la
+            // tolérance de Selflow. Le journal de Comptaflow a été relu avant
+            // de les retirer : **aucun appel réel n'en dépendait**, les 160
+            // passages enregistrés venaient tous de sa propre suite d'épreuves.
             //
-            // IL Y A **QUATRE** TOLÉRANCES, ET ELLES SE RETIRENT ENSEMBLE.
-            // En retirer trois sur quatre laisse la porte ouverte du côté
-            // qu'on n'a pas fermé, en croyant l'avoir fermée :
-            //   1. celle-ci ;
-            //   2. le repli de `ExternalSyncController::entrepriseDeLaRequete()` ;
-            //   3. le repli de `ExternalCompanyController::entrepriseDeLaRequete()` ;
-            //   4. celle de Selflow, marquée TOLÉRANCE DE TRANSITION dans
-            //      son `ExternalSyncControleur::entrepriseDeLaCle()`.
-            //
-            // La troisième ne figurait dans aucun décompte jusqu'au lot 22 de
-            // Selflow : ce commentaire annonçait trois tolérances alors que le
-            // dépôt en portait quatre. Les deux épreuves de garde seraient
-            // passées au vert sur une porte restée ouverte.
-            //
-            // La ligne qui les remplace, une fois les deux applications
-            // déployées :
-            //
-            // return self::refus($request, 401, 'Clé de synchronisation absente : '
-            //     . 'l\'en-tête X-Company-Key est requis.');
+            // L'ordre de déploiement fait le reste, et il n'est pas
+            // indifférent : **Selflow d'abord, Comptaflow ensuite**. Selflow
+            // présente déjà la clé, et un Comptaflow d'avant ce lot ignore
+            // simplement l'en-tête. Dans l'autre sens, un Comptaflow à jour
+            // refuserait un Selflow qui ne l'envoie pas encore.
             // ══════════════════════════════════════════════════════════════
-            Log::info('Liaison Selflow : appel sans X-Company-Key, accepté par tolérance de transition', [
-                'route' => $request->path(),
-                'ip'    => $request->ip(),
-            ]);
-
-            return $next($request);
+            return self::refus($request, 401, 'Clé de synchronisation absente : '
+                . 'l\'en-tête X-Company-Key est requis.');
         }
 
         // La recherche porte sur le haché, jamais sur la valeur : la clé n'est

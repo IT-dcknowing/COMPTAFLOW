@@ -54,10 +54,10 @@ class AdminConfigController extends Controller
             try {
                 $selflowUrl = config('app.selflow_api_url', 'http://127.0.0.1:8003');
                 $secret = config('external_sync.external_sync_secret');
-                // `company-info` de Selflow honore désormais `X-Company-Key` :
-                // 403 si la clé désigne un autre dossier, 401 si elle est
-                // inconnue ou révoquée. Sans en-tête, sa tolérance de transition
-                // laisse encore passer — elle tombera avec les nôtres.
+                // `company-info` de Selflow exige `X-Company-Key` : 403 si la
+                // clé désigne un autre dossier, 401 si elle est absente,
+                // inconnue ou révoquée. Sa tolérance de transition est tombée
+                // avec les nôtres.
                 $response = \Illuminate\Support\Facades\Http::timeout(5)
                     ->withHeaders($mainCompany->enTeteDeLiaison())
                     ->post($selflowUrl . '/api/external/company-info', [

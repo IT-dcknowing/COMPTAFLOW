@@ -10,6 +10,7 @@ use App\Models\ExerciceComptable;
 use App\Models\PlanComptable;
 use App\Models\PlanTiers;
 use App\Models\User;
+use App\Services\UniformisationImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -86,9 +87,16 @@ class ExternalSyncController extends Controller
      */
     private static function compteGeneral($company, string $numero, string $libelle, ?string $strategie = null)
     {
-        $existant = PlanComptable::where('company_id', $company->id)
-            ->where('numero_de_compte', $numero)
-            ->first();
+        $brut     = trim($numero);
+        $uniforme = UniformisationImport::numeroDeCompte($brut, UniformisationImport::chiffresDeCompte($company));
+
+        // Un numéro sans un seul chiffre n'est pas uniformisable ; on le range
+        // tel quel plutôt que de perdre la ligne.
+        if ($uniforme === '') {
+            $uniforme = strtoupper($brut);
+        }
+
+        $existant = UniformisationImport::compte($company, $brut);
 
         // Le plan de Comptaflow fait foi : un compte déjà là n'est jamais
         // réécrit, ni son intitulé ni son type. C'est sa configuration
@@ -98,14 +106,19 @@ class ExternalSyncController extends Controller
         }
 
         return PlanComptable::create(array_filter([
-            'numero_de_compte' => $numero,
-            'intitule'         => $libelle ?: 'Compte ' . $numero,
+            'numero_de_compte' => $uniforme,
+            // Le numéro tel que Selflow le nomme, rangé **sous** le nôtre.
+            // C'est lui qui retrouvera le compte quand les écritures
+            // arriveront, puisqu'elles désignent les comptes à la manière de
+            // Selflow et non à la nôtre.
+            'numero_original'  => $brut !== $uniforme ? $brut : null,
+            'intitule'         => $libelle ?: 'Compte ' . $uniforme,
             'company_id'       => $company->id,
             'user_id'          => $company->user_id,
-            'type_de_compte'   => self::typeDeCompte($numero),
+            'type_de_compte'   => self::typeDeCompte($uniforme),
             // La classe est le premier chiffre du numéro : la renseigner ici
             // évite qu'un compte venu de Selflow reste hors de tout état.
-            'classe'           => is_numeric(substr($numero, 0, 1)) ? substr($numero, 0, 1) : null,
+            'classe'           => is_numeric(substr($uniforme, 0, 1)) ? substr($uniforme, 0, 1) : null,
             'adding_strategy'  => $strategie,
         ], fn ($v) => $v !== null));
     }
@@ -153,9 +166,13 @@ class ExternalSyncController extends Controller
             return null;
         }
 
-        return PlanTiers::where('company_id', $company->id)
-            ->where('numero_de_tiers', $numeroTiers)
-            ->value('id');
+        // Cherché d'abord sur `numero_original` : Comptaflow régénère les
+        // numéros de tiers à sa convention, et le numéro que Selflow porte
+        // dans ses écritures n'est plus celui rangé dans `numero_de_tiers`.
+        // Sans ce détour, aucune écriture ne retrouvait son tiers et toutes
+        // retombaient sur le compte collectif — le défaut même que la
+        // transmission du tiers avait corrigé.
+        return UniformisationImport::tiers($company, $numeroTiers)?->id;
     }
 
     /**
@@ -192,28 +209,21 @@ class ExternalSyncController extends Controller
      * entreprise. Chercher le dossier dans le corps revenait à laisser
      * l'appelant désigner lui-même les livres dans lesquels il écrit.
      *
-     * Le `??` est la **TOLÉRANCE DE TRANSITION** : tant que les deux
-     * applications ne sont pas déployées ensemble, un Selflow d'avant ce lot
-     * appelle encore sans en-tête.
+     * Le repli sur `selflow_company_id` a été retiré. C'était une **tolérance
+     * de transition**, le temps que les deux applications soient déployées
+     * ensemble, et elle rendait vaine la clé elle-même : le corps de la requête
+     * redevenait la source, c'est-à-dire que l'appelant désignait lui-même les
+     * livres dans lesquels il écrit. Elle est tombée avec ses trois jumelles.
      *
-     * IL Y EN A **TROIS**, ET ELLES SE RETIRENT ENSEMBLE — en retirer une ou
-     * deux laisse la porte ouverte du côté qu'on n'a pas fermé :
-     *   1. celle-ci ;
-     *   2. le bloc marqué dans `VerifieCleEntreprise::handle()` ;
-     *   3. celle de Selflow, dans son `ExternalSyncControleur::entrepriseDeLaCle()`.
-     *
-     * Tant qu'elles sont là, le secret partagé suffit toujours à écrire dans
-     * n'importe quel dossier.
+     * Rendre `null` ici n'est plus qu'un cas de défense en profondeur : les
+     * deux routes de déversement passent par `cle.entreprise`, qui refuse déjà
+     * en 401 (Unauthorized — non authentifié) l'appel sans en-tête.
      */
     private static function entrepriseDeLaRequete(Request $request): ?Company
     {
         $entreprise = $request->attributes->get('entreprise_liee');
 
-        if ($entreprise instanceof Company) {
-            return $entreprise;
-        }
-
-        return Company::where('selflow_company_id', $request->input('selflow_company_id'))->first();
+        return $entreprise instanceof Company ? $entreprise : null;
     }
 
     /**
@@ -582,9 +592,15 @@ class ExternalSyncController extends Controller
                 // Le journal de Comptaflow fait foi — c'est sa configuration
                 // d'origine — mais un code qu'il ne connaît pas est une erreur
                 // à signaler, pas à rattraper au hasard.
+                //
+                // Le code est cherché à la convention du dossier **puis** sur
+                // le code d'origine : `VTE` de Selflow est rangé `VTE0` dans un
+                // dossier à quatre caractères, et seul `numero_original` fait
+                // le lien. Sans lui, tout un déversement se refusait sur
+                // « journal inconnu » dès que les deux conventions différaient.
                 $cjCode = $ec['code_journal'] ?? null;
                 $codeJournal = $cjCode
-                    ? CodeJournal::where('company_id', $company->id)->where('code_journal', $cjCode)->first()
+                    ? UniformisationImport::journal($company, $cjCode)
                     : null;
 
                 if (!$codeJournal) {
@@ -813,23 +829,27 @@ class ExternalSyncController extends Controller
             return;
         }
 
-        $existant = PlanComptable::where('company_id', $company->id)
-            ->where('numero_de_compte', $numero)
-            ->first();
+        $existant = UniformisationImport::compte($company, $numero);
 
         if (!$existant) {
+            // `compteGeneral()` uniformise le numéro et range l'original
+            // dessous. La ligne peut porter son propre `numero_original` —
+            // c'est celui d'un import antérieur chez Selflow : il ne prime pas
+            // sur ce que Selflow nous envoie aujourd'hui.
             $cree = self::compteGeneral($company, $numero, $intitule, 'imported');
-            self::completer($cree, ['numero_original' => $ligne['numero_original'] ?? null]);
+            self::completer($cree, ['numero_original' => $ligne['numero_original'] ?? $numero]);
             $compteur['crees']++;
             return;
         }
 
         // Le compte existe : son intitulé et son type appartiennent au
         // comptable. On ne remplit que ce qui est resté vide.
+        $uniforme = $existant->numero_de_compte;
+
         $modifie = self::completer($existant, [
-            'numero_original' => $ligne['numero_original'] ?? null,
-            'type_de_compte'  => self::typeDeCompte($numero),
-            'classe'          => is_numeric(substr($numero, 0, 1)) ? substr($numero, 0, 1) : null,
+            'numero_original' => $ligne['numero_original'] ?? $numero,
+            'type_de_compte'  => self::typeDeCompte($uniforme),
+            'classe'          => is_numeric(substr($uniforme, 0, 1)) ? substr($uniforme, 0, 1) : null,
         ]);
 
         $modifie ? $compteur['completes']++ : $compteur['inchanges']++;
@@ -861,14 +881,18 @@ class ExternalSyncController extends Controller
             $compteTresorerie = self::compteGeneral($company, $compteNumero, $intitule, 'imported')->id;
         }
 
-        $existant = CodeJournal::where('company_id', $company->id)
-            ->where('code_journal', $code)
-            ->first();
+        $existant = UniformisationImport::journal($company, $code);
 
         if (!$existant) {
+            // Le code prend la longueur du dossier — `OD` devient `OD00` sur
+            // quatre caractères — et le code de Selflow se range dessous.
+            $uniforme = UniformisationImport::codeJournal(
+                $code, UniformisationImport::caracteresDeJournal($company)
+            ) ?: $code;
+
             CodeJournal::create([
-                'code_journal'          => $code,
-                'numero_original'      => $ligne['numero_original'] ?? null,
+                'code_journal'          => $uniforme,
+                'numero_original'      => $ligne['numero_original'] ?? $code,
                 'intitule'             => $intitule ?: $code,
                 'type'                 => $type ?: 'Opérations Diverses',
                 'compte_de_tresorerie' => $compteTresorerie,
@@ -882,7 +906,7 @@ class ExternalSyncController extends Controller
 
         // Le journal de Comptaflow fait foi — c'est sa configuration d'origine.
         $modifie = self::completer($existant, [
-            'numero_original'      => $ligne['numero_original'] ?? null,
+            'numero_original'      => $ligne['numero_original'] ?? $code,
             'type'                 => $type ?: null,
             'compte_de_tresorerie' => $compteTresorerie,
         ]);
@@ -917,16 +941,24 @@ class ExternalSyncController extends Controller
         // peut-être déjà.
         $informations = self::informationsDuTiers((array) ($ligne['informations'] ?? []));
 
-        $existant = PlanTiers::where('company_id', $company->id)
-            ->where('numero_de_tiers', $numero)
-            ->first();
+        $existant = UniformisationImport::tiers($company, $numero);
 
         if (!$existant) {
+            // **Comptaflow régénère le numéro de tiers**, comme le fait son
+            // écran d'importation : « tout numéro présent dans votre fichier
+            // sera ignoré et remplacé, mais restera visible comme référence ».
+            // La catégorie se déduit du préfixe du numéro reçu.
+            //
+            // Le numéro de Selflow part dans `numero_original`, et c'est par
+            // lui que les écritures retrouveront le tiers : elles le désignent
+            // à la manière de Selflow, pas à la nôtre.
+            [$prefixe, $categorie] = UniformisationImport::prefixeDeTiers($numero, $type);
+
             PlanTiers::create(array_merge([
-                'numero_de_tiers' => $numero,
-                'numero_original' => $ligne['numero_original'] ?? null,
+                'numero_de_tiers' => UniformisationImport::numeroDeTiers($company, $prefixe, $intitule),
+                'numero_original' => $numero,
                 'intitule'        => mb_strtoupper($intitule),
-                'type_de_tiers'   => $type ?: 'Autre',
+                'type_de_tiers'   => $categorie ?: ($type ?: 'Autre'),
                 'compte_general'  => $compteGeneralId,
                 'user_id'         => $company->user_id,
                 'company_id'      => $company->id,
@@ -937,7 +969,7 @@ class ExternalSyncController extends Controller
 
         // La fiche du comptable fait foi : on complète, on ne réécrit pas.
         $modifie = self::completer($existant, array_merge([
-            'numero_original' => $ligne['numero_original'] ?? null,
+            'numero_original' => $numero,
             'compte_general'  => $compteGeneralId,
             'type_de_tiers'   => $type ?: null,
         ], $informations));

@@ -19,6 +19,9 @@ class DeversementReferentielTest extends TestCase
 {
     private const SECRET = 'secret-de-test-partage';
 
+    /** La clé du dossier : les tolérances de transition sont tombées. */
+    private const CLE = 'cptf_live_deversement_referentiel_de_test_000000';
+
     /** L'entreprise Comptaflow, et l'entreprise Selflow qui lui est liée. */
     private const COMPTAFLOW = 42;
     private const SELFLOW    = 7;
@@ -32,12 +35,17 @@ class DeversementReferentielTest extends TestCase
         $this->monterLeSchema();
 
         DB::table('users')->insert(['id' => 1, 'name' => 'Comptable']);
+        // La convention du dossier est écrite en clair : c'est elle, et non
+        // celle de Selflow, que le déversement doit suivre.
         DB::table('companies')->insert([
-            'id'                 => self::COMPTAFLOW,
-            'name'               => 'ELIKET MARKET',
-            'user_id'            => 1,
-            'selflow_company_id' => self::SELFLOW,
-            'tier_digits'        => 6,
+            'id'                    => self::COMPTAFLOW,
+            'name'                  => 'ELIKET MARKET',
+            'user_id'               => 1,
+            'selflow_company_id'    => self::SELFLOW,
+            'account_digits'        => 8,
+            'journal_code_digits'   => 4,
+            'tier_digits'           => 6,
+            'selflow_sync_key_hash' => hash('sha256', self::CLE),
         ]);
     }
 
@@ -64,7 +72,7 @@ class DeversementReferentielTest extends TestCase
             'selflow_company_id'    => 999,
             'comptaflow_company_id' => self::COMPTAFLOW,
             'plan_comptable'        => [['numero_de_compte' => '411000', 'intitule' => 'Clients']],
-        ], ['X-Sync-Secret' => self::SECRET])->assertStatus(404);
+        ], ['X-Sync-Secret' => self::SECRET, 'X-Company-Key' => self::CLE])->assertStatus(403);
 
         $this->assertSame(0, DB::table('plan_comptables')->count());
     }
@@ -89,20 +97,20 @@ class DeversementReferentielTest extends TestCase
         // Le type suit la classe SYSCOHADA : un compte de vente n'arrive pas
         // à l'actif du bilan.
         $this->assertSame('produit', DB::table('plan_comptables')
-            ->where('numero_de_compte', '701000')->value('type_de_compte'));
+            ->where('numero_de_compte', '70100000')->value('type_de_compte'));
 
         // Le journal de trésorerie porte son compte.
-        $mtn = DB::table('code_journals')->where('code_journal', 'MTN')->first();
+        $mtn = DB::table('code_journals')->where('code_journal', 'MTN0')->first();
         $this->assertSame(
-            DB::table('plan_comptables')->where('numero_de_compte', '521500')->value('id'),
+            DB::table('plan_comptables')->where('numero_de_compte', '52150000')->value('id'),
             $mtn->compte_de_tresorerie
         );
 
         // L'ordre compte : le tiers est rattaché à son compte général, qui
         // vient d'être créé au-dessus.
-        $tiers = DB::table('plan_tiers')->where('numero_de_tiers', '410007')->first();
+        $tiers = DB::table('plan_tiers')->where('numero_original', '410007')->first();
         $this->assertSame(
-            DB::table('plan_comptables')->where('numero_de_compte', '411000')->value('id'),
+            DB::table('plan_comptables')->where('numero_de_compte', '41100000')->value('id'),
             $tiers->compte_general
         );
         $this->assertSame('+225 07 00 00 00', $tiers->telephone);
@@ -120,9 +128,60 @@ class DeversementReferentielTest extends TestCase
         ])->assertOk();
 
         $this->assertSame(
-            DB::table('plan_comptables')->where('numero_de_compte', '401000')->value('id'),
-            DB::table('plan_tiers')->where('numero_de_tiers', '401001')->value('compte_general')
+            DB::table('plan_comptables')->where('numero_de_compte', '40100000')->value('id'),
+            DB::table('plan_tiers')->where('numero_original', '401001')->value('compte_general')
         );
+    }
+
+    // ─── La machine d'uniformisation : un déversement est un import ─────────
+
+    public function test_le_referentiel_prend_la_convention_du_dossier_et_garde_l_original_dessous(): void
+    {
+        $this->deverser($this->referentiel())->assertOk();
+
+        // Le compte : huit chiffres, complétés à droite, et le numéro de
+        // Selflow rangé dessous.
+        $compte = DB::table('plan_comptables')->where('numero_de_compte', '41100000')->first();
+        $this->assertNotNull($compte, 'Le compte 411000 de Selflow devait devenir 41100000.');
+        $this->assertSame('411000', $compte->numero_original);
+        $this->assertSame(0, DB::table('plan_comptables')->where('numero_de_compte', '411000')->count(),
+            'Aucun compte ne doit rester à la convention de Selflow.');
+
+        // Le journal : quatre caractères, complétés par des zéros.
+        $journal = DB::table('code_journals')->where('code_journal', 'VTE0')->first();
+        $this->assertNotNull($journal);
+        $this->assertSame('VTE', $journal->numero_original);
+
+        // Le tiers : un numéro régénéré par Comptaflow, à six caractères, et
+        // la catégorie déduite du préfixe.
+        $tiers = DB::table('plan_tiers')->where('numero_original', '410007')->first();
+        $this->assertNotSame('410007', $tiers->numero_de_tiers);
+        $this->assertSame(6, strlen($tiers->numero_de_tiers));
+        $this->assertStringStartsWith('41', $tiers->numero_de_tiers);
+        $this->assertSame('Client', $tiers->type_de_tiers);
+    }
+
+    public function test_un_dossier_lie_avant_la_regle_retrouve_ses_lignes_brutes(): void
+    {
+        // Le déversement rangeait jusqu'ici les numéros tels quels, sans
+        // numéro d'origine. Ne chercher que sur la convention du dossier et
+        // sur `numero_original` ne les retrouvait plus : chaque compte se
+        // serait créé une seconde fois à côté du premier.
+        DB::table('plan_comptables')->insert([
+            'numero_de_compte' => '411000', 'intitule' => 'CLIENTS',
+            'user_id' => 1, 'company_id' => self::COMPTAFLOW, 'adding_strategy' => 'imported',
+        ]);
+        DB::table('code_journals')->insert([
+            'code_journal' => 'VTE', 'intitule' => 'VENTES', 'type' => 'Ventes',
+            'traitement_analytique' => false, 'user_id' => 1, 'company_id' => self::COMPTAFLOW,
+        ]);
+
+        $this->deverser($this->referentiel())->assertOk();
+
+        $this->assertSame(0, DB::table('plan_comptables')->where('numero_de_compte', '41100000')->count(),
+            'Le compte brut existait : il ne devait pas être créé une seconde fois.');
+        $this->assertSame(0, DB::table('code_journals')->where('code_journal', 'VTE0')->count(),
+            'Le journal brut existait : il ne devait pas être créé une seconde fois.');
     }
 
     // ─── Comptaflow n'est pas vide : rien n'est écrasé, rien n'est supprimé ──
@@ -141,23 +200,23 @@ class DeversementReferentielTest extends TestCase
     {
         $this->deverser($this->referentiel())->assertOk();
 
-        DB::table('plan_comptables')->where('numero_de_compte', '411000')
+        DB::table('plan_comptables')->where('numero_de_compte', '41100000')
             ->update(['intitule' => 'CLIENTS — LIBELLÉ DU COMPTABLE']);
-        DB::table('code_journals')->where('code_journal', 'VTE')
+        DB::table('code_journals')->where('code_journal', 'VTE0')
             ->update(['intitule' => 'VENTES BOUTIQUE', 'type' => 'Ventes détail']);
-        DB::table('plan_tiers')->where('numero_de_tiers', '410007')
+        DB::table('plan_tiers')->where('numero_original', '410007')
             ->update(['intitule' => 'KONAN YAO (ABIDJAN)', 'telephone' => '+225 01 02 03 04']);
 
         $this->deverser($this->referentiel())->assertOk();
 
         $this->assertSame('CLIENTS — LIBELLÉ DU COMPTABLE', DB::table('plan_comptables')
-            ->where('numero_de_compte', '411000')->value('intitule'));
+            ->where('numero_de_compte', '41100000')->value('intitule'));
         $this->assertSame('VENTES BOUTIQUE', DB::table('code_journals')
-            ->where('code_journal', 'VTE')->value('intitule'));
+            ->where('code_journal', 'VTE0')->value('intitule'));
         $this->assertSame('Ventes détail', DB::table('code_journals')
-            ->where('code_journal', 'VTE')->value('type'));
+            ->where('code_journal', 'VTE0')->value('type'));
 
-        $tiers = DB::table('plan_tiers')->where('numero_de_tiers', '410007')->first();
+        $tiers = DB::table('plan_tiers')->where('numero_original', '410007')->first();
         $this->assertSame('KONAN YAO (ABIDJAN)', $tiers->intitule);
         $this->assertSame('+225 01 02 03 04', $tiers->telephone);
     }
@@ -172,7 +231,7 @@ class DeversementReferentielTest extends TestCase
             ]],
         ])->assertOk();
 
-        $this->assertNull(DB::table('plan_tiers')->where('numero_de_tiers', '410007')->value('telephone'));
+        $this->assertNull(DB::table('plan_tiers')->where('numero_original', '410007')->value('telephone'));
 
         $this->deverser([
             'tiers' => [[
@@ -183,7 +242,7 @@ class DeversementReferentielTest extends TestCase
             ]],
         ])->assertOk()->assertJson(['detail' => ['tiers' => ['completes' => 1]]]);
 
-        $tiers = DB::table('plan_tiers')->where('numero_de_tiers', '410007')->first();
+        $tiers = DB::table('plan_tiers')->where('numero_original', '410007')->first();
         $this->assertSame('+225 07 00 00 00', $tiers->telephone);
 
         // Un champ vide n'est pas transmis : il écraserait ce que Comptaflow
@@ -233,7 +292,7 @@ class DeversementReferentielTest extends TestCase
         return $this->postJson('/api/external/referentiel/deverser', array_merge([
             'selflow_company_id'    => self::SELFLOW,
             'comptaflow_company_id' => self::COMPTAFLOW,
-        ], $charge), ['X-Sync-Secret' => $secret]);
+        ], $charge), ['X-Sync-Secret' => $secret, 'X-Company-Key' => self::CLE]);
     }
 
     /** Le référentiel type, tel que Selflow le transmet. */
@@ -285,6 +344,12 @@ class DeversementReferentielTest extends TestCase
             // cette date à l'entreprise en l'écrivant au moment de l'*envoi*,
             // ce qui datait une réception qui n'avait pas forcément eu lieu.
             $table->timestamp('selflow_last_deposit_at')->nullable();
+            // Ce que lit le filtre `cle.entreprise`, maintenant qu'aucun
+            // appel n'entre plus sans clé.
+            $table->string('selflow_sync_key_hash', 64)->nullable()->unique();
+            $table->string('selflow_sync_key_hash_precedente', 64)->nullable();
+            $table->timestamp('selflow_sync_key_precedente_expire_at')->nullable();
+            $table->timestamp('selflow_sync_key_revoked_at')->nullable();
             $table->timestamps();
         });
 
