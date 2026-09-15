@@ -204,7 +204,7 @@
          * Couleurs de repli (si le build Vite/Tailwind n'est pas déployé).
          * Le `!important` a été retiré : il empêchait les variantes Tailwind
          * (hover:, focus:, md:...) et les couleurs sémantiques de Bootstrap de
-         * s'appliquer. Ce bloc étant déclaré APRÈS Bootstrap et après @vite,
+         * s'appliquer. Ce bloc étant déclaré APRÈS Bootstrap et après la directive Vite,
          * il reste prioritaire à spécificité égale, sans bloquer les variantes.
          */
         .bg-blue-100 {
