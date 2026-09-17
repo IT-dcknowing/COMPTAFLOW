@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'cle.entreprise'    => \App\Http\Middleware\VerifieCleEntreprise::class,
             // Contrôle d'accès : rôle ADMIN/SUPER ADMIN, et habilitations fines.
             'admin'             => \App\Http\Middleware\EnsureIsAdmin::class,
+            'gere.comptabilite' => \App\Http\Middleware\EnsureGereLaComptabilite::class,
             'superadmin'        => \App\Http\Middleware\EnsureIsSuperAdmin::class,
             'permission'        => \App\Http\Middleware\CheckPermission::class,
         ]);

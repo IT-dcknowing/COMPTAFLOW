@@ -557,7 +557,9 @@ Route::get('/dashboard-compta', [ComptaDashboardController::class, 'index'])->na
             Route::post('/import-journals', [App\Http\Controllers\Admin\AdminConfigController::class, 'importJournals'])->name('import_journals');
         });
 
-        Route::prefix('config')->name('config.')->middleware('admin')->group(function() {
+        // Le responsable du dossier y a acces meme avec un compte « comptable » :
+        // le role global ne dit pas qui repond de la comptabilite ouverte.
+        Route::prefix('config')->name('config.')->middleware('gere.comptabilite')->group(function() {
             Route::get('/hub', [App\Http\Controllers\Admin\AdminConfigController::class, 'hub'])
                 ->name('hub')->middleware('permission:admin.config.hub');
             Route::get('/plan-comptable', [App\Http\Controllers\Admin\AdminConfigController::class, 'planComptable'])
