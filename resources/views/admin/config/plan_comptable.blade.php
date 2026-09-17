@@ -182,10 +182,18 @@
                                     <h4 class="font-black mb-0">Nomenclature de Référence</h4>
                                     <p class="text-slate-400 text-sm mb-0">Basé sur les normes SYSCOHADA en vigueur.</p>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <input type="text" id="masterSearch" class="form-control border-slate-200 rounded-xl" placeholder="Rechercher un compte...">
-                                </div>
                             </div>
+
+                            @include('components.filtre_colonnes', [
+                                'corps' => '#corpsPlanComptable',
+                                'nom' => 'comptes',
+                                'filtres' => [
+                                    ['cle' => 'compte', 'libelle' => 'Compte', 'mode' => 'debut'],
+                                    ['cle' => 'intitule', 'libelle' => 'Intitulé'],
+                                    ['cle' => 'classe', 'libelle' => 'Classe', 'type' => 'liste'],
+                                    ['cle' => 'usage', 'libelle' => 'Utilisé par', 'type' => 'liste'],
+                                ],
+                            ])
 
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
@@ -197,10 +205,10 @@
                                             <th class="pe-8 py-5 text-uppercase text-xs font-black text-slate-400 text-end">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="bg-white">
+                                    <tbody class="bg-white" id="corpsPlanComptable">
                                         @foreach($plansComptables as $plan)
-                                        @php $numStr = $plan->numero_de_compte; $labelStr = strtolower($plan->intitule); @endphp
-                                        <tr data-account-num="{{ $numStr }}" data-account-label="{{ $labelStr }}">
+                                        <tr data-f-compte="{{ $plan->numero_de_compte }}" data-f-intitule="{{ $plan->intitule }}"
+                                            data-f-classe="Classe {{ substr((string) $plan->numero_de_compte, 0, 1) }}" data-f-usage="Standard">
                                             <td class="ps-8 py-6">
                                                 <div class="d-flex flex-column">
                                                     <div class="d-flex align-items-center gap-2 mb-1">
@@ -496,34 +504,6 @@
                     modalForm.action = url;
                 });
             }
-        });
-        // Filtre de recherche précis + rapide (debounce 120ms)
-        let _searchTimer = null;
-        document.getElementById('masterSearch')?.addEventListener('input', function() {
-            clearTimeout(_searchTimer);
-            const val = this.value.trim();
-            _searchTimer = setTimeout(function() {
-                const rows = document.querySelectorAll('tbody tr');
-                if (val === '') {
-                    rows.forEach(r => r.style.display = '');
-                    return;
-                }
-                const isNumericSearch = /^[0-9]/.test(val);
-                const valLow = val.toLowerCase();
-                rows.forEach(row => {
-                    const num   = row.dataset.accountNum   || '';
-                    const label = row.dataset.accountLabel || '';
-                    let matches;
-                    if (isNumericSearch) {
-                        // Filtre précis : le numéro doit COMMENCER par la valeur saisie
-                        matches = num.startsWith(val);
-                    } else {
-                        // Filtre sur le libellé : contient la valeur saisie
-                        matches = label.includes(valLow) || num.startsWith(valLow);
-                    }
-                    row.style.display = matches ? '' : 'none';
-                });
-            }, 120);
         });
 
         // Fonction pour éditer un compte

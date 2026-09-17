@@ -383,11 +383,17 @@ class User extends Authenticatable
 
         // 3 bis. Droits accordés sur la comptabilité ouverte : ils priment, et
         // ne concernent qu'elle. Sans affectation particulière, on retombe sur
-        // les habilitations du compte.
+        // le rôle et les habilitations du compte.
         $surDossier = $this->habilitationsSurDossierCourant();
         if ($surDossier !== null && !$this->isSuperAdmin()) {
             return isset($surDossier[$permission])
                 && ($surDossier[$permission] === "1" || $surDossier[$permission] === true || $surDossier[$permission] === 1);
+        }
+
+        // 3 ter. Le rôle admin donne l'accès total à la comptabilité, quelles que
+        // soient les cases enregistrées sur le compte.
+        if ($this->role === 'admin') {
+            return true;
         }
 
         $habilitations = $this->habilitations ?? [];
