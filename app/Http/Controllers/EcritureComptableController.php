@@ -1395,6 +1395,12 @@ class EcritureComptableController extends Controller
             ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
 
         $ancien = round((float) $avant->debit - (float) $avant->credit, 2);
+
+        // « Solde février » quand on saisit mars : le solde porte le nom du mois qui le clôt.
+        $nomsMois = [1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+        $libelleAncien = $debutPeriode->gt($debutExercice) || ($mois >= 1 && $mois <= 12)
+            ? 'Solde ' . $nomsMois[$debutPeriode->copy()->subMonthNoOverflow()->month]
+            : "Solde d'ouverture";
         $debit = round((float) $periode->debit, 2);
         $credit = round((float) $periode->credit, 2);
 
@@ -1404,6 +1410,7 @@ class EcritureComptableController extends Controller
             'compte' => $compte?->numero_de_compte,
             'periode' => [$debutPeriode->format('d/m/Y'), $finPeriode->format('d/m/Y')],
             'ancien_solde' => $ancien,
+            'libelle_ancien' => $libelleAncien,
             'mouvements' => ['debit' => $debit, 'credit' => $credit],
             'nouveau_solde' => round($ancien + $debit - $credit, 2),
         ]);

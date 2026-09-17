@@ -36,7 +36,7 @@
                             <div class="col-12">
                                 <div class="card border-0 shadow-sm bg-gradient-primary text-white overflow-hidden">
                                     <div class="card-body p-5 position-relative">
-                                        <div class="position-absolute top-0 end-0 opacity-10">
+                                        <div class="position-absolute top-0 end-0 opacity-10" style="pointer-events: none; opacity: 0.1;" aria-hidden="true">
                                             <i class="fa-solid fa-code-branch fa-10x"></i>
                                         </div>
                                         <h2 class="fw-bold text-white mb-2">Bienvenue, filiale de <span class="text-warning">{{ $parentCompany->company_name }}</span></h2>

@@ -2,11 +2,12 @@
     Soldes du journal en saisie, dans l'en-tête — comme le cadre de Sage :
 
                         Débit        Crédit
-        Ancien solde    166 355
+        Solde février   166 355
         Mouvements      1 650 000    1 739 235
         Nouveau solde   77 120
 
-    Ancien solde : cumul jusqu'à la veille du mois choisi.
+    Solde <mois précédent> : cumul jusqu'à la fin du mois précédent
+                             (« Solde février » quand on saisit mars).
     Mouvements   : débits et crédits du mois.
     Nouveau solde: ancien solde + débits − crédits.
     Un solde débiteur s'écrit au débit, un solde créditeur au crédit.
@@ -65,7 +66,7 @@
         </thead>
         <tbody>
             <tr class="ancien">
-                <th>Ancien solde</th>
+                <th id="soldesJournalLibelleAncien">Solde du mois précédent</th>
                 <td data-solde="ancien-debit"></td>
                 <td data-solde="ancien-credit"></td>
             </tr>
@@ -129,6 +130,7 @@
                 (option?.dataset.code_journal_j || json.journal) + (json.compte ? ' · ' + json.compte : '');
             cadre.title = 'Période du ' + json.periode[0] + ' au ' + json.periode[1];
 
+            document.getElementById('soldesJournalLibelleAncien').textContent = json.libelle_ancien || 'Solde du mois précédent';
             placerSolde('ancien', json.ancien_solde);
             cellule('mvt-debit').textContent = montant(json.mouvements.debit) || '0';
             cellule('mvt-credit').textContent = montant(json.mouvements.credit) || '0';

@@ -171,7 +171,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="position-absolute end-0 top-0 opacity-10" style="transform: translate(20%, -20%) rotate(-15deg);">
+                            <div class="position-absolute end-0 top-0 opacity-10" style="pointer-events: none; opacity: 0.1; transform: translate(20%, -20%) rotate(-15deg);" aria-hidden="true">
                                 <i class="fa-solid fa-book-bookmark fa-10x"></i>
                             </div>
                         </div>

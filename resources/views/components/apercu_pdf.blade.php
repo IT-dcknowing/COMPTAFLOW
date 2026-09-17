@@ -28,16 +28,16 @@
     /* Imposé sur l'identifiant : aucune feuille du gabarit ne peut le réduire. */
     #{{ $id }} { padding: 0 !important; }
     #{{ $id }} .modal-dialog {
-        width: 100vw !important;
-        max-width: 100vw !important;
-        height: 100vh !important;
+        width: var(--vw100, 100vw) !important;
+        max-width: var(--vw100, 100vw) !important;
+        height: var(--vh100, 100vh) !important;
         margin: 0 !important;
         display: flex !important;
     }
     #{{ $id }} .modal-content {
         width: 100% !important;
         max-width: none !important;
-        height: 100vh !important;
+        height: var(--vh100, 100vh) !important;
         border: 0 !important;
         border-radius: 0 !important;
         display: flex !important;

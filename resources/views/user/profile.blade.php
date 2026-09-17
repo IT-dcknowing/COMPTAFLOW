@@ -73,7 +73,7 @@
                         <!-- Header Profil Premium -->
                         <div class="card premium-profile-card shadow-lg mb-5">
                             <div class="profile-header-bg">
-                                <div class="position-absolute bottom-0 end-0 p-4 opacity-10">
+                                <div class="position-absolute bottom-0 end-0 p-4 opacity-10" style="pointer-events: none; opacity: 0.1;" aria-hidden="true">
                                     <i class="fa-solid fa-user-tie fa-9x text-white"></i>
                                 </div>
                             </div>

@@ -67,6 +67,19 @@
     @vite(['resources/css/app.css'])
 
     <style>
+        /* En-têtes sombres des fenêtres : leur couleur ne dépend pas de la
+           feuille Tailwind compilée. Sur un serveur dont la compilation est
+           ancienne, « bg-emerald-900 » manquait : l'en-tête restait blanc et
+           le titre, écrit en blanc, disparaissait. */
+        .modal-header.bg-emerald-900 { background-color: #064e3b !important; }
+        .modal-header.bg-slate-900 { background-color: #0f172a !important; }
+        .modal-header.bg-emerald-900 .modal-title,
+        .modal-header.bg-slate-900 .modal-title { color: #ffffff !important; }
+    </style>
+
+    @include('components.echelle_affichage')
+
+    <style>
         /* Styles globaux pour le nouveau design */
         body {
             font-family: 'Inter', sans-serif;

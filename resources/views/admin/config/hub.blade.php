@@ -106,7 +106,7 @@
                                             </div>
                                         @endif
                                     </div>
-                                    <div class="position-absolute end-0 top-0 opacity-10" style="transform: translate(20%, -20%) scale(2);">
+                                    <div class="position-absolute end-0 top-0 opacity-10" style="pointer-events: none; opacity: 0.1; transform: translate(20%, -20%) scale(2);" aria-hidden="true">
                                         <i class="fa-solid fa-gears fa-10x"></i>
                                     </div>
                                 </div>
