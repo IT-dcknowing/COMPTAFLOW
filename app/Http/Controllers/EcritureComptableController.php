@@ -1333,9 +1333,10 @@ class EcritureComptableController extends Controller
      *   - mouvements    : débits et crédits du mois (de tout l'exercice si aucun mois n'est choisi) ;
      *   - nouveau solde : ancien solde + débits − crédits.
      *
-     * Un journal de trésorerie se lit sur son compte de trésorerie (la caisse,
-     * la banque), toutes écritures confondues : c'est l'argent réellement
-     * disponible. Les autres journaux se lisent sur leurs propres écritures.
+     * Comme dans Sage, seules les écritures du journal comptent. Un journal de
+     * trésorerie se lit sur son compte de trésorerie (la caisse, la banque) :
+     * une sortie de caisse passée dans un autre journal (OD) n'y figure pas.
+     * Les autres journaux se lisent sur toutes leurs écritures.
      * Les écritures rejetées ne comptent pas.
      */
     public function soldesJournal(Request $request)
@@ -1384,9 +1385,10 @@ class EcritureComptableController extends Controller
         $base = EcritureComptable::where('company_id', $companyId)
             ->where('exercices_comptables_id', $exercice->id)
             ->where(fn ($q) => $q->whereNull('statut')->orWhere('statut', '!=', 'rejected'));
-        $compte
-            ? $base->where('plan_comptable_id', $compte->id)
-            : $base->where('code_journal_id', $journal->id);
+        $base->where('code_journal_id', $journal->id);
+        if ($compte) {
+            $base->where('plan_comptable_id', $compte->id);
+        }
 
         $avant = (clone $base)->whereDate('date', '<', $debutPeriode->toDateString())
             ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
