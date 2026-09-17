@@ -73,7 +73,9 @@
         <div>
             <label for="{{ $idFiltre }}_{{ $filtre['cle'] }}">{{ $filtre['libelle'] }}</label>
             @if(($filtre['type'] ?? 'texte') === 'liste')
-                <select id="{{ $idFiltre }}_{{ $filtre['cle'] }}" class="form-select" data-filtre="{{ $filtre['cle'] }}" data-type="liste">
+                {{-- « no-search » : la mise en forme Select2 de l'application ne doit pas
+                     remplacer cette liste, sinon le choix n'arrive jamais au filtre. --}}
+                <select id="{{ $idFiltre }}_{{ $filtre['cle'] }}" class="form-select no-search" data-filtre="{{ $filtre['cle'] }}" data-type="liste">
                     <option value="">Tous</option>
                 </select>
             @else
@@ -104,12 +106,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const colonnes = corps.closest('table')?.querySelectorAll('thead th').length || 1;
 
     const normaliser = v => (v || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const lignes = () => Array.from(corps.querySelectorAll('tr:not(.filtre-aucun)'));
+    const cleDe = c => 'f' + c.dataset.filtre.charAt(0).toUpperCase() + c.dataset.filtre.slice(1);
 
-    // Les listes proposent les valeurs réellement présentes dans le tableau.
+    // Les valeurs de chaque ligne sont lues une seule fois : à la frappe, on ne
+    // fait plus que comparer des chaînes déjà prêtes.
+    const lignes = Array.from(corps.querySelectorAll('tr')).map(function (tr) {
+        const valeurs = {};
+        champs.forEach(c => { valeurs[c.dataset.filtre] = normaliser(tr.dataset[cleDe(c)]); });
+        return { tr: tr, valeurs: valeurs, visible: true };
+    });
+
+    // Les listes proposent « Tous » puis les valeurs présentes dans le tableau.
     champs.filter(c => c.dataset.type === 'liste').forEach(function (liste) {
-        const cle = 'f' + liste.dataset.filtre.charAt(0).toUpperCase() + liste.dataset.filtre.slice(1);
-        const valeurs = [...new Set(lignes().map(l => (l.dataset[cle] || '').trim()).filter(Boolean))]
+        const cle = cleDe(liste);
+        const valeurs = [...new Set(lignes.map(l => (l.tr.dataset[cle] || '').trim()).filter(Boolean))]
             .sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
         valeurs.forEach(v => liste.add(new Option(v, v)));
     });
@@ -117,36 +127,37 @@ document.addEventListener('DOMContentLoaded', function () {
     let aucun = null;
 
     function filtrer() {
-        const actifs = champs
-            .map(c => ({
-                cle: 'f' + c.dataset.filtre.charAt(0).toUpperCase() + c.dataset.filtre.slice(1),
-                type: c.dataset.type,
-                mode: c.dataset.mode,
-                valeur: normaliser(c.value),
-                champ: c,
-            }));
-        actifs.forEach(a => a.champ.classList.toggle('filtre-actif', a.valeur !== ''));
-        const utiles = actifs.filter(a => a.valeur !== '');
+        const utiles = [];
+        champs.forEach(function (c) {
+            const valeur = normaliser(c.value);
+            c.classList.toggle('filtre-actif', valeur !== '');
+            if (valeur !== '') utiles.push({ cle: c.dataset.filtre, type: c.dataset.type, mode: c.dataset.mode, valeur: valeur });
+        });
 
         let visibles = 0;
-        const toutes = lignes();
-        toutes.forEach(function (ligne) {
-            const garde = utiles.every(function (a) {
-                const cellule = normaliser(ligne.dataset[a.cle]);
-                if (a.type === 'liste') return cellule === a.valeur;
-                return a.mode === 'debut' ? cellule.startsWith(a.valeur) : cellule.includes(a.valeur);
-            });
-            ligne.style.display = garde ? '' : 'none';
+        for (const ligne of lignes) {
+            let garde = true;
+            for (const a of utiles) {
+                const cellule = ligne.valeurs[a.cle];
+                garde = a.type === 'liste' ? cellule === a.valeur
+                    : (a.mode === 'debut' ? cellule.startsWith(a.valeur) : cellule.includes(a.valeur));
+                if (!garde) break;
+            }
+            // On ne touche la ligne que si son état change : pas de travail inutile.
+            if (garde !== ligne.visible) {
+                ligne.tr.style.display = garde ? '' : 'none';
+                ligne.visible = garde;
+            }
             if (garde) visibles++;
-        });
+        }
 
         if (compte) {
             compte.textContent = utiles.length
-                ? visibles + ' / ' + toutes.length + ' ' + nom
-                : toutes.length + ' ' + nom;
+                ? visibles + ' / ' + lignes.length + ' ' + nom
+                : lignes.length + ' ' + nom;
         }
 
-        if (!visibles && toutes.length) {
+        if (!visibles && lignes.length) {
             if (!aucun) {
                 aucun = document.createElement('tr');
                 aucun.className = 'filtre-aucun';
@@ -158,11 +169,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    champs.forEach(c => c.addEventListener(c.dataset.type === 'liste' ? 'change' : 'input', filtrer));
+    // Filtrage immédiat, à chaque frappe comme à chaque choix dans une liste.
+    champs.forEach(function (c) {
+        c.addEventListener(c.tagName === 'SELECT' ? 'change' : 'input', filtrer);
+    });
 
     document.getElementById(@json($idFiltre) + '__effacer').addEventListener('click', function () {
-        champs.forEach(c => { c.value = ''; });
+        champs.forEach(function (c) {
+            if (c.tagName === 'SELECT') { c.selectedIndex = 0; } else { c.value = ''; }
+        });
         filtrer();
+        champs[0]?.focus();
     });
 
     filtrer();
