@@ -261,9 +261,10 @@ Route::middleware(['auth', 'exercice.context'])->group(function () {
     Route::get('/compagny_information/{id}/logo', [CompanyController::class, 'logo'])->name('compagny_information.logo');
 
     // *****************ROUTE GESTION DES USERS
-    // Réservé aux admins : ces routes créent, modifient (rôle + habilitations) et
-    // suppriment des comptes. Elles n'étaient protégées que par 'auth'.
-    Route::middleware('admin')->group(function () {
+    // Réservé aux habilités « Équipe & Permissions » : ces routes créent, modifient
+    // (rôle + habilitations) et suppriment des comptes. Elles n'étaient protégées
+    // que par 'auth'. Dans une comptabilité, seule l'habilitation fait foi.
+    Route::middleware('permission:user_management')->group(function () {
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
         Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
@@ -408,8 +409,8 @@ Route::get('/test-saisie-number', function() {
     Route::post('/plan_tiers_ecritures_groupes', [PlanTiersEcritureGroupesController::class, 'miseAJourMassive'])->name('plan_tiers_ecritures_groupes.miseAJourMassive');
 
     // *****************ROUTE GESTION DES EXERCICES COMPTABLE
-    Route::get('/exercice_comptable', [ExerciceComptableController::class, 'index'])->name('exercice_comptable');
-    Route::get('/exercice_comptable/data', [ExerciceComptableController::class, 'getData'])->name('exercice_comptable.data');
+    Route::get('/exercice_comptable', [ExerciceComptableController::class, 'index'])->name('exercice_comptable')->middleware('permission:exercice_comptable');
+    Route::get('/exercice_comptable/data', [ExerciceComptableController::class, 'getData'])->name('exercice_comptable.data')->middleware('permission:exercice_comptable');
     Route::get('/exercice_comptable/{exercice_comptable}', [ExerciceComptableController::class, 'show'])->name('exercice_comptable.show');
     Route::get('/exercice_comptable/{exercice_comptable}/edit', [ExerciceComptableController::class, 'edit'])->name('exercice_comptable.edit');
     Route::post('/exercice_comptable', [ExerciceComptableController::class, 'store'])->name('exercice_comptable.store');
@@ -522,7 +523,7 @@ Route::get('/dashboard-compta', [ComptaDashboardController::class, 'index'])->na
         });
         Route::get('/ia-dashboard', [App\Http\Controllers\IaController::class, 'dashboard'])
             ->name('ia.dashboard')
-            ->middleware('admin');
+            ->middleware('permission:admin.audit');
 
         // Archive des suppressions (conservation 30 jours) : même habilitation
         // que la traçabilité, dont elle est le prolongement.
@@ -557,9 +558,9 @@ Route::get('/dashboard-compta', [ComptaDashboardController::class, 'index'])->na
             Route::post('/import-journals', [App\Http\Controllers\Admin\AdminConfigController::class, 'importJournals'])->name('import_journals');
         });
 
-        // Le responsable du dossier y a acces meme avec un compte « comptable » :
-        // le role global ne dit pas qui repond de la comptabilite ouverte.
-        Route::prefix('config')->name('config.')->middleware('gere.comptabilite')->group(function() {
+        // Seule l'habilitation de chaque page fait foi : ni le role du compte,
+        // ni le fait d'etre responsable du dossier n'ajoutent de verrou.
+        Route::prefix('config')->name('config.')->group(function() {
             Route::get('/hub', [App\Http\Controllers\Admin\AdminConfigController::class, 'hub'])
                 ->name('hub')->middleware('permission:admin.config.hub');
             Route::get('/plan-comptable', [App\Http\Controllers\Admin\AdminConfigController::class, 'planComptable'])
@@ -813,8 +814,9 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // Habilitations (Gouvernance) — écran le plus sensible de l'application :
-        // il permet d'accorder des droits. Double verrou rôle + habilitation.
-        Route::middleware(['admin', 'permission:admin.habilitations.index'])->group(function () {
+        // il permet d'accorder des droits. L'habilitation suffit ; le contrôleur
+        // interdit toujours de modifier ses propres droits.
+        Route::middleware('permission:admin.habilitations.index')->group(function () {
             Route::get('/habilitations', [App\Http\Controllers\Admin\HabilitationController::class, 'index'])->name('habilitations.index');
             Route::put('/habilitations/{user}', [App\Http\Controllers\Admin\HabilitationController::class, 'update'])->name('habilitations.update');
         });
@@ -827,29 +829,34 @@ Route::middleware(['auth'])->group(function () {
     // middleware 'admin' ici — c'est la session qui porte l'admin d'origine).
     Route::get('/impersonate/leave', [UserController::class, 'leaveImpersonation'])->name('admin.leave_impersonation');
 
-    // --- Création de comptes, d'entités et d'exercices : ADMIN uniquement ---
+    // --- Création de comptes et d'exercices : chaque écran suit son habilitation ---
     // (NB : `POST /users` était déclaré une seconde fois ici, à l'identique de la
     //  déclaration de la section "GESTION DES USERS". Doublon supprimé.)
-    Route::middleware('admin')->group(function () {
-        // Routes de création d'utilisateurs pour l'Admin
+    Route::middleware('permission:admin.users.create')->group(function () {
         Route::get('/admin/users/create', [UserController::class, 'create'])->name('admin.users.create');
+    });
 
-        // Routes de création d'administrateurs pour l'Admin (Style SuperAdmin)
+    Route::middleware('permission:admin.admins.create')->group(function () {
         Route::get('/admin/admins/create', [UserController::class, 'createAdmin'])->name('admin.admins.create');
         Route::post('/admin/admins', [UserController::class, 'storeAdmin'])->name('admin.admins.store');
+    });
 
+    Route::middleware('permission:admin.secondary_admins.create')->group(function () {
         Route::get('/admin/secondary-admins/create', [UserController::class, 'createSecondaryAdmin'])->name('admin.secondary_admins.create');
         Route::post('/admin/secondary-admins/store', [UserController::class, 'storeSecondaryAdmin'])->name('admin.secondary_admins.store');
+    });
 
-        // Creation de sous-entreprise retiree : une comptabilite se cree depuis Mon Espace.
+    // Creation de sous-entreprise retiree : une comptabilite se cree depuis Mon Espace.
 
-        // Routes de création de comptabilité (Style SuperAdmin) - Exercices
+    // Ouverture d'un exercice (Style SuperAdmin)
+    Route::middleware('permission:compta.create')->group(function () {
         Route::get('/admin/companies/create', [ComptaAccountController::class, 'create'])->name('compta.create');
         Route::post('/admin/companies', [ComptaAccountController::class, 'storeExercice'])->name('compta.store');
-
-        // Impersonation : entrer dans le compte d'un collaborateur.
-        Route::get('/impersonate/{user}', [UserController::class, 'impersonate'])->name('admin.impersonate');
     });
+
+    // Impersonation : entrer dans le compte d'un collaborateur de l'équipe.
+    Route::get('/impersonate/{user}', [UserController::class, 'impersonate'])
+        ->name('admin.impersonate')->middleware('permission:user_management');
 });
 
 // **********************************************

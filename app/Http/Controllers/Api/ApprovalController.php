@@ -41,7 +41,7 @@ class ApprovalController extends Controller
         $user = Auth::user();
 
         // Sécurité : Seuls les admins ou ceux ayant la permission peuvent approuver
-        if (!$user->isAdmin() && !$user->hasPermission('admin.approvals')) {
+        if (!$user->isSuperAdmin() && !$user->hasPermission('admin.approvals')) {
             return response()->json(['message' => 'Non autorisé.'], 403);
         }
 

@@ -46,7 +46,7 @@ class EntryController extends Controller
 
         $user = $request->user();
 
-        if (!$user->isSuperAdmin() && !$user->isAdmin() && !$user->hasPermission('admin.approvals')) {
+        if (!$user->isSuperAdmin() && !$user->hasPermission('admin.approvals')) {
             $query->where('user_id', $user->id);
         }
 
@@ -110,7 +110,7 @@ class EntryController extends Controller
         }
 
         // Si le statut est forcé (ex: draft depuis mobile)
-        $status = $request->statut ?? (($user->isAdmin() || $user->hasPermission('admin.approvals')) ? 'approved' : 'pending');
+        $status = $request->statut ?? (($user->isSuperAdmin() || $user->hasPermission('admin.approvals')) ? 'approved' : 'pending');
         
         // Numérotation
         $nSaisie = ($status === 'approved') 
@@ -171,7 +171,7 @@ class EntryController extends Controller
             'statut' => 'nullable|in:approved,pending,draft',
         ]);
 
-        $status = $request->statut ?? (($user->isAdmin() || $user->hasPermission('admin.approvals')) ? 'approved' : 'pending');
+        $status = $request->statut ?? (($user->isSuperAdmin() || $user->hasPermission('admin.approvals')) ? 'approved' : 'pending');
         $exercice = $this->getActiveExercice($companyId);
         $exerciceId = $exercice ? $exercice->id : null;
         $nSaisie = ($status === 'approved') ? $this->generateGlobalSaisieNumber($companyId, $exerciceId) : 'TEMP_' . time();

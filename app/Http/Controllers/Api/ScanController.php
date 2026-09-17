@@ -168,7 +168,7 @@ class ScanController extends Controller
             $results = [];
             foreach ($request->entries as $entryData) {
                 // Pour chaque pièce (saisie groupée)
-                $status = ($user->isAdmin() || $user->hasPermission('admin.approvals')) ? 'approved' : 'pending';
+                $status = ($user->isSuperAdmin() || $user->hasPermission('admin.approvals')) ? 'approved' : 'pending';
                 
                 // Génération numéro si approuvé, sinon numéro utilisateur
                 $exerciceId = $this->getExerciceId($companyId, $entryData['date']);

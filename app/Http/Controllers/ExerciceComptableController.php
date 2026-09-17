@@ -129,8 +129,8 @@ public function index()
 
     public function store(Request $request)
     {
-        if (!Auth::user()->gereLaComptabiliteCourante()) {
-            return response()->json(['success' => false, 'message' => 'Action non autorisée : seul le responsable de cette comptabilité peut créer un exercice.'], 403);
+        if (!Auth::user()->hasPermission('compta.create')) {
+            return response()->json(['success' => false, 'message' => 'Action non autorisée : habilitation « Ouvrir un exercice comptable » requise.'], 403);
         }
         try {
             $user = Auth::user();
@@ -244,7 +244,7 @@ public function index()
 
     public function activate($id)
     {
-        if (!Auth::user()->gereLaComptabiliteCourante()) {
+        if (!Auth::user()->hasPermission('exercice_comptable')) {
             return back()->with('error', 'Action non autorisée.');
         }
 
@@ -339,8 +339,8 @@ public function index()
 
     public function cloturer($id)
     {
-        if (!Auth::user()->gereLaComptabiliteCourante()) {
-            return back()->with('error', 'Action non autorisée. Seul un administrateur peut clôturer un exercice.');
+        if (!Auth::user()->hasPermission('exercice_comptable')) {
+            return back()->with('error', 'Action non autorisée : habilitation « Exercice comptable » requise.');
         }
 
         $exercice = ExerciceComptable::findOrFail($id);
@@ -476,7 +476,7 @@ public function index()
 
     public function reouvrir($id)
     {
-        if (!Auth::user()->gereLaComptabiliteCourante()) {
+        if (!Auth::user()->hasPermission('exercice_comptable')) {
             return back()->with('error', 'Action non autorisée.');
         }
 
@@ -524,8 +524,8 @@ public function index()
 
     public function destroy($id)
     {
-        if (!Auth::user()->gereLaComptabiliteCourante()) {
-            return back()->with('error', 'Action non autorisée. Seul un administrateur peut supprimer un exercice.');
+        if (!Auth::user()->hasPermission('exercice_comptable')) {
+            return back()->with('error', 'Action non autorisée : habilitation « Exercice comptable » requise.');
         }
         $exercice = ExerciceComptable::findOrFail($id);
         $exercice->delete();
@@ -570,8 +570,8 @@ public function index()
 
     public function update(Request $request, $id)
     {
-        if (!Auth::user()->gereLaComptabiliteCourante()) {
-            return back()->with('error', 'Action non autorisée. Seul un administrateur peut modifier un exercice.');
+        if (!Auth::user()->hasPermission('exercice_comptable')) {
+            return back()->with('error', 'Action non autorisée : habilitation « Exercice comptable » requise.');
         }
         $user = Auth::user();
         $companyId = session('current_company_id', $user->company_id);

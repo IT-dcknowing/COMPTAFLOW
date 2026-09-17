@@ -579,7 +579,7 @@
             @endif
 
             {{-- SECTION FUSION (Sous-entreprises uniquement) --}}
-            @if(isset($currentCompany) && $currentCompany->parent_company_id && !session('sidebar_admin_hidden', false) && (auth()->user()->isAdmin() || auth()->user()->hasPermission('admin.fusion.index')))
+            @if(isset($currentCompany) && $currentCompany->parent_company_id && !session('sidebar_admin_hidden', false) && auth()->user()->hasPermission('admin.fusion.index'))
             <div class="menu-section" data-section-id="fusion">
                 <div class="menu-section-header">Fusion & Démarrage</div>
                 <a href="{{ route('admin.fusion.index') }}" class="menu-link-new {{ request()->routeIs('admin.fusion.*') ? 'active' : '' }}">
@@ -611,7 +611,7 @@
                     <span>Équipe & Permissions</span>
                 </a>
                 @endif
-                @if(auth()->user()->hasPermission('admin.habilitations.index') || auth()->user()->isAdmin())
+                @if(auth()->user()->hasPermission('admin.habilitations.index'))
                 <a href="{{ route('admin.habilitations.index') }}" class="menu-link-new {{ request()->routeIs('admin.habilitations.index') ? 'active' : '' }}">
                     <i class="fa-solid fa-user-check"></i>
                     <span>Modification Habilitation</span>
@@ -682,7 +682,7 @@
                 @if($hasTasks)
                 <div class="mt-2 pt-2 border-top border-light">
                     <small class="text-muted text-uppercase px-3 mb-2 d-block" style="font-size: 0.65rem;">Gestion des Tâches</small>
-                    @if(auth()->user()->hasPermission('tasks.assign') || auth()->user()->isAdmin())
+                    @if(auth()->user()->hasPermission('tasks.assign') || auth()->user()->hasPermission('admin.tasks.index'))
                     <a href="{{ route('admin.tasks.index') }}" class="menu-link-new {{ request()->routeIs('admin.tasks.index') ? 'active' : '' }}">
                         <i class="fa-solid fa-file-pen"></i>
                         <span>Assigner Tâche</span>
@@ -783,7 +783,7 @@
                     <span>Brouillons</span>
                 </a>
                 @endif
-                @if(auth()->user()->hasPermission('exercice_comptable') && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin() || $isSwitched || $estResponsableCompta))
+                @if(auth()->user()->hasPermission('exercice_comptable'))
                 <a href="{{ route('exercice_comptable') }}" class="menu-link-new {{ request()->routeIs('exercice_comptable') ? 'active' : '' }}">
                     <i class="fa-solid fa-calendar-check"></i>
                     <span>Exercice comptable</span>

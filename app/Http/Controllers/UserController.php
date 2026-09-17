@@ -430,7 +430,11 @@ User::create($validated);
         // 1. Sa compagnie principale ($admin->company_id)
         // 2. Toutes les compagnies qui ont sa compagnie principale comme parent_company_id
 
+        // La comptabilité ouverte compte aussi : un collaborateur habilité y gère l'équipe.
+        $dossierOuvert = session('current_company_id');
+
         $allowedCompanyIds = Company::where('id', $admin->company_id)
+                                    ->when($dossierOuvert, fn ($q) => $q->orWhere('id', $dossierOuvert))
                                     ->orWhere('parent_company_id', $admin->company_id)
                                     ->orWhere('user_id', $admin->id)
                                     ->pluck('id')
@@ -461,8 +465,8 @@ User::create($validated);
     {
         $actor = Auth::user();
 
-        // 1. Seuls un admin ou un super admin peuvent administrer des comptes.
-        if (!$actor->isAdmin()) {
+        // 1. Administrer des comptes relève de l'habilitation « Équipe & Permissions ».
+        if (!$actor->isSuperAdmin() && !$actor->hasPermission('user_management')) {
             abort(403, "Vous n'êtes pas autorisé à {$action} un utilisateur.");
         }
 
