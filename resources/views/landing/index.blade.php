@@ -19,6 +19,7 @@
     @keyframes floatUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
     .float-anim { animation: floatUp 6s ease-in-out infinite; }
   </style>
+    @include('components.echelle_affichage', ['echelle' => 0.8])
 </head>
 <body class="text-slate-800 antialiased overflow-x-hidden">
 

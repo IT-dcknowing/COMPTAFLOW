@@ -1384,10 +1384,34 @@ class EcritureComptableController extends Controller
 
         $base = EcritureComptable::where('company_id', $companyId)
             ->where('exercices_comptables_id', $exercice->id)
+            ->where('code_journal_id', $journal->id)
             ->where(fn ($q) => $q->whereNull('statut')->orWhere('statut', '!=', 'rejected'));
-        $base->where('code_journal_id', $journal->id);
-        if ($compte) {
-            $base->where('plan_comptable_id', $compte->id);
+
+        // Les comptes de trésorerie lus. Le compte réglé sur le journal ne
+        // correspond pas toujours à celui des écritures (plan importé, compte
+        // renuméroté : journal réglé sur 55200000, écritures sur 55200100) ; tout
+        // restait alors à zéro. On lit donc le compte réglé ET les comptes de
+        // trésorerie réellement mouvementés dans ce journal : classe 5, hors
+        // virements internes (58), qui sont des contreparties.
+        $estTresorerie = $compte || in_array($journal->type, ['Banque', 'Caisse', 'Trésorerie', 'Tresorerie'], true);
+        $comptesLus = collect();
+        if ($estTresorerie) {
+            $comptesLus = PlanComptable::where('company_id', $companyId)
+                ->where(function ($q) use ($base, $compte) {
+                    $q->where(function ($r) use ($base) {
+                        $r->whereIn('id', (clone $base)->select('plan_comptable_id')->distinct())
+                            ->where('numero_de_compte', 'like', '5%')
+                            ->where('numero_de_compte', 'not like', '58%');
+                    });
+                    if ($compte) {
+                        $q->orWhere('id', $compte->id);
+                    }
+                })
+                ->orderBy('numero_de_compte')
+                ->get();
+        }
+        if ($comptesLus->isNotEmpty()) {
+            $base->whereIn('plan_comptable_id', $comptesLus->pluck('id'));
         }
 
         $avant = (clone $base)->whereDate('date', '<', $debutPeriode->toDateString())
@@ -1409,7 +1433,8 @@ class EcritureComptableController extends Controller
         return response()->json([
             'success' => true,
             'journal' => $journal->code_journal,
-            'compte' => $compte?->numero_de_compte,
+            'compte' => $comptesLus->pluck('numero_de_compte')->implode(', ') ?: null,
+            'compte_regle' => $compte?->numero_de_compte,
             'periode' => [$debutPeriode->format('d/m/Y'), $finPeriode->format('d/m/Y')],
             'ancien_solde' => $ancien,
             'libelle_ancien' => $libelleAncien,

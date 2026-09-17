@@ -215,6 +215,7 @@
             }
         }
     </style>
+    @include('components.echelle_affichage', ['echelle' => 0.8])
 </head>
 
 <body class="py-5">

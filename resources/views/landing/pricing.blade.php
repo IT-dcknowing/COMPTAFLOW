@@ -163,6 +163,7 @@
             margin-bottom: 30px;
         }
     </style>
+    @include('components.echelle_affichage', ['echelle' => 0.8])
 </head>
 
 <body class="d-flex align-items-center justify-content-center min-vh-100 py-5">

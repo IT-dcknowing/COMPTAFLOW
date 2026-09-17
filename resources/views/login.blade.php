@@ -29,7 +29,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #f8fafc;
             color: #1e293b;
-            min-height: 100vh;
+            min-height: var(--vh100, 100vh);
             margin: 0;
             display: flex;
         }
@@ -38,7 +38,7 @@
         .login-split-container {
             display: flex;
             width: 100%;
-            min-height: 100vh;
+            min-height: var(--vh100, 100vh);
         }
 
         /* Left Side: Branding and Promo */
@@ -432,6 +432,7 @@
             }
         }
     </style>
+    @include('components.echelle_affichage', ['echelle' => 0.8])
 </head>
 
 <body>

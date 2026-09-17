@@ -1,6 +1,8 @@
 {{--
-    Échelle d'affichage de l'application : à 100 % dans le navigateur,
-    l'interface a la densité qu'elle avait à 75 %.
+    Échelle d'affichage : à 100 % dans le navigateur, l'interface a la densité
+    qu'elle avait à 75 % (application) ou 80 % (accueil, connexion, inscription).
+
+    Variable : $echelle (0.75 par défaut).
 
     Le zoom CSS réduit aussi les unités d'écran : un bloc de « 100vh » ne
     couvre plus que 75 % de la hauteur, une largeur de « 100vw » que 75 % de
@@ -14,15 +16,16 @@
 
     En dessous de 1200 px de large (tablette, téléphone), rien ne change.
 --}}
+@php $echelle = $echelle ?? 0.75; @endphp
 <style>
     :root { --echelle-app: 1; --vw100: 100vw; --vh100: 100vh; }
 
     @media (min-width: 1200px) {
         :root {
-            zoom: 0.75;
-            --echelle-app: 0.75;
-            --vw100: calc(100vw / 0.75);
-            --vh100: calc(100vh / 0.75);
+            zoom: {{ $echelle }};
+            --echelle-app: {{ $echelle }};
+            --vw100: calc(100vw / {{ $echelle }});
+            --vh100: calc(100vh / {{ $echelle }});
             width: var(--vw100) !important;
             min-height: var(--vh100) !important;
         }

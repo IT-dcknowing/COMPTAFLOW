@@ -96,6 +96,7 @@
 
     let minuterie = null;
     let demande = 0;
+    let derniereCle = null;
 
     // Un solde se place dans la colonne de son sens : débiteur au débit, créditeur au crédit.
     function placerSolde(prefixe, solde) {
@@ -106,15 +107,17 @@
     async function charger() {
         const journal = document.getElementById('code_journal_id');
         const journalId = journal?.value || '';
+        derniereCle = journalId + '|' + (document.getElementById('mois_ecriture')?.value || '');
         if (!journalId) {
             cadre.classList.remove('visible');
             return;
         }
 
         const numero = ++demande;
+        const mois = document.getElementById('mois_ecriture')?.value || '';
         const params = new URLSearchParams({
             journal_id: journalId,
-            mois: document.getElementById('mois_ecriture')?.value || '',
+            mois: mois,
             exercice_id: document.getElementById('id_exercice')?.value || '',
         });
 
@@ -125,9 +128,9 @@
             if (numero !== demande) return;           // une demande plus récente est partie entre-temps
             if (!json.success) { cadre.classList.remove('visible'); return; }
 
-            const option = journal.selectedOptions[0];
+            // Le titre vient du serveur : il dit exactement ce qui a été calculé.
             document.getElementById('soldesJournalTitre').textContent =
-                (option?.dataset.code_journal_j || json.journal) + (json.compte ? ' · ' + json.compte : '');
+                json.journal + (json.compte ? ' · ' + json.compte : '');
             cadre.title = 'Période du ' + json.periode[0] + ' au ' + json.periode[1];
 
             document.getElementById('soldesJournalLibelleAncien').textContent = json.libelle_ancien || 'Solde du mois précédent';
@@ -154,5 +157,14 @@
         if (e.target && (e.target.id === 'code_journal_id' || e.target.id === 'mois_ecriture')) planifier();
     });
     document.addEventListener('DOMContentLoaded', planifier);
+
+    // La grille change parfois le journal ou le mois par programme (reprise
+    // de la dernière sélection, édition d'une écriture) sans prévenir : on
+    // vérifie régulièrement que les soldes affichés suivent la sélection.
+    setInterval(function () {
+        const journalId = document.getElementById('code_journal_id')?.value || '';
+        const mois = document.getElementById('mois_ecriture')?.value || '';
+        if (journalId + '|' + mois !== derniereCle) planifier();
+    }, 1000);
 })();
 </script>
