@@ -308,7 +308,7 @@
             @include('components.sidebar')
 
             <div class="layout-page">
-                @include('components.header', ['page_title' => 'NOUVELLE <span class="text-gradient">ÉCRITURE</span>'])
+                @include('components.header', ['page_title' => 'NOUVELLE <span class="text-gradient">ÉCRITURE</span>', 'soldes_journal' => true])
 
                 <div class="content-wrapper">
                     <div class="container-xxl flex-grow-1 container-p-y">

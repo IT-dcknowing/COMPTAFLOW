@@ -1239,6 +1239,8 @@ const saisieGrille = (() => {
 
   // ---------- Refresh Tableau Sage ----------
   function rafraichirListe() {
+    // Les soldes du journal (en-tête) se recalculent à chaque changement de liste.
+    document.dispatchEvent(new CustomEvent('saisie:liste-rafraichie'));
     const journalId = document.getElementById('code_journal_id')?.value || '';
     const moisVal = document.getElementById('mois_ecriture')?.value || '';
 

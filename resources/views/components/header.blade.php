@@ -491,6 +491,13 @@
         @endif
     </div>
     
+    @if(!empty($soldes_journal))
+        {{-- Soldes du journal en saisie, à gauche de la cloche --}}
+        <div style="margin-right: 1.5rem;">
+            @include('components.soldes_journal')
+        </div>
+    @endif
+
     <div class="flex items-center gap-4">
         @auth
         <!-- Notification Bell -->

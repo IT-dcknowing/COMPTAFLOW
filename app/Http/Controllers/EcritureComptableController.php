@@ -1327,6 +1327,88 @@ class EcritureComptableController extends Controller
         }
     }
 
+    /**
+     * Soldes du journal ouvert en saisie, présentés comme dans Sage :
+     *   - ancien solde  : ce qui est cumulé depuis le début de l'exercice jusqu'à la veille du mois choisi ;
+     *   - mouvements    : débits et crédits du mois (de tout l'exercice si aucun mois n'est choisi) ;
+     *   - nouveau solde : ancien solde + débits − crédits.
+     *
+     * Un journal de trésorerie se lit sur son compte de trésorerie (la caisse,
+     * la banque), toutes écritures confondues : c'est l'argent réellement
+     * disponible. Les autres journaux se lisent sur leurs propres écritures.
+     * Les écritures rejetées ne comptent pas.
+     */
+    public function soldesJournal(Request $request)
+    {
+        $user = Auth::user();
+        $companyId = session('current_company_id', $user->company_id);
+
+        $journal = CodeJournal::where('company_id', $companyId)->find($request->integer('journal_id'));
+        if (!$journal) {
+            return response()->json(['success' => false, 'message' => 'Choisissez un journal.'], 422);
+        }
+
+        $exercice = ExerciceComptable::where('company_id', $companyId)
+            ->find($request->integer('exercice_id') ?: session('current_exercice_id'));
+        if (!$exercice) {
+            return response()->json(['success' => false, 'message' => 'Aucun exercice ouvert.'], 422);
+        }
+
+        $debutExercice = Carbon::parse($exercice->date_debut)->startOfDay();
+        $finExercice = Carbon::parse($exercice->date_fin)->endOfDay();
+
+        // Le mois choisi, replacé dans l'exercice (un exercice peut chevaucher deux années).
+        $mois = (int) $request->input('mois');
+        $debutPeriode = $debutExercice->copy();
+        $finPeriode = $finExercice->copy();
+        if ($mois >= 1 && $mois <= 12) {
+            $curseur = $debutExercice->copy()->startOfMonth();
+            while ($curseur->lte($finExercice) && $curseur->month !== $mois) {
+                $curseur->addMonth();
+            }
+            if ($curseur->lte($finExercice)) {
+                $debutPeriode = $curseur->copy()->max($debutExercice);
+                $finPeriode = $curseur->copy()->endOfMonth()->min($finExercice);
+            }
+        }
+
+        // Compte de trésorerie du journal : l'identifiant du plan, sinon son numéro.
+        $compteId = $journal->compte_de_tresorerie;
+        if (!$compteId && $journal->compte_de_contrepartie) {
+            $compteId = PlanComptable::where('company_id', $companyId)
+                ->where('numero_de_compte', $journal->compte_de_contrepartie)
+                ->value('id');
+        }
+        $compte = $compteId ? PlanComptable::where('company_id', $companyId)->find($compteId) : null;
+
+        $base = EcritureComptable::where('company_id', $companyId)
+            ->where('exercices_comptables_id', $exercice->id)
+            ->where(fn ($q) => $q->whereNull('statut')->orWhere('statut', '!=', 'rejected'));
+        $compte
+            ? $base->where('plan_comptable_id', $compte->id)
+            : $base->where('code_journal_id', $journal->id);
+
+        $avant = (clone $base)->whereDate('date', '<', $debutPeriode->toDateString())
+            ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
+        $periode = (clone $base)->whereDate('date', '>=', $debutPeriode->toDateString())
+            ->whereDate('date', '<=', $finPeriode->toDateString())
+            ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
+
+        $ancien = round((float) $avant->debit - (float) $avant->credit, 2);
+        $debit = round((float) $periode->debit, 2);
+        $credit = round((float) $periode->credit, 2);
+
+        return response()->json([
+            'success' => true,
+            'journal' => $journal->code_journal,
+            'compte' => $compte?->numero_de_compte,
+            'periode' => [$debutPeriode->format('d/m/Y'), $finPeriode->format('d/m/Y')],
+            'ancien_solde' => $ancien,
+            'mouvements' => ['debit' => $debit, 'credit' => $credit],
+            'nouveau_solde' => round($ancien + $debit - $credit, 2),
+        ]);
+    }
+
     public function checkReference(Request $request)
     {
         try {

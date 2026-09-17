@@ -322,6 +322,7 @@ Route::middleware(['auth', 'exercice.context'])->group(function () {
     Route::get('/ecritures/rejetees', [EcritureComptableController::class, 'rejectedList'])->name('ecriture.rejected');
     Route::post('/ecritures/update-approval', [EcritureComptableController::class, 'updateFromApproval'])->name('ecriture.update_approval');
     Route::get('/ecritures/check-reference', [EcritureComptableController::class, 'checkReference'])->name('ecriture.check_reference');
+    Route::get('/ecritures/soldes-journal', [EcritureComptableController::class, 'soldesJournal'])->name('ecriture.soldes_journal');
     Route::delete('/ecritures/saisie/{n_saisie}', [EcritureComptableController::class, 'deleteBySaisie'])->name('ecriture.delete_saisie');
     Route::delete('/ecritures/delete-all', [EcritureComptableController::class, 'deleteAll'])->name('ecriture.delete_all');
 
