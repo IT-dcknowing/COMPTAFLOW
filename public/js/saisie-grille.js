@@ -1238,11 +1238,41 @@ const saisieGrille = (() => {
   }
 
   // ---------- Refresh Tableau Sage ----------
+  // Comparaison indulgente : accents, casse et espaces en trop sont ignorés.
+  function normaliser(valeur) {
+    return String(valeur ?? '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .toLowerCase().trim();
+  }
+
+  // Mois (rang 1) ou jour (rang 2) d'une date AAAA-MM-JJ, en nombre.
+  function partieDeDate(date, rang) {
+    const p = String(date || '').split('-');
+    return p.length === 3 ? parseInt(p[rang], 10) : null;
+  }
+
+  function effacerFiltresListe() {
+    ['filtre_liste_libelle', 'filtre_liste_saisie', 'filtre_liste_compte', 'filtre_liste_piece']
+      .forEach(id => { const c = document.getElementById(id); if (c) c.value = ''; });
+    const suivre = document.getElementById('filtre_liste_suivre_jour');
+    if (suivre) suivre.checked = false;
+    rafraichirListe();
+  }
+
   function rafraichirListe() {
     // Les soldes du journal (en-tête) se recalculent à chaque changement de liste.
     document.dispatchEvent(new CustomEvent('saisie:liste-rafraichie'));
     const journalId = document.getElementById('code_journal_id')?.value || '';
     const moisVal = document.getElementById('mois_ecriture')?.value || '';
+    const suivreJour = document.getElementById('filtre_liste_suivre_jour')?.checked;
+    const jourVal = suivreJour ? (document.getElementById('jour_ecriture')?.value || '') : '';
+
+    // Filtres de la barre : saisis au clavier, appliqués à la frappe.
+    const cherche = id => normaliser(document.getElementById(id)?.value || '');
+    const fLibelle = cherche('filtre_liste_libelle');
+    const fSaisie = cherche('filtre_liste_saisie');
+    const fCompte = cherche('filtre_liste_compte');
+    const fPiece = cherche('filtre_liste_piece');
 
     let lignes = ecritures.slice();
 
@@ -1250,12 +1280,26 @@ const saisieGrille = (() => {
       lignes = lignes.filter(e => e.code_journal_id == journalId);
     }
     if (moisVal) {
-      lignes = lignes.filter(e => {
-        if (!e.date) return false;
-        const p = e.date.split('-');
-        const m = p.length === 3 ? parseInt(p[1]) : null;
-        return m == moisVal;
-      });
+      lignes = lignes.filter(e => partieDeDate(e.date, 1) == moisVal);
+    }
+    if (jourVal) {
+      lignes = lignes.filter(e => partieDeDate(e.date, 2) == jourVal);
+    }
+    if (fLibelle) {
+      lignes = lignes.filter(e => normaliser(e.description_operation).includes(fLibelle));
+    }
+    if (fSaisie) {
+      lignes = lignes.filter(e =>
+        normaliser(e.n_saisie).includes(fSaisie) || normaliser(e.n_saisie_user).includes(fSaisie));
+    }
+    if (fCompte) {
+      lignes = lignes.filter(e => normaliser([
+        e.compte_general, e.compte_general_intitule,
+        e.compte_tiers, e.compte_tiers_intitule,
+      ].filter(Boolean).join(' ')).includes(fCompte));
+    }
+    if (fPiece) {
+      lignes = lignes.filter(e => normaliser(e.reference_piece).includes(fPiece));
     }
     lignes.sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -1487,6 +1531,9 @@ const saisieGrille = (() => {
 
     document.getElementById('jour_ecriture')?.addEventListener('change', function () {
       localStorage.setItem('fc_saisie_jour_ecriture', this.value);
+      // Le jour ne restreint la liste que si l'utilisateur l'a demandé :
+      // sinon, changer le jour de saisie masquerait tout le reste du mois.
+      if (document.getElementById('filtre_liste_suivre_jour')?.checked) rafraichirListe();
     });
 
     document.getElementById('modele_saisie')?.addEventListener('change', function () {
@@ -1523,7 +1570,7 @@ const saisieGrille = (() => {
   return {
     toggle, fermer, editerGroupe, supprimerGroupe, ajouterLigneEnCours, supprimerLigneEnCours, editerLigneEnCours, calculerTotaux, enregistrer, enregistrerBrouillon,
     appliquerModele, enregistrerCommeModele, ouvrirModalCreerModele, enregistrerNouveauModeleInline,
-    rafraichirListe, toggleFiltreDesequilibre, onFichierChoisi, scannerFacture,
+    rafraichirListe, effacerFiltresListe, toggleFiltreDesequilibre, onFichierChoisi, scannerFacture,
     switchViewMode, toggleHeaderCard, appliquerFiltresConsultation, appliquerAssistantTVA, ouvrirModalVentilationRow,
     ouvrirVentilationExisting, chargerBrouillon
   };

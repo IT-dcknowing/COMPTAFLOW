@@ -597,6 +597,42 @@
                                 </div>
                             </div>
 
+                            {{-- Filtres de la liste : retrouver l'écriture à modifier sans faire défiler.
+                                 Le mois et le jour choisis en haut de page s'y appliquent aussi. --}}
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2"
+                                style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
+                                <span class="small text-muted fw-semibold"><i class="bx bx-filter-alt me-1"></i>Filtrer</span>
+
+                                <input type="text" id="filtre_liste_libelle" class="form-control form-control-sm"
+                                    style="width:240px" placeholder="Libellé de l'opération"
+                                    oninput="saisieGrille.rafraichirListe()">
+
+                                <input type="text" id="filtre_liste_saisie" class="form-control form-control-sm"
+                                    style="width:170px" placeholder="N° de saisie"
+                                    oninput="saisieGrille.rafraichirListe()">
+
+                                <input type="text" id="filtre_liste_compte" class="form-control form-control-sm"
+                                    style="width:150px" placeholder="Compte ou tiers"
+                                    oninput="saisieGrille.rafraichirListe()">
+
+                                <input type="text" id="filtre_liste_piece" class="form-control form-control-sm"
+                                    style="width:150px" placeholder="Référence pièce"
+                                    oninput="saisieGrille.rafraichirListe()">
+
+                                <div class="form-check form-switch mb-0 ms-1">
+                                    <input class="form-check-input" type="checkbox" id="filtre_liste_suivre_jour"
+                                        onchange="saisieGrille.rafraichirListe()">
+                                    <label class="form-check-label small text-muted" for="filtre_liste_suivre_jour">
+                                        Jour choisi en haut
+                                    </label>
+                                </div>
+
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+                                    onclick="saisieGrille.effacerFiltresListe()">
+                                    <i class="bx bx-eraser me-1"></i>Effacer
+                                </button>
+                            </div>
+
                             {{-- Conteneur Sage scrollable --}}
                             <div id="sageScrollContainer" class="fc-table-responsive"
                                 style="max-height:480px;overflow:auto;scroll-behavior:smooth;">
