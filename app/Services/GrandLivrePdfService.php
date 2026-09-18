@@ -25,22 +25,22 @@ class GrandLivrePdfService
 
     // Largeurs colonnes (A4 paysage : 297 - 16 = 281 mm utiles)
     // Date | Jnl | N°Saisie | Pièce | Compte | Tiers | Libellé | Ltr | Débit | Crédit | Solde
-    // Total = 16+10+24+27+17+22+72+8+27+27+27 = 277 mm (< 281 mm)
-    // Les 24 mm qui restaient inutilisés ont été rendus aux colonnes qui
-    // coupaient le plus : Tiers (401SAMSONFILS…), Compte (8 chiffres), Pièce,
-    // N° Saisie et Libellé.
+    // Total = 16+11+24+27+17+22+77+8+26+26+26 = 280 mm (< 281 mm)
+    // Toute la largeur disponible est utilisée. Les colonnes de montants sont
+    // au plus juste : un montant en milliards (« 1 234 567 890,00 ») mesure
+    // 22 mm, elles en offrent 26. Ce qui est gagné va au libellé.
     const C = [
         'date'    => 16,
-        'journal' => 10,
+        'journal' => 11,   // les codes journaux de 4 ou 5 lettres tiennent
         'saisie'  => 24,
         'piece'   => 27,
         'compte'  => 17,   // un numéro à 8 chiffres tient en entier
         'tiers'   => 22,
-        'libelle' => 72,
+        'libelle' => 77,
         'lettr'   => 8,
-        'debit'   => 27,
-        'credit'  => 27,
-        'solde'   => 27,
+        'debit'   => 26,
+        'credit'  => 26,
+        'solde'   => 26,
     ];
 
     // Couleurs
@@ -442,7 +442,7 @@ class GrandLivrePdfService
         $cols   = self::C;
         $labelW = $cols['date'] + $cols['journal'] + $cols['saisie'] + $cols['piece']
                 + $cols['compte'] + $cols['tiers'] + $cols['libelle'] + $cols['lettr'];
-        $this->mpdf->SetFont('dejavusans', 'B', 7.5);
+        $this->policeAjustee([$this->fmt($d), $this->fmt($c), $this->fmtSolde($sol)], $cols['debit'], 7.5);
         $this->mpdf->SetFillColor(...self::BLUE_M);
         $this->mpdf->SetXY(self::ML, $this->Y);
         $this->mpdf->Cell($labelW,         self::RH + 1, 'TOTAL  ' . $num, 1, 0, 'R', true);
@@ -458,7 +458,7 @@ class GrandLivrePdfService
         $cols   = self::C;
         $labelW = $cols['date'] + $cols['journal'] + $cols['saisie'] + $cols['piece']
                 + $cols['compte'] + $cols['tiers'] + $cols['libelle'] + $cols['lettr'];
-        $this->mpdf->SetFont('dejavusans', 'B', 8.5);
+        $this->policeAjustee([$this->fmt($d), $this->fmt($c), $this->fmtSolde($d - $c)], $cols['debit'], 8.5);
         $this->mpdf->SetFillColor(...self::NAVY);
         $this->mpdf->SetTextColor(0, 0, 0);
         $this->mpdf->SetDrawColor(150, 150, 150);
@@ -503,6 +503,31 @@ class GrandLivrePdfService
         }
 
         return rtrim($coupe) . $points;
+    }
+
+    /**
+     * Choisit la plus grande police (gras) qui laisse tenir ces montants dans
+     * la colonne. Un montant ne se coupe jamais : sur une comptabilité en
+     * milliards, c'est la taille du texte qui cède, pas le chiffre.
+     */
+    private function policeAjustee(array $montants, float $largeurMm, float $taille, float $minimum = 6.0): void
+    {
+        $utile = $largeurMm - 1.4;
+        while ($taille > $minimum) {
+            $this->mpdf->SetFont('dejavusans', 'B', $taille);
+            $tientTout = true;
+            foreach ($montants as $montant) {
+                if ($this->mpdf->GetStringWidth($montant) > $utile) {
+                    $tientTout = false;
+                    break;
+                }
+            }
+            if ($tientTout) {
+                return;
+            }
+            $taille -= 0.5;
+        }
+        $this->mpdf->SetFont('dejavusans', 'B', $taille);
     }
 
     /** Formate un montant (toujours positif, séparateur espace) */
