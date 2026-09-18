@@ -14,9 +14,13 @@ use Illuminate\Support\Collection;
  * différentes, et les découper là-dessus revient à casser des écritures
  * saines en moitiés déséquilibrées.
  *
- * Le découpage se fait donc en deux temps :
- *   1. par date et par journal — une pièce ne chevauche ni l'un ni l'autre ;
- *   2. à l'intérieur, en coupant chaque fois que le solde cumulé revient à zéro.
+ * Les lignes sont donc parcourues dans leur ordre d'enregistrement, et une
+ * pièce se ferme chaque fois que le solde cumulé revient à zéro.
+ *
+ * Ni la date ni le journal ne servent de frontière : des écritures réelles
+ * portent une ligne à une date et sa contrepartie au lendemain (une ligne au
+ * 01/01 à +59 718 827, la contrepartie au 02/01), et couper là-dessus revient
+ * encore à fabriquer deux moitiés déséquilibrées.
  *
  * Si le solde ne revient jamais à zéro, rien n'est découpé : mieux vaut un
  * numéro partagé qu'une écriture mutilée.
@@ -32,34 +36,23 @@ class DecoupageDesPieces
      */
     public static function decouper(Collection $lignes): Collection
     {
-        $pieces = collect();
-
-        $blocs = $lignes
-            ->sortBy([['date', 'asc'], ['id', 'asc']])
-            ->groupBy(fn ($e) => $e->date . '|' . $e->code_journal_id);
-
-        foreach ($blocs as $bloc) {
-            foreach (self::decouperUnBloc($bloc->values()) as $piece) {
-                $pieces->push($piece);
-            }
-        }
-
-        return $pieces;
+        // L'ordre des identifiants est celui de l'enregistrement : les lignes
+        // d'une même pièce se suivent, qu'elles partagent ou non leur date.
+        return collect(self::couperSurLEquilibre($lignes->sortBy('id')->values()));
     }
 
     /**
-     * Découpe un bloc d'une même date et d'un même journal sur le retour à zéro
-     * du solde cumulé.
+     * Ferme une pièce chaque fois que le solde cumulé revient à zéro.
      *
      * @return array<int, Collection>
      */
-    private static function decouperUnBloc(Collection $bloc): array
+    private static function couperSurLEquilibre(Collection $lignes): array
     {
         $pieces = [];
         $courante = [];
         $solde = 0.0;
 
-        foreach ($bloc as $ligne) {
+        foreach ($lignes as $ligne) {
             $courante[] = $ligne;
             $solde += (float) $ligne->debit - (float) $ligne->credit;
 

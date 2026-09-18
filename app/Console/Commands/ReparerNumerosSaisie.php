@@ -29,7 +29,7 @@ class ReparerNumerosSaisie extends Command
     protected $signature = 'saisies:reparer-numeros
                             {--company= : Ne traiter que cette entreprise}
                             {--appliquer : Enregistre les nouveaux numéros (sans cette option, simple simulation)}
-                            {--lignes-max=12 : Au-delà de ce nombre de lignes, un numéro est examiné même sur une seule date}
+                            {--lignes-max=2 : Au-delà de ce nombre de lignes, un numéro est examiné ; une valeur plus haute accélère le balayage}
                             {--detail : Affiche chaque pièce, et pas seulement celles en écart}';
 
     protected $description = "Redonne un numéro distinct à chaque pièce lorsqu'un import les a toutes regroupées sous le même";
@@ -38,7 +38,7 @@ class ReparerNumerosSaisie extends Command
     {
         $appliquer = (bool) $this->option('appliquer');
         $detail = (bool) $this->option('detail');
-        $lignesMax = max(2, (int) $this->option('lignes-max'));
+        $lignesMax = max(1, (int) $this->option('lignes-max'));
 
         if (!$appliquer) {
             $this->warn('Mode simulation : aucune écriture ne sera modifiée. Ajoutez --appliquer pour enregistrer.');
@@ -48,10 +48,10 @@ class ReparerNumerosSaisie extends Command
         // entreprise coûterait des minutes sur une base de production, sans
         // rien afficher, et donnerait l'impression que la commande est figée.
         //
-        // On ne retient que les numéros qui couvrent plusieurs dates ou
-        // journaux — une pièce ne chevauche ni l'un ni l'autre — ou qui portent
-        // plus de lignes qu'une écriture plausible. Le découpage réel est
-        // décidé ensuite, sur l'équilibre.
+        // La présélection est large à dessein : tout numéro portant plus de deux
+        // lignes, ou couvrant plusieurs dates ou journaux, mérite un examen.
+        // C'est le découpage sur l'équilibre qui tranche ensuite, et il laisse
+        // intact tout numéro ne couvrant qu'une seule pièce.
         $this->line('Recherche des numéros couvrant plusieurs pièces…');
         $depart = microtime(true);
 

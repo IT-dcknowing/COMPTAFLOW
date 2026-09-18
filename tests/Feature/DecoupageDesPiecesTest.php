@@ -66,7 +66,7 @@ class DecoupageDesPiecesTest extends TestCase
         $this->assertSame([2, 2, 2], $pieces->map->count()->all());
     }
 
-    public function test_une_piece_ne_chevauche_ni_date_ni_journal(): void
+    public function test_des_pieces_de_dates_et_journaux_differents_sont_separees(): void
     {
         $pieces = DecoupageDesPieces::decouper($this->lignes([
             ['2025-01-29', 4, 1000, 0],
@@ -78,6 +78,56 @@ class DecoupageDesPiecesTest extends TestCase
         ]));
 
         $this->assertCount(3, $pieces);
+    }
+
+    /**
+     * Cas rencontre en production (ECR_000000004580) : une ligne au 01/01 et
+     * sa contrepartie au 02/01. Découper sur la date fabriquait deux moitiés
+     * à +59 718 827 et −59 718 827.
+     */
+    public function test_une_ecriture_a_cheval_sur_deux_jours_reste_entiere(): void
+    {
+        $pieces = DecoupageDesPieces::decouper($this->lignes([
+            ['2024-01-01', 4, 59718827, 0],
+            ['2024-01-02', 4, 0, 59718827],
+        ]));
+
+        $this->assertCount(1, $pieces);
+        $this->assertTrue(DecoupageDesPieces::estEquilibree($pieces->first()));
+    }
+
+    /** Cas rencontre en production (ECR_000000001108) : 1 ligne au 30/07, 6 au 31/07. */
+    public function test_une_ecriture_dont_les_contreparties_sont_au_lendemain_reste_entiere(): void
+    {
+        $pieces = DecoupageDesPieces::decouper($this->lignes([
+            ['2024-07-30', 4, 302674, 0],
+            ['2024-07-31', 4, 0, 50000],
+            ['2024-07-31', 4, 0, 50000],
+            ['2024-07-31', 4, 0, 50000],
+            ['2024-07-31', 4, 0, 50000],
+            ['2024-07-31', 4, 0, 50000],
+            ['2024-07-31', 4, 0, 52674],
+        ]));
+
+        $this->assertCount(1, $pieces);
+        $this->assertCount(7, $pieces->first());
+    }
+
+    /** Une piece a cheval au milieu d'une pile ne doit pas entrainer ses voisines. */
+    public function test_une_piece_a_cheval_au_milieu_dune_pile(): void
+    {
+        $pieces = DecoupageDesPieces::decouper($this->lignes([
+            ['2024-01-01', 4, 1000, 0],
+            ['2024-01-01', 4, 0, 1000],
+            ['2024-01-01', 4, 5000, 0],
+            ['2024-01-02', 4, 0, 5000],
+            ['2024-01-02', 4, 2000, 0],
+            ['2024-01-02', 4, 0, 2000],
+        ]));
+
+        $this->assertCount(3, $pieces);
+        $this->assertSame([2, 2, 2], $pieces->map->count()->all());
+        $pieces->each(fn ($p) => $this->assertTrue(DecoupageDesPieces::estEquilibree($p)));
     }
 
     public function test_un_bloc_jamais_equilibre_reste_intact(): void
