@@ -388,14 +388,17 @@ class GrandLivrePdfService
         $this->mpdf->SetFont('dejavusans', '', 7);
         $this->mpdf->SetFillColor(...self::WHITE);
         $this->mpdf->SetXY(self::ML, $this->Y);
-        $this->mpdf->Cell($c['date'],    self::RH, $this->fmtDate($e->date ?? ''),                    1, 0, 'C');
-        $this->mpdf->Cell($c['journal'], self::RH, mb_substr($jl,  0, 6),                             1, 0, 'C');
-        $this->mpdf->Cell($c['saisie'],  self::RH, mb_substr($ns,  0, 13),                            1, 0, 'C'); // 22mm≈13 chars
-        $this->mpdf->Cell($c['piece'],   self::RH, mb_substr($e->reference_piece ?? '-', 0, 15),      1, 0, 'C'); // 24mm≈15 chars
-        $this->mpdf->Cell($c['compte'],  self::RH, mb_substr($cpt, 0, 9),                             1, 0, 'C'); // 14mm≈9 chars
-        $this->mpdf->Cell($c['tiers'],   self::RH, mb_substr($ti,  0, 9),                             1, 0, 'C'); // 14mm≈9 chars
-        $this->mpdf->Cell($c['libelle'], self::RH, mb_substr($e->description_operation ?? '', 0, 44), 1, 0, 'L'); // 68mm≈44 chars
-        $this->mpdf->Cell($c['lettr'],   self::RH, mb_substr($e->lettrage ?? '', 0, 4),          1, 0, 'C');
+        // Chaque texte est coupé à la largeur réelle de sa colonne : compter les
+        // caractères ne suffisait pas (une majuscule accentuée est plus large
+        // qu'un « i ») et les libellés débordaient sur les colonnes voisines.
+        $this->mpdf->Cell($c['date'],    self::RH, $this->fmtDate($e->date ?? ''),                              1, 0, 'C');
+        $this->mpdf->Cell($c['journal'], self::RH, $this->tronquer($jl, $c['journal']),                         1, 0, 'C');
+        $this->mpdf->Cell($c['saisie'],  self::RH, $this->tronquer($ns, $c['saisie']),                          1, 0, 'C');
+        $this->mpdf->Cell($c['piece'],   self::RH, $this->tronquer($e->reference_piece ?? '-', $c['piece']),    1, 0, 'C');
+        $this->mpdf->Cell($c['compte'],  self::RH, $this->tronquer($cpt, $c['compte']),                         1, 0, 'C');
+        $this->mpdf->Cell($c['tiers'],   self::RH, $this->tronquer($ti, $c['tiers']),                           1, 0, 'C');
+        $this->mpdf->Cell($c['libelle'], self::RH, $this->tronquer($e->description_operation ?? '', $c['libelle']), 1, 0, 'L');
+        $this->mpdf->Cell($c['lettr'],   self::RH, $this->tronquer($e->lettrage ?? '', $c['lettr']),            1, 0, 'C');
         $this->mpdf->Cell($c['debit'],   self::RH, $d  > 0 ? $this->fmt($d)  : '',              1, 0, 'R');
         $this->mpdf->Cell($c['credit'],  self::RH, $cv > 0 ? $this->fmt($cv) : '',              1, 0, 'R');
         $this->mpdf->Cell($c['solde'],   self::RH, $this->fmtSolde($sol),                        1, 1, 'R');
@@ -454,6 +457,38 @@ class GrandLivrePdfService
     // ═════════════════════════════════════════════════════════════════════
     //  UTILITAIRES
     // ═════════════════════════════════════════════════════════════════════
+
+    /**
+     * Coupe un texte à la largeur de sa colonne et le termine par « … ».
+     *
+     * mPDF n'ampute pas le texte d'une cellule : ce qui dépasse s'imprime
+     * par-dessus la colonne suivante. On mesure donc le texte avec la police
+     * en cours et on s'arrête avant le bord.
+     */
+    private function tronquer(?string $texte, float $largeurMm, float $marge = 1.4): string
+    {
+        $texte = trim((string) $texte);
+        if ($texte === '') {
+            return '';
+        }
+
+        $utile = $largeurMm - $marge;
+        if ($utile <= 0 || $this->mpdf->GetStringWidth($texte) <= $utile) {
+            return $texte;
+        }
+
+        $points = '…';
+        $utile -= $this->mpdf->GetStringWidth($points);
+        $coupe = '';
+        foreach (preg_split('//u', $texte, -1, PREG_SPLIT_NO_EMPTY) as $lettre) {
+            if ($this->mpdf->GetStringWidth($coupe . $lettre) > $utile) {
+                break;
+            }
+            $coupe .= $lettre;
+        }
+
+        return rtrim($coupe) . $points;
+    }
 
     /** Formate un montant (toujours positif, séparateur espace) */
     private function fmt(float $v): string

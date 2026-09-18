@@ -35,6 +35,26 @@
 
         // --- 1. Initialisation Bootstrap-Select (Legacy) ---
         if (typeof $.fn.selectpicker === 'function') {
+            // « refresh » de bootstrap-select 1.14 beta réaffiche la liste sans
+            // effacer l'ancienne : à chaque ouverture d'une fenêtre, le bouton
+            // affichait « 4 Colonnes4 Colonnes » et la liste doublait
+            // (4, 6, 8, 4, 6, 8). On reconstruit proprement à la place.
+            const posePicker = $.fn.selectpicker;
+            $.fn.selectpicker = function (action) {
+                if (action === 'refresh') {
+                    return this.each(function () {
+                        const $liste = $(this);
+                        const valeur = $liste.val();
+                        if ($liste.data('selectpicker')) posePicker.call($liste, 'destroy');
+                        posePicker.call($liste);
+                        if (valeur !== null && valeur !== undefined) $liste.val(valeur);
+                        posePicker.call($liste, 'render');
+                    });
+                }
+                return posePicker.apply(this, arguments);
+            };
+            Object.assign($.fn.selectpicker, posePicker);
+
             $('.selectpicker').selectpicker();
 
             // Événement de rafraîchissement pour le modal
