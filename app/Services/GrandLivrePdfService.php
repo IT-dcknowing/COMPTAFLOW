@@ -25,15 +25,18 @@ class GrandLivrePdfService
 
     // Largeurs colonnes (A4 paysage : 297 - 16 = 281 mm utiles)
     // Date | Jnl | N°Saisie | Pièce | Compte | Tiers | Libellé | Ltr | Débit | Crédit | Solde
-    // Total = 16+10+22+24+14+14+68+8+27+27+27 = 257 mm (< 281 mm)
+    // Total = 16+10+24+27+17+22+72+8+27+27+27 = 277 mm (< 281 mm)
+    // Les 24 mm qui restaient inutilisés ont été rendus aux colonnes qui
+    // coupaient le plus : Tiers (401SAMSONFILS…), Compte (8 chiffres), Pièce,
+    // N° Saisie et Libellé.
     const C = [
-        'date'    => 16,   // réduit (-2) pour laisser plus d'espace à Pièce/Saisie
+        'date'    => 16,
         'journal' => 10,
-        'saisie'  => 22,   // élargi (+2) — références saisie longues
-        'piece'   => 24,   // élargi (+6) — références pièce souvent longues
-        'compte'  => 14,
-        'tiers'   => 14,
-        'libelle' => 68,   // réduit (-10) — reste largement suffisant
+        'saisie'  => 24,
+        'piece'   => 27,
+        'compte'  => 17,   // un numéro à 8 chiffres tient en entier
+        'tiers'   => 22,
+        'libelle' => 72,
         'lettr'   => 8,
         'debit'   => 27,
         'credit'  => 27,
@@ -99,7 +102,7 @@ class GrandLivrePdfService
             'margin_top'    => self::MT,
             'margin_bottom' => self::MB,
             'margin_header' => 0,
-            'margin_footer' => 0,
+            'margin_footer' => 5,
             'tempDir'       => $tmpDir,
         ]);
 
@@ -110,6 +113,18 @@ class GrandLivrePdfService
 
         $this->mpdf->SetAutoPageBreak(false);
         $this->mpdf->SetTitle($titre . ' — ' . $companyName);
+
+        // Pied de page identique à celui de la balance : qui a imprimé, quand,
+        // et la pagination « Page X / Y ». Il manquait au grand livre.
+        $auteur = auth()->user()?->name ?: 'Utilisateur inconnu';
+        $tirage = now()->format('d/m/Y à H:i');
+        $this->mpdf->SetHTMLFooter(
+            '<table width="100%" style="font-family: dejavusans; font-size: 7pt; color: #000;"><tr>'
+            . '<td align="left">© ComptaFlow | Impression générée par ' . htmlspecialchars($auteur)
+            . ' le ' . $tirage . '</td>'
+            . '<td align="right">Page {PAGENO} / {nbpg}</td>'
+            . '</tr></table>'
+        );
 
         // ── Première page ─────────────────────────────────────────────────
         $this->addPage();

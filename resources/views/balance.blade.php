@@ -377,10 +377,11 @@
         $w = $pdf->get_width();
         $h = $pdf->get_height();
 
-        // 1. Page centré en bas
+        // 1. Numéro de page, calé à droite : au centre, la mention
+        //    « Impression générée par … à HH:MM » venait le recouvrir.
         $text = "Page {PAGE_NUM} / {PAGE_COUNT}";
         $textWidth = $fontMetrics->get_text_width($text, $font, $size);
-        $x = ($w - $textWidth) / 2;
+        $x = $w - $textWidth - 20;
         $y = $h - 25;
         $pdf->page_text($x, $y, $text, $font, $size, [0,0,0]);
 
