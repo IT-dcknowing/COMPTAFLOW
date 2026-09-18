@@ -28,15 +28,20 @@ class NumerotationSaisie
     private const COLONNES = ['n_saisie', 'n_saisie_user'];
 
     /**
-     * Numéros déjà attribués pendant le traitement en cours.
+     * Plus grande séquence attribuée pendant le traitement en cours, par
+     * racine (« 1|n_saisie|ECR-180926- »).
      *
      * Un import accumule ses lignes et ne les écrit en base que par paquets de
      * mille : la base ne connaît donc pas encore les numéros distribués depuis
-     * le début du paquet. Sans cette réservation, toutes les pièces du paquet
-     * reçoivent le même numéro — c'est ce qui a figé un import entier sur
+     * le début du paquet. Sans ce suivi, toutes les pièces du paquet reçoivent
+     * le même numéro — c'est ce qui a figé un import entier sur
      * ECR_000000000020.
+     *
+     * On retient une séquence par racine, et non la liste des numéros : une
+     * réparation qui renumérote des dizaines de milliers de pièces relisait
+     * sinon toute la liste à chaque attribution.
      */
-    private static array $reserves = [];
+    private static array $dernieres = [];
 
     /**
      * Numéro global d'une nouvelle pièce.
@@ -74,7 +79,7 @@ class NumerotationSaisie
      */
     public static function oublierReservations(): void
     {
-        self::$reserves = [];
+        self::$dernieres = [];
     }
 
     /**
@@ -93,19 +98,24 @@ class NumerotationSaisie
         $jour = $date ? Carbon::parse($date) : Carbon::now();
         $racine = $prefixe . $jour->format('dmy') . '-';
 
-        $sequence = self::derniereSequence($racine, $colonne, $companyId) + 1;
+        $cle = $companyId . '|' . $colonne . '|' . $racine;
+        $sequence = self::derniereSequence($cle, $racine, $colonne, $companyId) + 1;
 
         do {
             $numero = $racine . str_pad((string) $sequence, self::LONGUEUR_SEQUENCE, '0', STR_PAD_LEFT);
-            $cle = $companyId . '|' . $colonne . '|' . $numero;
 
-            $pris = isset(self::$reserves[$cle])
-                || EcritureComptable::where('company_id', $companyId)->where($colonne, $numero)->exists();
+            // La séquence en mémoire tient déjà compte de ce qui est en base ;
+            // la vérification n'a de sens que sur le premier numéro de la
+            // racine, au cas où un autre traitement aurait écrit entre-temps.
+            $pris = !isset(self::$dernieres[$cle])
+                && EcritureComptable::where('company_id', $companyId)->where($colonne, $numero)->exists();
 
-            $sequence++;
+            if ($pris) {
+                $sequence++;
+            }
         } while ($pris);
 
-        self::$reserves[$cle] = true;
+        self::$dernieres[$cle] = $sequence;
 
         return $numero;
     }
@@ -114,8 +124,15 @@ class NumerotationSaisie
      * Plus grande séquence déjà utilisée ce jour-là, en base comme parmi les
      * numéros réservés depuis le début du traitement.
      */
-    private static function derniereSequence(string $racine, string $colonne, int $companyId): int
+    private static function derniereSequence(string $cle, string $racine, string $colonne, int $companyId): int
     {
+        // Déjà servi cette racine dans ce traitement : la base n'a rien à
+        // apprendre de plus, et la relire à chaque pièce rendrait une
+        // réparation de plusieurs dizaines de milliers de pièces interminable.
+        if (isset(self::$dernieres[$cle])) {
+            return self::$dernieres[$cle];
+        }
+
         if (!in_array($colonne, self::COLONNES, true)) {
             throw new \InvalidArgumentException("Colonne de numérotation inconnue : $colonne");
         }
@@ -128,15 +145,6 @@ class NumerotationSaisie
             ->where($colonne, 'like', addcslashes($racine, '%_\\') . '%')
             ->max($colonne);
 
-        $dernier = $plusGrand ? (int) substr($plusGrand, strlen($racine)) : 0;
-
-        $prefixeReserve = $companyId . '|' . $colonne . '|' . $racine;
-        foreach (array_keys(self::$reserves) as $cle) {
-            if (str_starts_with($cle, $prefixeReserve)) {
-                $dernier = max($dernier, (int) substr($cle, strlen($prefixeReserve)));
-            }
-        }
-
-        return $dernier;
+        return $plusGrand ? (int) substr($plusGrand, strlen($racine)) : 0;
     }
 }

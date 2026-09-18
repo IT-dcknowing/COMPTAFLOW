@@ -40,6 +40,10 @@ class ReparerNumerosSaisie extends Command
         $detail = (bool) $this->option('detail');
         $lignesMax = max(1, (int) $this->option('lignes-max'));
 
+        // Des dizaines de milliers de requêtes passent ici : gardées en
+        // mémoire, elles suffisent à faire tuer le processus.
+        DB::connection()->disableQueryLog();
+
         if (!$appliquer) {
             $this->warn('Mode simulation : aucune écriture ne sera modifiée. Ajoutez --appliquer pour enregistrer.');
         }
