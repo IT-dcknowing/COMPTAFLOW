@@ -134,8 +134,10 @@ class GrandLivrePdfService
         $this->need(8);
         $this->renderGrandTotal($grandTotalD, $grandTotalC);
 
-        // ── Pied de la dernière page ──────────────────────────────────────
-        $this->renderPageFooter();
+        // La dernière page ne porte pas de ligne « À REPORTER » : il n'y a plus
+        // rien à reporter après le total général. Elle n'apparaît qu'au bas des
+        // pages suivies d'une autre (posée par addPage), avec le « REPORT » qui
+        // la reprend en haut de la page suivante.
 
         // ── Sauvegarde ───────────────────────────────────────────────────
         if (!is_dir(dirname($outputPath))) mkdir(dirname($outputPath), 0777, true);
