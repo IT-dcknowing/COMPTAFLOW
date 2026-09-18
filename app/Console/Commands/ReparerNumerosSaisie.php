@@ -27,40 +27,74 @@ class ReparerNumerosSaisie extends Command
 {
     protected $signature = 'saisies:reparer-numeros
                             {--company= : Ne traiter que cette entreprise}
-                            {--appliquer : Enregistre les nouveaux numéros (sans cette option, simple simulation)}';
+                            {--appliquer : Enregistre les nouveaux numéros (sans cette option, simple simulation)}
+                            {--detail : Affiche chaque pièce, et pas seulement celles en écart}';
 
     protected $description = "Redonne un numéro distinct à chaque pièce lorsqu'un import les a toutes regroupées sous le même";
+
+    /** Ce qui distingue deux pièces au sein d'un même numéro. */
+    private const CLE_PIECE = "CONCAT_WS('|', date, code_journal_id, COALESCE(n_saisie_user, ''), COALESCE(reference_piece, ''))";
 
     public function handle(): int
     {
         $appliquer = (bool) $this->option('appliquer');
+        $detail = (bool) $this->option('detail');
 
         if (!$appliquer) {
             $this->warn('Mode simulation : aucune écriture ne sera modifiée. Ajoutez --appliquer pour enregistrer.');
         }
 
-        $entreprises = Company::query()
-            ->when($this->option('company'), fn ($q) => $q->where('id', $this->option('company')))
-            ->orderBy('id')
-            ->get(['id', 'company_name']);
+        // Un seul balayage de la table pour tous les dossiers : une lecture par
+        // entreprise coûterait des minutes sur une base de production, sans
+        // rien afficher, et donnerait l'impression que la commande est figée.
+        $this->line('Recherche des numéros partagés par plusieurs pièces…');
+        $depart = microtime(true);
 
-        $totalPieces = 0;
-        $totalLignes = 0;
+        $suspects = EcritureComptable::query()
+            ->when($this->option('company'), fn ($q) => $q->where('company_id', $this->option('company')))
+            ->where('n_saisie', 'like', 'ECR%')
+            ->select('company_id', 'n_saisie', DB::raw('COUNT(*) as lignes'))
+            ->groupBy('company_id', 'n_saisie')
+            ->havingRaw('COUNT(DISTINCT ' . self::CLE_PIECE . ') > 1')
+            ->get();
 
-        foreach ($entreprises as $entreprise) {
-            [$pieces, $lignes] = $this->traiterEntreprise($entreprise, $appliquer);
-            $totalPieces += $pieces;
-            $totalLignes += $lignes;
-        }
+        $this->line(sprintf('Balayage terminé en %.1f s : %d numéro(s) à reprendre.',
+            microtime(true) - $depart, $suspects->count()));
 
-        $this->newLine();
-        if ($totalPieces === 0) {
+        if ($suspects->isEmpty()) {
             $this->info('Aucun numéro de saisie partagé à tort : rien à réparer.');
             return self::SUCCESS;
         }
 
+        $noms = Company::whereIn('id', $suspects->pluck('company_id')->unique())
+            ->pluck('company_name', 'id');
+
+        $totalPieces = 0;
+        $totalLignes = 0;
+        $totalEcarts = 0;
+
+        foreach ($suspects->groupBy('company_id') as $companyId => $numeros) {
+            $this->newLine();
+            $this->line("Entreprise $companyId — " . ($noms[$companyId] ?? '?') . ' : '
+                . $numeros->count() . ' numéro(s), ' . $numeros->sum('lignes') . ' ligne(s).');
+
+            foreach ($numeros as $suspect) {
+                [$pieces, $lignes, $ecarts] = $this->reprendre(
+                    (int) $companyId, $suspect->n_saisie, $appliquer, $detail
+                );
+                $totalPieces += $pieces;
+                $totalLignes += $lignes;
+                $totalEcarts += $ecarts;
+            }
+        }
+
+        $this->newLine();
         $verbe = $appliquer ? 'renumérotées' : 'à renuméroter';
         $this->info("$totalPieces pièce(s) $verbe, soit $totalLignes ligne(s).");
+
+        if ($totalEcarts > 0) {
+            $this->warn("$totalEcarts pièce(s) restent déséquilibrées après regroupement : à vérifier.");
+        }
 
         if (!$appliquer) {
             $this->line('Relancez avec --appliquer pour enregistrer.');
@@ -70,78 +104,64 @@ class ReparerNumerosSaisie extends Command
     }
 
     /**
-     * @return array{0:int,1:int} nombre de pièces et de lignes concernées
+     * Redonne un numéro à chaque pièce cachée derrière un numéro unique.
+     *
+     * @return array{0:int,1:int,2:int} pièces, lignes, pièces déséquilibrées
      */
-    private function traiterEntreprise(Company $entreprise, bool $appliquer): array
+    private function reprendre(int $companyId, string $numero, bool $appliquer, bool $detail): array
     {
-        // Numéros système portant des lignes de plusieurs dates, journaux ou
-        // références : le signe qu'ils couvrent plus d'une pièce.
-        $suspects = EcritureComptable::where('company_id', $entreprise->id)
-            ->where('n_saisie', 'like', 'ECR%')
-            ->select('n_saisie')
-            ->groupBy('n_saisie')
-            ->havingRaw("COUNT(DISTINCT CONCAT_WS('|', date, code_journal_id, COALESCE(n_saisie_user, ''), COALESCE(reference_piece, ''))) > 1")
-            ->pluck('n_saisie');
+        $groupes = EcritureComptable::where('company_id', $companyId)
+            ->where('n_saisie', $numero)
+            ->orderBy('date')
+            ->orderBy('id')
+            ->get(['id', 'date', 'code_journal_id', 'n_saisie_user', 'reference_piece',
+                'debit', 'credit', 'exercices_comptables_id'])
+            ->groupBy(fn ($e) => implode('|', [
+                $e->date,
+                $e->code_journal_id,
+                $e->n_saisie_user ?? '',
+                $e->reference_piece ?? '',
+            ]));
 
-        if ($suspects->isEmpty()) {
-            return [0, 0];
-        }
-
-        $this->newLine();
-        $this->line("Entreprise {$entreprise->id} — {$entreprise->company_name} : "
-            . $suspects->count() . ' numéro(s) partagé(s) par plusieurs pièces.');
+        $this->line("  $numero : " . $groupes->count() . ' pièces, '
+            . $groupes->sum(fn ($g) => $g->count()) . ' lignes.');
 
         $pieces = 0;
         $lignes = 0;
+        $ecarts = 0;
 
-        foreach ($suspects as $numero) {
-            $groupes = EcritureComptable::where('company_id', $entreprise->id)
-                ->where('n_saisie', $numero)
-                ->orderBy('date')
-                ->orderBy('id')
-                ->get()
-                ->groupBy(fn ($e) => implode('|', [
-                    $e->date,
-                    $e->code_journal_id,
-                    $e->n_saisie_user ?? '',
-                    $e->reference_piece ?? '',
-                ]));
+        $renumeroter = function () use ($groupes, $appliquer, $detail, $companyId, &$pieces, &$lignes, &$ecarts) {
+            foreach ($groupes as $groupe) {
+                $premier = $groupe->first();
+                $nouveau = NumerotationSaisie::global(
+                    $companyId,
+                    $premier->exercices_comptables_id,
+                    $premier->date
+                );
 
-            $this->line("  $numero : " . $groupes->count() . ' pièces, '
-                . $groupes->sum(fn ($g) => $g->count()) . ' lignes.');
+                $solde = $groupe->sum(fn ($e) => (float) $e->debit) - $groupe->sum(fn ($e) => (float) $e->credit);
+                $desequilibre = abs($solde) > 0.01;
 
-            $renumeroter = function () use ($groupes, $appliquer, $entreprise, &$pieces, &$lignes) {
-                foreach ($groupes as $groupe) {
-                    $premier = $groupe->first();
-                    $nouveau = NumerotationSaisie::global(
-                        $entreprise->id,
-                        $premier->exercices_comptables_id,
-                        $premier->date
-                    );
-
-                    $debit = $groupe->sum(fn ($e) => (float) $e->debit);
-                    $credit = $groupe->sum(fn ($e) => (float) $e->credit);
-                    $ecart = abs($debit - $credit) > 0.01
-                        ? sprintf('  ⚠ écart %s', number_format($debit - $credit, 2, ',', ' '))
-                        : '';
-
-                    $this->line(sprintf('    %-22s %2d ligne(s)  %s%s',
-                        $nouveau, $groupe->count(), $premier->date, $ecart));
-
-                    if ($appliquer) {
-                        EcritureComptable::whereIn('id', $groupe->pluck('id'))
-                            ->update(['n_saisie' => $nouveau]);
-                    }
-
-                    $pieces++;
-                    $lignes += $groupe->count();
+                if ($desequilibre || $detail) {
+                    $this->line(sprintf('    %-22s %3d ligne(s)  %s%s',
+                        $nouveau, $groupe->count(), $premier->date,
+                        $desequilibre ? '  ⚠ écart ' . number_format($solde, 2, ',', ' ') : ''));
                 }
-            };
 
-            // En simulation rien n'est écrit : inutile d'ouvrir une transaction.
-            $appliquer ? DB::transaction($renumeroter) : $renumeroter();
-        }
+                if ($appliquer) {
+                    EcritureComptable::whereIn('id', $groupe->pluck('id'))
+                        ->update(['n_saisie' => $nouveau]);
+                }
 
-        return [$pieces, $lignes];
+                $pieces++;
+                $lignes += $groupe->count();
+                $ecarts += $desequilibre ? 1 : 0;
+            }
+        };
+
+        // En simulation rien n'est écrit : inutile d'ouvrir une transaction.
+        $appliquer ? DB::transaction($renumeroter) : $renumeroter();
+
+        return [$pieces, $lignes, $ecarts];
     }
 }
