@@ -99,6 +99,12 @@
             --vh100: 100vh;
         }
 
+        /* Les fenêtres sont dimensionnées en « vh » (85 % de l'écran, par
+           exemple). Sous l'échelle, ces hauteurs se réduisaient une seconde
+           fois : les formulaires longs (génération d'une balance, d'un grand
+           livre) n'avaient plus qu'un tout petit cadre à faire défiler. */
+        html body .modal-content { max-height: calc(var(--vh100) - 2rem) !important; }
+
         html body .modal-fullscreen,
         html body .vw-100 { width: var(--vw100) !important; }
         html body .min-vw-100 { min-width: var(--vw100) !important; }

@@ -91,6 +91,25 @@
                 });
             };
 
+            // Une liste qui s'ouvre dans une fenêtre déplaçait le formulaire :
+            // le champ de recherche prend le focus, et le navigateur fait
+            // défiler la fenêtre jusqu'à lui. Les cartes du haut (période,
+            // plage de comptes) disparaissaient au premier clic. On remet donc
+            // la fenêtre où elle était.
+            $(document).on('select2:opening', 'select', function () {
+                const corps = this.closest('.modal-body');
+                if (corps) corps.dataset.defilement = corps.scrollTop;
+            });
+            $(document).on('select2:open select2:close select2:select', 'select', function () {
+                const corps = this.closest('.modal-body');
+                if (!corps || corps.dataset.defilement === undefined) return;
+                const position = parseFloat(corps.dataset.defilement) || 0;
+                const remettre = () => { corps.scrollTop = position; };
+                remettre();
+                requestAnimationFrame(remettre);
+                setTimeout(remettre, 60);
+            });
+
             // Init au chargement
             initSelect2();
 
