@@ -85,6 +85,20 @@
             width: var(--vw100) !important;
             height: var(--vh100) !important;
         }
+        /* Aperçus de documents : le lecteur PDF de Chrome ne suit pas l'échelle
+           et ajuste la page à une largeur plus grande que celle affichée — la
+           droite du document se retrouvait coupée. L'échelle est donc annulée
+           dans toute fenêtre qui montre un document. */
+        html body .modal:has(iframe) {
+            zoom: calc(1 / var(--echelle-app, 1)) !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            /* L'échelle ne s'applique plus ici : les dimensions pleine page
+               redeviennent celles de l'écran pour tout ce que la fenêtre contient. */
+            --vw100: 100vw;
+            --vh100: 100vh;
+        }
+
         html body .modal-fullscreen,
         html body .vw-100 { width: var(--vw100) !important; }
         html body .min-vw-100 { min-width: var(--vw100) !important; }

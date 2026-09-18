@@ -25,19 +25,27 @@
 @endphp
 
 <style>
-    /* Imposé sur l'identifiant : aucune feuille du gabarit ne peut le réduire. */
-    #{{ $id }} { padding: 0 !important; }
+    /* Imposé sur l'identifiant : aucune feuille du gabarit ne peut le réduire.
+       L'échelle de l'application est annulée ici : le lecteur PDF de Chrome ne
+       la suit pas et ajustait la page à une largeur plus grande que celle
+       affichée, si bien que la partie droite du document était coupée. */
+    #{{ $id }} {
+        padding: 0 !important;
+        zoom: calc(1 / var(--echelle-app, 1)) !important;
+        width: 100vw !important;
+        height: 100vh !important;
+    }
     #{{ $id }} .modal-dialog {
-        width: var(--vw100, 100vw) !important;
-        max-width: var(--vw100, 100vw) !important;
-        height: var(--vh100, 100vh) !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100vh !important;
         margin: 0 !important;
         display: flex !important;
     }
     #{{ $id }} .modal-content {
         width: 100% !important;
         max-width: none !important;
-        height: var(--vh100, 100vh) !important;
+        height: 100vh !important;
         border: 0 !important;
         border-radius: 0 !important;
         display: flex !important;
