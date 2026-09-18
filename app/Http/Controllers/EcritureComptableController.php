@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Approval;
 use App\Models\TreasuryCategory;
 use App\Traits\HandlesTreasuryPosts;
+use App\Services\NumerotationSaisie;
 
 class EcritureComptableController extends Controller
 {
@@ -108,17 +109,8 @@ class EcritureComptableController extends Controller
             ? \App\Models\EcritureModele::where('company_id', $activeCompanyId)->orderBy('nom')->get()
             : collect();
 
-        // Générer le numéro utilisateur au format CPT-XX_000000000001
-        $initials = $user->initiales;
-        $prefix = "CPT-" . $initials . "_";
-        $lastUserSaisie = EcritureComptable::where('company_id', $activeCompanyId)
-            ->where('n_saisie_user', 'like', $prefix . '%')
-            ->max('id');
-
-        $nextSequence = ($lastUserSaisie ? $lastUserSaisie + 1 : 1);
-        // Note: Pour être plus précis on devrait compter les n_saisie_user distincts mais count(distinct) ou max sur la sequence suffixe est mieux.
-        // On va utiliser une approche simple pour l'init :
-        $nextSaisieNumber = $prefix . str_pad($nextSequence, 12, '0', STR_PAD_LEFT);
+        // Numéro utilisateur du jour, au format CPT-XX-JJMMAA-000001.
+        $nextSaisieNumber = NumerotationSaisie::utilisateur($activeCompanyId, $user);
 
         $query = EcritureComptable::where('company_id', $activeCompanyId);
 
@@ -218,28 +210,9 @@ class EcritureComptableController extends Controller
         $plansComptables = PlanComptable::select('id', 'numero_de_compte', 'intitule')->orderBy('numero_de_compte')->get();
         $plansTiers = PlanTiers::select('id', 'numero_de_tiers', 'intitule', 'compte_general')->with('compte')->get();
 
-        $initials = $user->initiales;
-        $prefix = "CPT-" . $initials . "_";
+        $nextSaisieNumber = NumerotationSaisie::utilisateur($activeCompanyId, $user);
 
-        Log::debug("Génération N° Saisie (scanIndex) - Prefix: $prefix, Company: $activeCompanyId");
-
-        // Utiliser le nombre d'écritures distinctes + 1 pour suivre une suite logique 1, 2, 3...
-        $nextSequence = EcritureComptable::where('company_id', $activeCompanyId)
-            ->where('n_saisie_user', 'like', $prefix . '%')
-            ->distinct('n_saisie_user')
-            ->count('n_saisie_user') + 1;
-
-        // Boucle de sécurité pour trouver le premier numéro réellement disponible
-        do {
-            $nextSaisieNumber = $prefix . str_pad($nextSequence, 12, '0', STR_PAD_LEFT);
-            $existe = EcritureComptable::where('company_id', $activeCompanyId)
-                ->where('n_saisie_user', $nextSaisieNumber)
-                ->exists();
-            if ($existe)
-                $nextSequence++;
-        } while ($existe);
-
-        Log::debug("Saisie calculée: $nextSaisieNumber (Séquence: $nextSequence)");
+        Log::debug("Génération N° Saisie (scanIndex) - Numéro: $nextSaisieNumber, Company: $activeCompanyId");
 
         $comptesTresorerie = CompteTresorerie::with('category')->orderBy('name')->get();
 
@@ -292,14 +265,7 @@ class EcritureComptableController extends Controller
         $comptesTresorerie = CompteTresorerie::with('category')->orderBy('name')->get();
         $axes = AxeAnalytique::where('company_id', $activeCompanyId)->with('sections')->get();
 
-        $initials = $user->initiales;
-        $prefix = "CPT-" . $initials . "_";
-        $nextSequence = EcritureComptable::where('company_id', $activeCompanyId)
-            ->where('n_saisie_user', 'like', $prefix . '%')
-            ->distinct('n_saisie_user')
-            ->count('n_saisie_user') + 1;
-
-        $nextSaisieNumber = $prefix . str_pad($nextSequence, 12, '0', STR_PAD_LEFT);
+        $nextSaisieNumber = NumerotationSaisie::utilisateur($activeCompanyId, $user);
 
         return view('accounting.bulk_scan', compact(
             'plansComptables',
@@ -1013,11 +979,14 @@ class EcritureComptableController extends Controller
             ->paginate(10);
 
         $saisieList = $paginatedSaisies->pluck('n_saisie')->toArray();
-        
-        $ecritures = EcritureComptable::with(['planComptable', 'planTiers', 'compteTresorerie', 'posteTresorerie.category', 'codeJournal', 'ventilations.section.axe'])
-            ->where('ecriture_comptables.company_id', $activeCompanyId)
+
+        // Les lignes affichées repartent de la requête filtrée, et non d'une
+        // requête neuve : sinon les lignes écartées par les filtres reviennent
+        // dès que plusieurs pièces partagent un même numéro de saisie, et le
+        // mois, le journal ou le libellé demandés semblent ignorés.
+        $ecritures = (clone $baseQuery)
+            ->with(['planComptable', 'planTiers', 'compteTresorerie', 'posteTresorerie.category', 'codeJournal', 'ventilations.section.axe'])
             ->whereIn('ecriture_comptables.n_saisie', $saisieList)
-            ->where('ecriture_comptables.exercices_comptables_id', $exerciceActif ? $exerciceActif->id : null)
             ->select('ecriture_comptables.*')
             ->orderBy('ecriture_comptables.date', 'desc')
             ->orderBy('ecriture_comptables.n_saisie', 'desc')
@@ -1120,31 +1089,16 @@ class EcritureComptableController extends Controller
                 return response()->json(['error' => 'Non authentifié'], 401);
 
             $activeCompanyId = session('current_company_id', $user->company_id);
-            $initials = $user->initiales;
-            $prefix = "CPT-" . $initials . "_";
-
-            Log::debug("Génération N° Saisie (API) - Prefix: $prefix, Company: $activeCompanyId");
-
-            // Même logique robuste: count distinct + 1
-            $nextNumber = EcritureComptable::where('company_id', $activeCompanyId)
-                ->where('n_saisie_user', 'like', $prefix . '%')
-                ->distinct('n_saisie_user')
-                ->count('n_saisie_user') + 1;
-
-            do {
-                $formattedNumber = $prefix . str_pad($nextNumber, 12, '0', STR_PAD_LEFT);
-                $existe = EcritureComptable::where('company_id', $activeCompanyId)
-                    ->where('n_saisie_user', $formattedNumber)
-                    ->exists();
-                if ($existe)
-                    $nextNumber++;
-            } while ($existe);
+            $prefix = NumerotationSaisie::prefixeUtilisateur($user);
+            $formattedNumber = NumerotationSaisie::utilisateur($activeCompanyId, $user);
 
             Log::debug("API - Saisie calculée: $formattedNumber");
 
             return response()->json([
                 'success' => true,
                 'numero' => $formattedNumber,
+                // Certains écrans lisent « nextSaisieNumber » : on sert les deux clés.
+                'nextSaisieNumber' => $formattedNumber,
                 'prefix' => $prefix
             ]);
         }
@@ -1154,29 +1108,11 @@ class EcritureComptableController extends Controller
     }
 
     /**
-     * Génère un numéro de saisie global séquentiel au format ECR_000000000001
+     * Génère un numéro de saisie global au format ECR-JJMMAA-000001.
      */
     private function generateGlobalSaisieNumber($companyId, $exerciceId = null)
     {
-        // On cherche le max de n_saisie qui commence par ECR_
-        $query = EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie', 'like', 'ECR_%');
-
-        if ($exerciceId) {
-            $query->where('exercices_comptables_id', $exerciceId);
-        }
-
-        $lastEntry = $query->orderBy('n_saisie', 'desc')
-            ->first();
-
-        $nextNumber = 1;
-        if ($lastEntry) {
-            $lastNSaisie = $lastEntry->n_saisie;
-            $numberPart = str_replace('ECR_', '', $lastNSaisie);
-            $nextNumber = (int)$numberPart + 1;
-        }
-
-        return 'ECR_' . str_pad($nextNumber, 12, '0', STR_PAD_LEFT);
+        return NumerotationSaisie::global($companyId, $exerciceId);
     }
 
     public function getCompteParJournal(Request $request)

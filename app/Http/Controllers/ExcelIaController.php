@@ -492,28 +492,7 @@ class ExcelIaController extends Controller
      */
     private function generateUserSaisieNumber(int $companyId, $user): string
     {
-        $initials = $user->initiales ?? 'IA';
-        $prefix = "CPT-" . $initials . "_";
-
-        $lastUserSaisie = EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie_user', 'like', $prefix . '%')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $nextSequence = 1;
-        if ($lastUserSaisie && preg_match('/_(\d+)$/', $lastUserSaisie->n_saisie_user, $matches)) {
-            $nextSequence = intval($matches[1]) + 1;
-        }
-
-        do {
-            $nSaisieUser = $prefix . str_pad($nextSequence, 12, '0', STR_PAD_LEFT);
-            $existe = EcritureComptable::where('company_id', $companyId)
-                ->where('n_saisie_user', $nSaisieUser)
-                ->exists();
-            if ($existe) $nextSequence++;
-        } while ($existe);
-
-        return $nSaisieUser;
+        return \App\Services\NumerotationSaisie::utilisateur($companyId, $user->initiales ?? 'IA');
     }
 
     /**
@@ -521,32 +500,7 @@ class ExcelIaController extends Controller
      */
     private function generateGlobalSaisieNumber(int $companyId, $exerciceId = null): string
     {
-        $prefix = "ECR_";
-
-        $query = EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie', 'like', 'ECR_%');
-
-        if ($exerciceId) {
-            $query->where('exercices_comptables_id', $exerciceId);
-        }
-
-        $lastGlobalSaisie = $query->orderBy('n_saisie', 'desc')
-            ->first();
-
-        $nextSequence = 1;
-        if ($lastGlobalSaisie && preg_match('/_(\d+)$/', $lastGlobalSaisie->n_saisie, $matches)) {
-            $nextSequence = intval($matches[1]) + 1;
-        }
-
-        do {
-            $nSaisie = $prefix . str_pad($nextSequence, 12, '0', STR_PAD_LEFT);
-            $existe = EcritureComptable::where('company_id', $companyId)
-                ->where('n_saisie', $nSaisie)
-                ->exists();
-            if ($existe) $nextSequence++;
-        } while ($existe);
-
-        return $nSaisie;
+        return \App\Services\NumerotationSaisie::global($companyId, $exerciceId);
     }
 
     /**

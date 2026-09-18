@@ -55,15 +55,8 @@ class ScanController extends Controller
 
         $axes = AxeAnalytique::where('company_id', $companyId)->with('sections')->get();
 
-        // Calcul du prochain numéro de saisie utilisateur
-        $initials = $user->initiales;
-        $prefix = "CPT-" . $initials . "_";
-        $nextSequence = EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie_user', 'like', $prefix . '%')
-            ->distinct('n_saisie_user')
-            ->count('n_saisie_user') + 1;
-        
-        $nextSaisieNumber = $prefix . str_pad($nextSequence, 12, '0', STR_PAD_LEFT);
+        // Prochain numéro de saisie utilisateur, au format CPT-XX-JJMMAA-000001.
+        $nextSaisieNumber = \App\Services\NumerotationSaisie::utilisateur($companyId, $user);
 
         return response()->json([
             'journals' => $journals,
@@ -230,17 +223,6 @@ class ScanController extends Controller
 
     private function generateGlobalSaisieNumber($companyId, $exerciceId = null)
     {
-        $query = EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie', 'like', 'ECR_%');
-
-        if ($exerciceId) {
-            $query->where('exercices_comptables_id', $exerciceId);
-        }
-
-        $last = $query->orderBy('n_saisie', 'desc')
-            ->first();
-
-        $nextNum = $last ? ((int)str_replace('ECR_', '', $last->n_saisie) + 1) : 1;
-        return 'ECR_' . str_pad($nextNum, 12, '0', STR_PAD_LEFT);
+        return \App\Services\NumerotationSaisie::global($companyId, $exerciceId);
     }
 }

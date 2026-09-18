@@ -88,20 +88,8 @@ class ApprovalController extends Controller
                     throw new \Exception('Aucune écriture trouvée pour ce numéro de saisie');
                 }
                 
-                // Générer le nouveau numéro global au format ECR_000000000001
-                $lastRealSaisie = EcritureComptable::where('company_id', $companyId)
-                    ->where('n_saisie', 'like', 'ECR_%')
-                    ->orderBy('n_saisie', 'desc')
-                    ->first();
-                
-                $nextNumber = 1;
-                if ($lastRealSaisie) {
-                    $lastNSaisie = $lastRealSaisie->n_saisie;
-                    $numberPart = str_replace('ECR_', '', $lastNSaisie);
-                    $nextNumber = (int)$numberPart + 1;
-                }
-                
-                $newNSaisie = 'ECR_' . str_pad($nextNumber, 12, '0', STR_PAD_LEFT);
+                // Numéro global attribué au moment de la validation.
+                $newNSaisie = \App\Services\NumerotationSaisie::global($companyId);
 
                 // Mettre à jour toutes les lignes associées
                 foreach ($ecritures as $ecriture) {

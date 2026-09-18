@@ -137,12 +137,10 @@ class ImportCommitJob implements ShouldQueue
         // OPTIMISATION CLÉ : Pré-calcul des compteurs ECR/RAN UNE SEULE FOIS
         // (élimine des milliers de requêtes en boucle)
         // ─────────────────────────────────────────────
-        $baseEcrCounter = (int)(EcritureComptable::where('company_id', $targetCompanyId)
-            ->where('exercices_comptables_id', $import->exercice_id)
-            ->where('n_saisie', 'like', 'ECR_%')
-            ->max(DB::raw('CAST(SUBSTRING(n_saisie, 5) AS UNSIGNED)')) ?? 0);
+        // Le numéro global est désormais servi par NumerotationSaisie, qui
+        // réserve en mémoire les numéros non encore écrits en base.
 
-        $baseRanCounter = (int)(EcritureComptable::where('company_id', $targetCompanyId)
+$baseRanCounter = (int)(EcritureComptable::where('company_id', $targetCompanyId)
             ->where('exercices_comptables_id', $import->exercice_id)
             ->where('n_saisie', 'like', 'RAN%')
             ->max(DB::raw('CAST(SUBSTRING(n_saisie, 4) AS UNSIGNED)')) ?? 0);
@@ -620,7 +618,7 @@ class ImportCommitJob implements ShouldQueue
                         if (strtoupper($jCode) === 'RAN' || strtoupper($firstRow['journal_code_raw']) === 'RAN') {
                             $globalNSaisie = 'RAN' . str_pad(++$baseRanCounter, $ranNumLength, '0', STR_PAD_LEFT);
                         } else {
-                            $globalNSaisie = 'ECR_' . str_pad(++$baseEcrCounter, 12, '0', STR_PAD_LEFT);
+                            $globalNSaisie = \App\Services\NumerotationSaisie::global($targetCompanyId, $import->exercice_id, $date);
                         }
 
                         // ── Détermination de n_saisie_user (commun & correct) ──

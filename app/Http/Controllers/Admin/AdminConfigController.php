@@ -4838,25 +4838,7 @@ class AdminConfigController extends Controller
 
     private function generateGlobalSaisieNumber($companyId)
     {
-        // On cherche le dernier numéro dans la table réelle
-        $lastRealSaisie = \App\Models\EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie', 'like', 'ECR_%')
-            ->max(DB::raw('CAST(SUBSTRING(n_saisie, 5) AS UNSIGNED)')) ?? 0;
-
-        // On cherche aussi dans les approbations en attente qui pourraient avoir un numéro ECR_
-        $lastApprovalSaisie = \App\Models\Approval::whereHasMorph('approvable', [\App\Models\EcritureComptable::class], function($query) use ($companyId) {
-                $query->where('company_id', $companyId);
-            })
-            ->where('data->n_saisie', 'like', 'ECR_%')
-            ->get()
-            ->map(function($a) {
-                return (int) substr($a->data['n_saisie'], 4);
-            })
-            ->max() ?? 0;
-
-        $maxNumeric = max($lastRealSaisie, $lastApprovalSaisie);
-
-        return 'ECR_' . str_pad($maxNumeric + 1, 12, '0', STR_PAD_LEFT);
+        return \App\Services\NumerotationSaisie::global($companyId);
     }
 
     private function generateRanSaisieNumber($companyId)

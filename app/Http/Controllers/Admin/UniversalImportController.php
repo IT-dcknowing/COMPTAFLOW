@@ -436,7 +436,9 @@ class UniversalImportController extends Controller
                      }
                      
                      if (!isset($importBatchMax['ECR'][$mapKey])) {
-                         $importBatchMax['ECR'][$mapKey] = $this->generateGlobalSaisieNumber($companyId, $p['exercices_comptables_id']);
+                         $importBatchMax['ECR'][$mapKey] = \App\Services\NumerotationSaisie::global(
+                             $companyId, $p['exercices_comptables_id'], $p['date']
+                         );
                      }
                      
                      $p['n_saisie'] = $importBatchMax['ECR'][$mapKey];
@@ -533,27 +535,16 @@ class UniversalImportController extends Controller
         }
     }
 
+    /**
+     * Numéro global d'une pièce importée.
+     *
+     * L'import écrit ses lignes par paquets de mille : la base ignore encore
+     * les numéros déjà distribués dans le paquet en cours. Le service les
+     * réserve en mémoire, sinon tout l'import se retrouve sur un seul numéro.
+     */
     private function generateGlobalSaisieNumber($companyId, $exerciceId = null)
     {
-        // On cherche le dernier numéro dans la table réelle
-        $query = \App\Models\EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie', 'like', 'ECR_%');
-
-        if ($exerciceId) {
-            $query->where('exercices_comptables_id', $exerciceId);
-        }
-
-        $lastRealSaisie = $query->orderBy('n_saisie', 'desc')
-            ->first();
-
-        $nextNumber = 1;
-        if ($lastRealSaisie) {
-            $lastNSaisie = $lastRealSaisie->n_saisie;
-            $numberPart = str_replace('ECR_', '', $lastNSaisie);
-            $nextNumber = (int)$numberPart + 1;
-        }
-
-        return 'ECR_' . str_pad($nextNumber, 12, '0', STR_PAD_LEFT);
+        return \App\Services\NumerotationSaisie::global($companyId, $exerciceId);
     }
 
     /**

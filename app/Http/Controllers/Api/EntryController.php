@@ -287,17 +287,6 @@ class EntryController extends Controller
 
     private function generateGlobalSaisieNumber($companyId, $exerciceId = null)
     {
-        $query = EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie', 'like', 'ECR_%');
-
-        if ($exerciceId) {
-            $query->where('exercices_comptables_id', $exerciceId);
-        }
-
-        $last = $query->orderBy('n_saisie', 'desc')
-            ->first();
-
-        $nextNum = $last ? ((int)str_replace('ECR_', '', $last->n_saisie) + 1) : 1;
-        return 'ECR_' . str_pad($nextNum, 12, '0', STR_PAD_LEFT);
+        return \App\Services\NumerotationSaisie::global($companyId, $exerciceId);
     }
 }

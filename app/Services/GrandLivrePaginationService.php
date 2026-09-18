@@ -243,6 +243,13 @@ class GrandLivrePaginationService
      */
     private function cleanNSaisie(string $ns): string
     {
+        // Format courant : ECR-180926-000001 ou CPT-AG-180926-000001.
+        // Seuls les zéros de la séquence sautent, la date reste entière.
+        if (preg_match('/^(.*-\d{6}-)(\d+)$/', $ns, $m)) {
+            $num = ltrim($m[2], '0');
+            return $m[1] . ($num === '' ? '0' : $num);
+        }
+        // Anciens numéros : ECR_000000000020, CPT-AG_000000000012.
         if (str_starts_with($ns, 'ECR_')) {
             $num = ltrim(substr($ns, 4), '0');
             return 'ECR_' . ($num === '' ? '0' : $num);
