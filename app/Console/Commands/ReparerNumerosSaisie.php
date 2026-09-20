@@ -29,6 +29,8 @@ class ReparerNumerosSaisie extends Command
     protected $signature = 'saisies:reparer-numeros
                             {--company= : Ne traiter que cette entreprise}
                             {--appliquer : Enregistre les nouveaux numéros (sans cette option, simple simulation)}
+                            {--depuis= : Ne toucher que les pièces enregistrées à partir de cette date (AAAA-MM-JJ)}
+                            {--tout-lhistorique : Autorise la reprise des pièces anciennes, sans limite de date}
                             {--lignes-max=2 : Au-delà de ce nombre de lignes, un numéro est examiné ; une valeur plus haute accélère le balayage}
                             {--detail : Affiche chaque pièce, et pas seulement celles en écart}';
 
@@ -39,13 +41,31 @@ class ReparerNumerosSaisie extends Command
         $appliquer = (bool) $this->option('appliquer');
         $detail = (bool) $this->option('detail');
         $lignesMax = max(1, (int) $this->option('lignes-max'));
+        $depuis = $this->option('depuis');
 
         // Des dizaines de milliers de requêtes passent ici : gardées en
         // mémoire, elles suffisent à faire tuer le processus.
         DB::connection()->disableQueryLog();
 
+        // Un numéro de pièce est une référence : il figure sur des grands
+        // livres, des balances et des états déjà édités. Le réécrire sur tout
+        // l'historique ne doit pas pouvoir arriver par inadvertance.
+        if ($appliquer && !$depuis && !$this->option('tout-lhistorique')) {
+            $this->error('Reprise de tout l\'historique refusée.');
+            $this->line('Limitez la reprise aux saisies récentes :');
+            $this->line('    php artisan saisies:reparer-numeros --appliquer --depuis=' . now()->format('Y-m-d'));
+            $this->line('Ou, si vous voulez vraiment reprendre les pièces anciennes :');
+            $this->line('    php artisan saisies:reparer-numeros --appliquer --tout-lhistorique');
+
+            return self::FAILURE;
+        }
+
         if (!$appliquer) {
             $this->warn('Mode simulation : aucune écriture ne sera modifiée. Ajoutez --appliquer pour enregistrer.');
+        }
+
+        if ($depuis) {
+            $this->line("Périmètre : pièces enregistrées à partir du $depuis. Les plus anciennes gardent leur numéro.");
         }
 
         // Un seul balayage de la table pour tous les dossiers : une lecture par
@@ -65,6 +85,10 @@ class ReparerNumerosSaisie extends Command
             ->select('company_id', 'n_saisie', DB::raw('COUNT(*) as lignes'))
             ->groupBy('company_id', 'n_saisie')
             ->havingRaw("COUNT(DISTINCT CONCAT_WS('|', date, code_journal_id)) > 1 OR COUNT(*) > ?", [$lignesMax])
+            // Un numéro n'est repris que si toutes ses lignes ont été
+            // enregistrées après la date demandée : une pièce à cheval sur la
+            // limite reste entière, du côté de l'ancien.
+            ->when($depuis, fn ($q) => $q->havingRaw('MIN(created_at) >= ?', [$depuis . ' 00:00:00']))
             ->get();
 
         $this->line(sprintf('Balayage terminé en %.1f s : %d numéro(s) à examiner.',
