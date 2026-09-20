@@ -155,10 +155,15 @@ class FusionController extends Controller
 
         DB::beginTransaction();
         try {
-            // Suppression des données liées à l'entreprise courante
-            $deletedAccounts = PlanComptable::where('company_id', $companyId)->delete();
-            $deletedJournals = CodeJournal::where('company_id', $companyId)->delete();
-            $deletedTiers = PlanTiers::where('company_id', $companyId)->delete();
+            // Suppression des données liées à l'entreprise courante.
+            // Un seul lot d'archive pour toute la réinitialisation.
+            $lot = \App\Models\ArchivedRecord::nouveauLot();
+            $deletedAccounts = \App\Services\SuppressionTracee::supprimer(
+                PlanComptable::where('company_id', $companyId), $lot);
+            $deletedJournals = \App\Services\SuppressionTracee::supprimer(
+                CodeJournal::where('company_id', $companyId), $lot);
+            $deletedTiers = \App\Services\SuppressionTracee::supprimer(
+                PlanTiers::where('company_id', $companyId), $lot);
             
             DB::commit();
             return back()->with('success', "Réinitialisation effectuée. Données supprimées : $deletedAccounts comptes, $deletedJournals journaux, $deletedTiers tiers.");

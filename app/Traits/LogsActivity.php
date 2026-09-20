@@ -25,7 +25,15 @@ trait LogsActivity
             ]);
         });
 
+        // Une suppression partie d'un modèle déjà chargé archive toute seule :
+        // le constructeur tracé doit la laisser passer sans la rejouer.
+        static::deleting(function () {
+            \App\Services\SuppressionTracee::entrer();
+        });
+
         static::deleted(function ($model) {
+            \App\Services\SuppressionTracee::sortir();
+
             // Archive : le contenu supprime est conserve 30 jours avant purge.
             // Un lot en cours (voir ArchivedRecord::nouveauLot) regroupe les lignes.
             try {
@@ -44,6 +52,15 @@ trait LogsActivity
                 ['supprime' => $model->attributesToArray()]
             );
         });
+    }
+
+    /**
+     * Toutes les requêtes de ces modèles passent par un constructeur qui
+     * refuse de supprimer sans archiver (voir ConstructeurTracant).
+     */
+    public function newEloquentBuilder($query)
+    {
+        return new \App\Database\Eloquent\ConstructeurTracant($query);
     }
 
     public function logActivity($action, $description = null, $payload = null)

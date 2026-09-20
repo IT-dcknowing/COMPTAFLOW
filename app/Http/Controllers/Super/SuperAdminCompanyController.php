@@ -192,18 +192,25 @@ class SuperAdminCompanyController extends Controller
     {
         DB::beginTransaction();
         try {
+            // Tout ce qui part avec l'entreprise partage un même lot
+            // d'archive : l'écran des suppressions le montre comme une seule
+            // opération, et chaque ligne reste récupérable trente jours.
+            $lot = \App\Models\ArchivedRecord::nouveauLot();
+
             // 1. Si c'est une mère, supprimer toutes les filles
             if (!$company->parent_company_id) {
                 $children = Company::where('parent_company_id', $company->id)->get();
                 foreach($children as $child) {
                     // Supprimer les utilisateurs de la fille
-                    User::where('company_id', $child->id)->delete();
+                    \App\Services\SuppressionTracee::supprimer(
+                        User::where('company_id', $child->id), $lot);
                     $child->delete();
                 }
             }
 
             // 2. Supprimer les utilisateurs de la compagnie elle-même
-            User::where('company_id', $company->id)->delete();
+            \App\Services\SuppressionTracee::supprimer(
+                User::where('company_id', $company->id), $lot);
 
             // 3. Supprimer la compagnie
             $company->delete();

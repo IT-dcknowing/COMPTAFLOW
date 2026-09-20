@@ -266,9 +266,9 @@ class EntryController extends Controller
     public function destroy(Request $request, $n_saisie)
     {
         $companyId = $request->header('X-Company-Id', $request->user()->company_id);
-        $count = EcritureComptable::where('company_id', $companyId)
-            ->where('n_saisie', $n_saisie)
-            ->delete();
+        $count = \App\Services\SuppressionTracee::supprimer(
+            EcritureComptable::where('company_id', $companyId)->where('n_saisie', $n_saisie)
+        );
 
         return response()->json(['message' => "$count lignes supprimées."]);
     }

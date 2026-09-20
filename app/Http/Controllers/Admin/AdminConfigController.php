@@ -391,9 +391,9 @@ class AdminConfigController extends Controller
                 ->toArray();
 
             // Supprimer uniquement les comptes non liés
-            $deletedCount = PlanComptable::where('company_id', $companyId)
-                ->whereNotIn('id', $linkedIds)
-                ->delete();
+            $deletedCount = \App\Services\SuppressionTracee::supprimer(
+                PlanComptable::where('company_id', $companyId)->whereNotIn('id', $linkedIds)
+            );
 
             $remainingCount = PlanComptable::where('company_id', $companyId)->count();
 
@@ -424,9 +424,9 @@ class AdminConfigController extends Controller
                 ->toArray();
 
             // Supprimer uniquement les tiers non liés
-            $deletedCount = PlanTiers::where('company_id', $companyId)
-                ->whereNotIn('id', $linkedIds)
-                ->delete();
+            $deletedCount = \App\Services\SuppressionTracee::supprimer(
+                PlanTiers::where('company_id', $companyId)->whereNotIn('id', $linkedIds)
+            );
 
             $remainingCount = PlanTiers::where('company_id', $companyId)->count();
 
@@ -457,9 +457,9 @@ class AdminConfigController extends Controller
                 ->toArray();
 
             // Supprimer uniquement les journaux non liés
-            $deletedCount = CodeJournal::where('company_id', $companyId)
-                ->whereNotIn('id', $linkedIds)
-                ->delete();
+            $deletedCount = \App\Services\SuppressionTracee::supprimer(
+                CodeJournal::where('company_id', $companyId)->whereNotIn('id', $linkedIds)
+            );
 
             $remainingCount = CodeJournal::where('company_id', $companyId)->count();
 

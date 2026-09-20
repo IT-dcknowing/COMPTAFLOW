@@ -409,7 +409,9 @@ class EcritureComptableController extends Controller
                 $query->where('exercices_comptables_id', $exerciceId);
             }
 
-            $deleted = $query->delete();
+            // Suppression tracee : chaque ligne part a l'archive des
+            // suppressions et au journal d'audit avant de disparaître.
+            $deleted = \App\Services\SuppressionTracee::supprimer($query);
 
             if ($deleted > 0) {
                 return response()->json(['success' => true, 'message' => "$deleted lignes supprimées."]);
@@ -464,7 +466,9 @@ class EcritureComptableController extends Controller
                 'n_saisie' => 'required|string|max:50',
                 'code_journal' => [
                     'required',
-                    \Illuminate\Validation\Rule::exists('code_journaux', 'id')->where('company_id', $activeCompanyId)
+                    // La table s'appelle code_journals : « code_journaux » faisait
+                    // échouer la validation sur une table inexistante.
+                    \Illuminate\Validation\Rule::exists(CodeJournal::class, 'id')->where('company_id', $activeCompanyId)
                 ],
                 'description_operation' => 'required|string|max:255',
                 'reference_piece' => 'nullable|string|max:50',
@@ -1032,9 +1036,10 @@ class EcritureComptableController extends Controller
                 return response()->json(['success' => false, 'message' => "Aucun exercice sélectionné."], 400);
             }
 
-            $deleted = EcritureComptable::where('company_id', $activeCompanyId)
-                ->where('exercices_comptables_id', $exerciceId)
-                ->delete();
+            $deleted = \App\Services\SuppressionTracee::supprimer(
+                EcritureComptable::where('company_id', $activeCompanyId)
+                    ->where('exercices_comptables_id', $exerciceId)
+            );
 
             return response()->json([
                 'success' => true,
@@ -1195,9 +1200,10 @@ class EcritureComptableController extends Controller
             $activeCompanyId = session('current_company_id', $user->company_id);
 
             // 1. Supprimer les anciennes lignes (Pending)
-            EcritureComptable::where('company_id', $activeCompanyId)
-                ->where('n_saisie', $oldNSaisie)
-                ->delete();
+            \App\Services\SuppressionTracee::supprimer(
+                EcritureComptable::where('company_id', $activeCompanyId)
+                    ->where('n_saisie', $oldNSaisie)
+            );
 
             // 3. Créer les nouvelles lignes
             $ecritures = $request->input('ecritures');
