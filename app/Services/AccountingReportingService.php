@@ -691,10 +691,6 @@ class AccountingReportingService
         $sigData = $this->getSIGData($exerciceId, $companyId, $month);
         $data['operationnel']['caf'] = $sigData['resultat_net'];
 
-        // Tracker les Saisies traitées via Poste pour éviter le double comptage si fallback
-        $handledSaisiesInv = [];
-        $handledSaisiesFin = [];
-
         foreach ($ecritures as $ec) {
             $compte = $ec->planComptable;
             if (!$compte) continue;
@@ -702,51 +698,6 @@ class AccountingReportingService
             $num = $compte->numero_de_compte;
             $montant = $ec->debit - $ec->credit; // Solde Algébrique (Debit +, Credit -)
             $flux = $montant; // On garde flux pour la suite
-
-            // --- A. INVESTISSEMENT & FINANCEMENT (Priorité Méthode Directe via Postes) ---
-            if (str_starts_with($num, '5') && $ec->posteTresorerie) {
-                $poste = $ec->posteTresorerie;
-                $syscohadaLine = $poste->syscohada_line_id;
-                $categoryName = $poste->category ? strtolower($poste->category->name) : '';
-                
-                // Flux de trésorerie réel : Debit = Entrée (+), Credit = Sortie (-)
-                $fluxTresorerie = $ec->debit - $ec->credit;
-
-                if ($syscohadaLine) {
-                    if (str_starts_with($syscohadaLine, 'INV_')) {
-                        $handledSaisiesInv[$ec->n_saisie] = true;
-                        if ($syscohadaLine === 'INV_CES') {
-                            $data['investissement']['cessions'] += $fluxTresorerie;
-                            if($detailed) $this->addDetail($data['investissement']['details'], $compte, $fluxTresorerie);
-                        } elseif ($syscohadaLine === 'INV_ACQ') {
-                            $data['investissement']['acquisitions'] += abs($fluxTresorerie);
-                            if($detailed) $this->addDetail($data['investissement']['details'], $compte, abs($fluxTresorerie));
-                        }
-                    } elseif (str_starts_with($syscohadaLine, 'FIN_')) {
-                        $handledSaisiesFin[$ec->n_saisie] = true;
-                        if ($syscohadaLine === 'FIN_CAP') $data['financement']['capital'] += $fluxTresorerie;
-                        elseif ($syscohadaLine === 'FIN_EMP') $data['financement']['emprunts'] += $fluxTresorerie;
-                        elseif ($syscohadaLine === 'FIN_DIV') $data['financement']['dividendes'] += abs($fluxTresorerie);
-                        
-                        $data['financement']['total'] += $fluxTresorerie;
-                        if($detailed) $this->addDetail($data['financement']['details'], $compte, $fluxTresorerie);
-                    }
-                } 
-                elseif (str_contains($categoryName, 'investissement')) {
-                    $handledSaisiesInv[$ec->n_saisie] = true;
-                    if ($fluxTresorerie > 0) {
-                        $data['investissement']['cessions'] += $fluxTresorerie;
-                    } else {
-                        $data['investissement']['acquisitions'] += abs($fluxTresorerie);
-                    }
-                    if($detailed) $this->addDetail($data['investissement']['details'], $compte, $fluxTresorerie);
-                }
-                elseif (str_contains($categoryName, 'financement')) {
-                    $handledSaisiesFin[$ec->n_saisie] = true;
-                    $data['financement']['total'] += $fluxTresorerie;
-                    if($detailed) $this->addDetail($data['financement']['details'], $compte, $fluxTresorerie);
-                }
-            }
 
             // --- B. MÉTHODE INDIRECTE (CAF & BFR) ---
             
@@ -761,35 +712,18 @@ class AccountingReportingService
             }
 
             // BFR
-            if (str_starts_with($num, '3') || (str_starts_with($num, '4') && !in_array($ec->n_saisie, array_keys(array_merge($handledSaisiesInv, $handledSaisiesFin))))) {
+            // Les comptes qui portent un investissement ou un financement
+            // (481/482/485 immobilisations, 461/465 associés) relèvent des
+            // sections II et III : les compter ici les compterait deux fois.
+            if ((str_starts_with($num, '3') || str_starts_with($num, '4'))
+                && ClassificationFlux::section($num) === ClassificationFlux::OPERATIONNELLE
+                && !ClassificationFlux::estNonMonetaire($num)) {
                 if(str_starts_with($num, '40') || str_starts_with($num, '42') || str_starts_with($num, '43') || str_starts_with($num, '44')) {
                     $data['operationnel']['variation_bfr'] -= $flux; 
                 } else {
                     $data['operationnel']['variation_bfr'] -= $flux; 
                 }
                 if($detailed) $this->addDetail($data['operationnel']['details'], $compte, -$flux);
-            }
-
-            // --- C. FALLBACKS (Si non traité par poste) ---
-            
-            // INVESTISSEMENT
-            if (str_starts_with($num, '2') && !str_starts_with($num, '28') && !str_starts_with($num, '29')) {
-                if (!isset($handledSaisiesInv[$ec->n_saisie])) {
-                    if ($flux > 0) { // Acquisition
-                        $data['investissement']['acquisitions'] += $flux;
-                    } else { // Cession
-                        $data['investissement']['cessions'] += abs($flux);
-                    }
-                    if($detailed) $this->addDetail($data['investissement']['details'], $compte, $flux);
-                }
-            }
-
-            // FINANCEMENT
-            if (str_starts_with($num, '16') || str_starts_with($num, '10')) {
-                 if (!isset($handledSaisiesFin[$ec->n_saisie])) {
-                    $data['financement']['total'] -= $flux; // Crédit = Ressource (+)
-                    if($detailed) $this->addDetail($data['financement']['details'], $compte, -$flux);
-                 }
             }
 
             // TRESORERIE
@@ -799,6 +733,40 @@ class AccountingReportingService
                  } else {
                      $data['tresorerie']['variation_nette'] += $flux;
                  }
+            }
+        }
+
+        // Investissement et financement : uniquement ce qui a bougé en banque
+        // ou en caisse.
+        //
+        // Le calcul précédent lisait les mouvements des comptes 2, 10 et 16
+        // eux-mêmes : une immobilisation acquise à crédit y figurait en
+        // décaissement alors qu'aucun franc n'était sorti. Il classait de plus
+        // selon la catégorie du poste de trésorerie, si bien qu'une banque
+        // rangée en « investissement » y envoyait toutes ses opérations.
+        foreach (AnalyseFluxTresorerie::mouvements($ecritures->filter(fn($e) => !$e->is_ran)) as $mouvement) {
+            $signe = $mouvement->sens === 'encaissements' ? 1 : -1;
+            $compte = (object) [
+                'numero_de_compte' => $mouvement->compte,
+                'intitule' => trim(str_replace($mouvement->compte . ' -', '', $mouvement->libelle)),
+            ];
+
+            if ($mouvement->section === ClassificationFlux::INVESTISSEMENT) {
+                $rubrique = $signe > 0 ? 'cessions' : 'acquisitions';
+                $data['investissement'][$rubrique] += $mouvement->montant;
+                if ($detailed) $this->addDetail($data['investissement']['details'], $compte, $signe * $mouvement->montant);
+            } elseif ($mouvement->section === ClassificationFlux::FINANCEMENT) {
+                // Les trois lignes SYSCOHADA se lisent sur la contrepartie.
+                if (str_starts_with($mouvement->compte, '10')) {
+                    $data['financement']['capital'] += $signe * $mouvement->montant;
+                } elseif (str_starts_with($mouvement->compte, '465')) {
+                    $data['financement']['dividendes'] += $mouvement->montant;
+                } else {
+                    $data['financement']['emprunts'] += $signe * $mouvement->montant;
+                }
+
+                $data['financement']['total'] += $signe * $mouvement->montant;
+                if ($detailed) $this->addDetail($data['financement']['details'], $compte, $signe * $mouvement->montant);
             }
         }
 
@@ -875,10 +843,6 @@ class AccountingReportingService
             ->with(['planComptable', 'posteTresorerie.category']) // Charger les postes et catégories
             ->get();
 
-        // Tracker les Saisies (Transactions) traitées via Poste de Tréso pour éviter le double comptage si fallback
-        $handledSaisiesInv = [];
-        $handledSaisiesFin = [];
-
         // 4. PREMIÈRE PASSE : Postes de Trésorerie (Priorité) et Flux Opérationnels (Indirect)
         foreach ($ecritures as $ecriture) {
             $compte = $ecriture->planComptable;
@@ -916,6 +880,17 @@ class AccountingReportingService
             }
 
             // 2. VARIATION BFR (Actif Circulant + Passif Circulant)
+            //
+            // Seule l'exploitation courante entre ici. Les comptes qui portent
+            // un investissement ou un financement (481/482/485 fournisseurs et
+            // créances d'immobilisations, 461/465 associés) relèvent des
+            // sections II et III : les compter deux fois ferait dire au
+            // tableau l'inverse de ce qui s'est passé en banque.
+            if (ClassificationFlux::section($num) !== ClassificationFlux::OPERATIONNELLE
+                || ClassificationFlux::estNonMonetaire($num)) {
+                continue;
+            }
+
             // Stocks (3) et Tiers (4)
             if (str_starts_with($num, '3')) {
                 // Actif : Variation = Solde Final - Solde Initial.
@@ -947,97 +922,47 @@ class AccountingReportingService
                 }
             }
 
-            // --- B & C. INVESTISSEMENT & FINANCEMENT (Méthode Directe via Postes) ---
-            // --- B & C. INVESTISSEMENT & FINANCEMENT (Méthode Directe via Postes) ---
-            // On regarde UNIQUEMENT les comptes de classe 5 qui ont un poste défini
-            if (str_starts_with($num, '5') && $ecriture->posteTresorerie) {
-                $poste = $ecriture->posteTresorerie;
-                $syscohadaLine = $poste->syscohada_line_id;
-                $categoryName = $poste->category ? strtolower($poste->category->name) : '';
-                
-                // Flux de trésorerie réel : Debit = Entrée (+), Credit = Sortie (-)
-                $fluxTresorerie = $ecriture->debit - $ecriture->credit;
-
-                // Priorité au mapping explicite SYSCOHADA s'il existe
-                if ($syscohadaLine) {
-                    if (str_starts_with($syscohadaLine, 'INV_')) { // Investissement
-                        $handledSaisiesInv[$ecriture->n_saisie] = true;
-                        if ($syscohadaLine === 'INV_CES') {
-                            // Cessions (Flux Positif attendu)
-                            $matrix['flux']['investissement']['cessions'][$monthIndex] += $fluxTresorerie; // Si positif = encaissement
-                            if($detailed) $this->addDetailMatrix($matrix['flux']['investissement']['details']['cessions'], $compte, $fluxTresorerie, $monthIndex);
-                        } elseif ($syscohadaLine === 'INV_ACQ') {
-                            // Acquisitions (Flux Négatif attendu)
-                            $matrix['flux']['investissement']['acquisitions'][$monthIndex] += abs($fluxTresorerie); // On stocke en positif pour l'affichage (Acq = Sortie)
-                             if($detailed) $this->addDetailMatrix($matrix['flux']['investissement']['details']['acquisitions'], $compte, abs($fluxTresorerie), $monthIndex);
-                        }
-                    } elseif (str_starts_with($syscohadaLine, 'FIN_')) { // Financement
-                        $handledSaisiesFin[$ecriture->n_saisie] = true;
-                        $matrix['flux']['financement']['net'][$monthIndex] += $fluxTresorerie;
-                        if($detailed) $this->addDetailMatrix($matrix['flux']['financement']['details']['net'], $compte, $fluxTresorerie, $monthIndex);
-                    }
-                } 
-                // Fallback : Mapping basé sur la catégorie (Heuristique)
-                elseif (str_contains($categoryName, 'investissement')) {
-                    $handledSaisiesInv[$ecriture->n_saisie] = true;
-                    // Classification simple : Positif = Cession, Négatif = Acquisition
-                    if ($fluxTresorerie > 0) {
-                        $matrix['flux']['investissement']['cessions'][$monthIndex] += $fluxTresorerie;
-                        if($detailed) $this->addDetailMatrix($matrix['flux']['investissement']['details']['cessions'], $compte, $fluxTresorerie, $monthIndex);
-                    } else {
-                         $matrix['flux']['investissement']['acquisitions'][$monthIndex] += abs($fluxTresorerie);
-                         if($detailed) $this->addDetailMatrix($matrix['flux']['investissement']['details']['acquisitions'], $compte, abs($fluxTresorerie), $monthIndex);
-                    }
-                }
-                elseif (str_contains($categoryName, 'financement')) {
-                    $handledSaisiesFin[$ecriture->n_saisie] = true;
-                    $matrix['flux']['financement']['net'][$monthIndex] += $fluxTresorerie;
-                    if($detailed) $this->addDetailMatrix($matrix['flux']['financement']['details']['net'], $compte, $fluxTresorerie, $monthIndex);
-                }
-            }
         }
 
-        // 5. DEUXIÈME PASSE : Fallback pour Investissement/Financement (Ancienne Méthode)
-        // On ne traite que si la saisie n'a PAS été traitée par un poste de trésorerie
-        foreach ($ecritures as $ecriture) {
-            $compte = $ecriture->planComptable;
-            if (!$compte) continue;
-            
-            // On ignore si déjà traité
-            if (isset($handledSaisiesInv[$ecriture->n_saisie]) || isset($handledSaisiesFin[$ecriture->n_saisie])) {
-                continue; 
+        // 5. INVESTISSEMENT ET FINANCEMENT : de l'argent réellement encaissé
+        //    ou décaissé, et rien d'autre.
+        //
+        // L'ancien calcul lisait les mouvements des comptes d'immobilisations
+        // et d'emprunts eux-mêmes. Une machine achetée à crédit (241 au débit,
+        // 481 au crédit) apparaissait donc en décaissement d'investissement
+        // alors qu'aucun franc n'était sorti ; seul le besoin en fonds de
+        // roulement compensait l'écart, et le tableau ne disait plus la
+        // trésorerie. Il classait par ailleurs selon la catégorie du poste,
+        // si bien qu'une banque rangée en « investissement » y envoyait ses
+        // salaires.
+        //
+        // On part désormais des lignes de trésorerie, la contrepartie de la
+        // pièce donnant la section. Voir AnalyseFluxTresorerie.
+        foreach (AnalyseFluxTresorerie::mouvements($ecritures->filter(fn($e) => !$e->is_ran)) as $mouvement) {
+            if ($mouvement->section === ClassificationFlux::OPERATIONNELLE) {
+                continue;   // déjà porté par la CAF et la variation du BFR
             }
 
-            $num = $compte->numero_de_compte;
-            $monthIndex = -1; // Récupérer index (optimisation possible mais code plus simple ainsi)
-            $ecritureDate = \Carbon\Carbon::parse($ecriture->date);
+            $date = \Carbon\Carbon::parse($mouvement->date);
+            $monthIndex = -1;
             foreach ($months as $index => $m) {
-                if ($m['id'] == $ecritureDate->month && $m['year'] == $ecritureDate->year) {
+                if ($m['id'] == $date->month && $m['year'] == $date->year) {
                     $monthIndex = $index;
                     break;
                 }
             }
             if ($monthIndex === -1) continue;
 
-            // Fallback Investissement (Classe 2)
-            if (str_starts_with($num, '2') && !str_starts_with($num, '28') && !str_starts_with($num, '29')) {
-                // Acquisition (Debit 2) = Sortie Cash (-). Cession (Credit 2) = Entrée Cash (+)
-                if ($ecriture->debit > 0) {
-                    $matrix['flux']['investissement']['acquisitions'][$monthIndex] += $ecriture->debit;
-                    if($detailed) $this->addDetailMatrix($matrix['flux']['investissement']['details']['acquisitions'], $compte, $ecriture->debit, $monthIndex);
-                }
-                if ($ecriture->credit > 0) {
-                    $matrix['flux']['investissement']['cessions'][$monthIndex] += $ecriture->credit;
-                    if($detailed) $this->addDetailMatrix($matrix['flux']['investissement']['details']['cessions'], $compte, $ecriture->credit, $monthIndex);
-                }
-            }
+            $compte = (object) ['numero_de_compte' => $mouvement->compte, 'intitule' => trim(str_replace($mouvement->compte . ' -', '', $mouvement->libelle))];
 
-            // Fallback Financement (10, 16)
-            if ((str_starts_with($num, '16') || str_starts_with($num, '10')) && !str_starts_with($num, '169')) {
-                // Credit = Encaissement (+). Debit = Remboursement (-)
-                $val = $ecriture->credit - $ecriture->debit;
+            if ($mouvement->section === ClassificationFlux::INVESTISSEMENT) {
+                $rubrique = $mouvement->sens === 'encaissements' ? 'cessions' : 'acquisitions';
+                $matrix['flux']['investissement'][$rubrique][$monthIndex] += $mouvement->montant;
+                if ($detailed) $this->addDetailMatrix($matrix['flux']['investissement']['details'][$rubrique], $compte, $mouvement->montant, $monthIndex);
+            } else {
+                $val = $mouvement->sens === 'encaissements' ? $mouvement->montant : -$mouvement->montant;
                 $matrix['flux']['financement']['net'][$monthIndex] += $val;
-                if($detailed) $this->addDetailMatrix($matrix['flux']['financement']['details']['net'], $compte, $val, $monthIndex);
+                if ($detailed) $this->addDetailMatrix($matrix['flux']['financement']['details']['net'], $compte, $val, $monthIndex);
             }
         }
 
