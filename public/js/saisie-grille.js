@@ -19,6 +19,9 @@ const saisieGrille = (() => {
   const panel = document.getElementById('panelSaisie');
 
   let addedLines = [];
+  // L'utilisateur a-t-il retouché le libellé ou la référence de l'en-tête ?
+  // Tant qu'il n'y touche pas, chaque ligne garde les siens.
+  let enteteModifiee = false;
   let currentBatchId = null; // Stocke le batch_id si on charge un brouillon
   let filtreDesequilibre = false;
   let modeEdition = false;
@@ -218,7 +221,17 @@ const saisieGrille = (() => {
     if (!addedLinesBody) return;
     addedLinesBody.innerHTML = '';
 
+    // Les mêmes filtres que la liste du journal s'appliquent ici : c'est le
+    // seul moyen de retrouver une ligne dans une pièce qui en compte des
+    // centaines. Ils ne changent que l'affichage — les totaux et ce qui est
+    // enregistré se calculent toujours sur la totalité des lignes.
+    const masquees = [];
+
     addedLines.forEach((line, index) => {
+      if (!ligneRetenueParLesFiltres(line)) {
+        masquees.push(index);
+        return;
+      }
       const compObj = plansComptables.find(p => p.id == line.plan_comptable_id);
       const tiersObj = plansTiers.find(t => t.id == line.plan_tiers_id);
       const posteObj = comptesTresorerie.find(c => c.id == line.poste_tresorerie_id);
@@ -240,7 +253,56 @@ const saisieGrille = (() => {
       addedLinesBody.appendChild(tr);
     });
 
+    if (masquees.length) {
+      const avis = document.createElement('tr');
+      avis.innerHTML = `
+        <td colspan="8" class="text-center small py-2"
+            style="background:#fffbeb;color:#92400e;border-radius:8px">
+          <i class="bx bx-filter-alt me-1"></i>
+          ${masquees.length} ligne(s) masquée(s) par le filtre — elles restent dans l'écriture
+          et comptent dans les totaux.
+          <button type="button" class="btn btn-sm btn-link p-0 ms-1 align-baseline"
+                  onclick="saisieGrille.effacerFiltresListe()">Tout revoir</button>
+        </td>`;
+      addedLinesBody.appendChild(avis);
+    }
+
     calculerTotaux();
+  }
+
+  /**
+   * Une ligne de la pièce en cours passe-t-elle les filtres de la barre ?
+   * Le numéro de saisie n'y figure pas : toutes les lignes le partagent.
+   */
+  function ligneRetenueParLesFiltres(line) {
+    // Une ligne que l'on vient d'ajouter n'a ni libellé ni référence propres :
+    // la masquer sur un filtre actif donnerait l'impression qu'elle s'est
+    // perdue. Elle reste visible jusqu'à l'enregistrement.
+    if (!line.id) return true;
+
+    const cherche = id => normaliser(document.getElementById(id)?.value || '');
+    const fLibelle = cherche('filtre_liste_libelle');
+    const fCompte = cherche('filtre_liste_compte');
+    const fPiece = cherche('filtre_liste_piece');
+    const suivreJour = document.getElementById('filtre_liste_suivre_jour')?.checked;
+    const jourVal = suivreJour ? (document.getElementById('jour_ecriture')?.value || '') : '';
+
+    if (fLibelle && !normaliser(line.description_operation).includes(fLibelle)) return false;
+    if (fPiece && !normaliser(line.reference_piece).includes(fPiece)) return false;
+
+    if (jourVal && line.date && partieDeDate(line.date, 2) != jourVal) return false;
+
+    if (fCompte) {
+      const compte = plansComptables.find(p => p.id == line.plan_comptable_id);
+      const tiers = plansTiers.find(t => t.id == line.plan_tiers_id);
+      const texte = normaliser([
+        compte?.numero_de_compte, compte?.intitule,
+        tiers?.numero_de_tiers, tiers?.intitule,
+      ].filter(Boolean).join(' '));
+      if (!texte.includes(fCompte)) return false;
+    }
+
+    return true;
   }
 
   // ---------- Ajouter une ligne au groupe en cours ----------
@@ -677,6 +739,12 @@ const saisieGrille = (() => {
       return {
         id: e.id,
         date: e.date,
+        // Libellé et référence propres à la ligne : une pièce issue d'un import
+        // en regroupe parfois des centaines, toutes différentes. Sans eux, la
+        // ligne ne serait ni filtrable ni reconnaissable, et l'enregistrement
+        // écraserait chaque libellé par celui de la première ligne.
+        description_operation: e.description_operation || '',
+        reference_piece: e.reference_piece || '',
         plan_comptable_id: compte ? compte.id : null,
         plan_tiers_id: tiers ? tiers.id : null,
         debit: parseFloat(e.debit || 0),
@@ -686,6 +754,9 @@ const saisieGrille = (() => {
         ventilations: e.ventilations || []
       };
     });
+
+    // L'en-tête vient d'être rempli par le code, pas par l'utilisateur.
+    enteteModifiee = false;
 
     rafraichirAddedLines();
     panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -767,8 +838,16 @@ const saisieGrille = (() => {
         date,
         n_saisie: document.getElementById('n_saisie_user').value,
         code_journal_id: codeJournalId,
-        description_operation: description,
-        reference_piece: reference,
+        // Le libellé de l'en-tête ne s'impose à toutes les lignes que si
+        // l'utilisateur l'a réellement retouché. Sinon chaque ligne garde le
+        // sien : modifier une ligne d'une pièce de deux cents lignes ne doit
+        // pas réécrire les cent quatre-vingt-dix-neuf autres.
+        description_operation: enteteModifiee
+          ? description
+          : (line.description_operation || description),
+        reference_piece: enteteModifiee
+          ? reference
+          : (line.reference_piece || reference),
         plan_comptable_id: line.plan_comptable_id,
         plan_tiers_id: line.plan_tiers_id,
         debit: line.debit,
@@ -1251,12 +1330,21 @@ const saisieGrille = (() => {
     return p.length === 3 ? parseInt(p[rang], 10) : null;
   }
 
+  /**
+   * Les filtres valent pour les deux tableaux : la liste du journal, et les
+   * lignes de la pièce en cours de modification.
+   */
+  function appliquerFiltres() {
+    rafraichirListe();
+    rafraichirAddedLines();
+  }
+
   function effacerFiltresListe() {
     ['filtre_liste_libelle', 'filtre_liste_saisie', 'filtre_liste_compte', 'filtre_liste_piece']
       .forEach(id => { const c = document.getElementById(id); if (c) c.value = ''; });
     const suivre = document.getElementById('filtre_liste_suivre_jour');
     if (suivre) suivre.checked = false;
-    rafraichirListe();
+    appliquerFiltres();
   }
 
   function rafraichirListe() {
@@ -1533,11 +1621,18 @@ const saisieGrille = (() => {
       localStorage.setItem('fc_saisie_jour_ecriture', this.value);
       // Le jour ne restreint la liste que si l'utilisateur l'a demandé :
       // sinon, changer le jour de saisie masquerait tout le reste du mois.
-      if (document.getElementById('filtre_liste_suivre_jour')?.checked) rafraichirListe();
+      if (document.getElementById('filtre_liste_suivre_jour')?.checked) appliquerFiltres();
     });
 
     document.getElementById('modele_saisie')?.addEventListener('change', function () {
       if (this.value) appliquerModele(this.value);
+    });
+
+    // Retoucher le libellé ou la référence de l'en-tête, c'est vouloir les
+    // appliquer à toute la pièce. Ne pas y toucher laisse chaque ligne avec
+    // les siens.
+    ['description_operation', 'reference_piece'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => { enteteModifiee = true; });
     });
 
     // Traitement des paramètres URL
@@ -1570,7 +1665,7 @@ const saisieGrille = (() => {
   return {
     toggle, fermer, editerGroupe, supprimerGroupe, ajouterLigneEnCours, supprimerLigneEnCours, editerLigneEnCours, calculerTotaux, enregistrer, enregistrerBrouillon,
     appliquerModele, enregistrerCommeModele, ouvrirModalCreerModele, enregistrerNouveauModeleInline,
-    rafraichirListe, effacerFiltresListe, toggleFiltreDesequilibre, onFichierChoisi, scannerFacture,
+    rafraichirListe, appliquerFiltres, effacerFiltresListe, toggleFiltreDesequilibre, collecterLignes, onFichierChoisi, scannerFacture,
     switchViewMode, toggleHeaderCard, appliquerFiltresConsultation, appliquerAssistantTVA, ouvrirModalVentilationRow,
     ouvrirVentilationExisting, chargerBrouillon
   };

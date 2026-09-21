@@ -605,23 +605,23 @@
 
                                 <input type="text" id="filtre_liste_libelle" class="form-control form-control-sm"
                                     style="width:240px" placeholder="Libellé de l'opération"
-                                    oninput="saisieGrille.rafraichirListe()">
+                                    oninput="saisieGrille.appliquerFiltres()">
 
                                 <input type="text" id="filtre_liste_saisie" class="form-control form-control-sm"
                                     style="width:170px" placeholder="N° de saisie"
-                                    oninput="saisieGrille.rafraichirListe()">
+                                    oninput="saisieGrille.appliquerFiltres()">
 
                                 <input type="text" id="filtre_liste_compte" class="form-control form-control-sm"
                                     style="width:150px" placeholder="Compte ou tiers"
-                                    oninput="saisieGrille.rafraichirListe()">
+                                    oninput="saisieGrille.appliquerFiltres()">
 
                                 <input type="text" id="filtre_liste_piece" class="form-control form-control-sm"
                                     style="width:150px" placeholder="Référence pièce"
-                                    oninput="saisieGrille.rafraichirListe()">
+                                    oninput="saisieGrille.appliquerFiltres()">
 
                                 <div class="form-check form-switch mb-0 ms-1">
                                     <input class="form-check-input" type="checkbox" id="filtre_liste_suivre_jour"
-                                        onchange="saisieGrille.rafraichirListe()">
+                                        onchange="saisieGrille.appliquerFiltres()">
                                     <label class="form-check-label small text-muted" for="filtre_liste_suivre_jour">
                                         Jour choisi en haut
                                     </label>
