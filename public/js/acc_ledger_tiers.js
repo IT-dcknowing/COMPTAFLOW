@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         theme: 'bootstrap4',
                         width: '100%',
                         language: 'fr',
-                        dropdownParent: $(modal)
+                        dropdownParent: $(this).closest('.modal-content').length ? $(this).closest('.modal-content') : $(modal)
                     });
                 });
             }

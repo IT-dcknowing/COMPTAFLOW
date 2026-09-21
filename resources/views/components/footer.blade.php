@@ -89,9 +89,21 @@
                         allowClear: $this.attr('multiple') ? false : true
                     };
 
-                    // Correction pour les Modales Bootstrap
+                    // Correction pour les Modales Bootstrap.
+                    //
+                    // La liste doit pendre A L'INTERIEUR de .modal-dialog.
+                    // Accrochee a .modal, elle est hors du dialogue : quand on
+                    // clique un compte, la liste disparait entre l'appui et le
+                    // relachement, le navigateur reporte alors le clic sur le
+                    // plus proche ancetre encore en place — .modal — et
+                    // Bootstrap y voit un clic sur le fond, donc ferme le
+                    // formulaire. C'est ce qui fermait les fenetres des etats
+                    // des qu'on touchait un champ de compte.
+                    const interieur = $this.closest('.modal-content');
                     const modalParent = $this.closest('.modal');
-                    if (modalParent.length) {
+                    if (interieur.length) {
+                        options.dropdownParent = interieur;
+                    } else if (modalParent.length) {
                         options.dropdownParent = modalParent;
                     }
 

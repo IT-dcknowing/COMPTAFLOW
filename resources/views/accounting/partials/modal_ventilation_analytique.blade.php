@@ -145,7 +145,7 @@
                 $(selectEl).select2({
                     theme: 'bootstrap4',
                     width: '100%',
-                    dropdownParent: $('#modalVentilationAnalytique')
+                    dropdownParent: $('#modalVentilationAnalytique .modal-content')
                 });
             }
         };
@@ -331,7 +331,7 @@
             $(select).select2({
                 theme: 'bootstrap4',
                 width: '100%',
-                dropdownParent: $('#modalVentilationAnalytique')
+                dropdownParent: $('#modalVentilationAnalytique .modal-content')
             });
 
             tr.querySelector('.vent-pct').oninput = () => calculerDepuisPct(tr);

@@ -632,7 +632,7 @@
         function initJournalsPage() {
             if (typeof $.fn.select2 !== 'undefined') {
                 $('#create_compte_select, #create_rapprochement_select, #update_compte_de_contrepartie, #update_rapprochement_sur, #type_select, #update_type').select2({
-                    dropdownParent: $('.modal:visible').length ? $('.modal:visible') : null,
+                    dropdownParent: $('.modal:visible .modal-content').length ? $('.modal:visible .modal-content') : null,
                     width: '100%',
                     theme: 'bootstrap-5',
                     placeholder: $(this).data('placeholder'),
