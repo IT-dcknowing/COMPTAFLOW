@@ -714,7 +714,7 @@ class AccountingReportingService
 
                 if ($syscohadaLine) {
                     if (str_starts_with($syscohadaLine, 'INV_')) {
-                        $handledSaisiesInv[$ec->numero_saisie] = true;
+                        $handledSaisiesInv[$ec->n_saisie] = true;
                         if ($syscohadaLine === 'INV_CES') {
                             $data['investissement']['cessions'] += $fluxTresorerie;
                             if($detailed) $this->addDetail($data['investissement']['details'], $compte, $fluxTresorerie);
@@ -723,7 +723,7 @@ class AccountingReportingService
                             if($detailed) $this->addDetail($data['investissement']['details'], $compte, abs($fluxTresorerie));
                         }
                     } elseif (str_starts_with($syscohadaLine, 'FIN_')) {
-                        $handledSaisiesFin[$ec->numero_saisie] = true;
+                        $handledSaisiesFin[$ec->n_saisie] = true;
                         if ($syscohadaLine === 'FIN_CAP') $data['financement']['capital'] += $fluxTresorerie;
                         elseif ($syscohadaLine === 'FIN_EMP') $data['financement']['emprunts'] += $fluxTresorerie;
                         elseif ($syscohadaLine === 'FIN_DIV') $data['financement']['dividendes'] += abs($fluxTresorerie);
@@ -733,7 +733,7 @@ class AccountingReportingService
                     }
                 } 
                 elseif (str_contains($categoryName, 'investissement')) {
-                    $handledSaisiesInv[$ec->numero_saisie] = true;
+                    $handledSaisiesInv[$ec->n_saisie] = true;
                     if ($fluxTresorerie > 0) {
                         $data['investissement']['cessions'] += $fluxTresorerie;
                     } else {
@@ -742,7 +742,7 @@ class AccountingReportingService
                     if($detailed) $this->addDetail($data['investissement']['details'], $compte, $fluxTresorerie);
                 }
                 elseif (str_contains($categoryName, 'financement')) {
-                    $handledSaisiesFin[$ec->numero_saisie] = true;
+                    $handledSaisiesFin[$ec->n_saisie] = true;
                     $data['financement']['total'] += $fluxTresorerie;
                     if($detailed) $this->addDetail($data['financement']['details'], $compte, $fluxTresorerie);
                 }
@@ -761,7 +761,7 @@ class AccountingReportingService
             }
 
             // BFR
-            if (str_starts_with($num, '3') || (str_starts_with($num, '4') && !in_array($ec->numero_saisie, array_keys(array_merge($handledSaisiesInv, $handledSaisiesFin))))) {
+            if (str_starts_with($num, '3') || (str_starts_with($num, '4') && !in_array($ec->n_saisie, array_keys(array_merge($handledSaisiesInv, $handledSaisiesFin))))) {
                 if(str_starts_with($num, '40') || str_starts_with($num, '42') || str_starts_with($num, '43') || str_starts_with($num, '44')) {
                     $data['operationnel']['variation_bfr'] -= $flux; 
                 } else {
@@ -774,7 +774,7 @@ class AccountingReportingService
             
             // INVESTISSEMENT
             if (str_starts_with($num, '2') && !str_starts_with($num, '28') && !str_starts_with($num, '29')) {
-                if (!isset($handledSaisiesInv[$ec->numero_saisie])) {
+                if (!isset($handledSaisiesInv[$ec->n_saisie])) {
                     if ($flux > 0) { // Acquisition
                         $data['investissement']['acquisitions'] += $flux;
                     } else { // Cession
@@ -786,7 +786,7 @@ class AccountingReportingService
 
             // FINANCEMENT
             if (str_starts_with($num, '16') || str_starts_with($num, '10')) {
-                 if (!isset($handledSaisiesFin[$ec->numero_saisie])) {
+                 if (!isset($handledSaisiesFin[$ec->n_saisie])) {
                     $data['financement']['total'] -= $flux; // Crédit = Ressource (+)
                     if($detailed) $this->addDetail($data['financement']['details'], $compte, -$flux);
                  }
@@ -961,7 +961,7 @@ class AccountingReportingService
                 // Priorité au mapping explicite SYSCOHADA s'il existe
                 if ($syscohadaLine) {
                     if (str_starts_with($syscohadaLine, 'INV_')) { // Investissement
-                        $handledSaisiesInv[$ecriture->numero_saisie] = true;
+                        $handledSaisiesInv[$ecriture->n_saisie] = true;
                         if ($syscohadaLine === 'INV_CES') {
                             // Cessions (Flux Positif attendu)
                             $matrix['flux']['investissement']['cessions'][$monthIndex] += $fluxTresorerie; // Si positif = encaissement
@@ -972,14 +972,14 @@ class AccountingReportingService
                              if($detailed) $this->addDetailMatrix($matrix['flux']['investissement']['details']['acquisitions'], $compte, abs($fluxTresorerie), $monthIndex);
                         }
                     } elseif (str_starts_with($syscohadaLine, 'FIN_')) { // Financement
-                        $handledSaisiesFin[$ecriture->numero_saisie] = true;
+                        $handledSaisiesFin[$ecriture->n_saisie] = true;
                         $matrix['flux']['financement']['net'][$monthIndex] += $fluxTresorerie;
                         if($detailed) $this->addDetailMatrix($matrix['flux']['financement']['details']['net'], $compte, $fluxTresorerie, $monthIndex);
                     }
                 } 
                 // Fallback : Mapping basé sur la catégorie (Heuristique)
                 elseif (str_contains($categoryName, 'investissement')) {
-                    $handledSaisiesInv[$ecriture->numero_saisie] = true;
+                    $handledSaisiesInv[$ecriture->n_saisie] = true;
                     // Classification simple : Positif = Cession, Négatif = Acquisition
                     if ($fluxTresorerie > 0) {
                         $matrix['flux']['investissement']['cessions'][$monthIndex] += $fluxTresorerie;
@@ -990,7 +990,7 @@ class AccountingReportingService
                     }
                 }
                 elseif (str_contains($categoryName, 'financement')) {
-                    $handledSaisiesFin[$ecriture->numero_saisie] = true;
+                    $handledSaisiesFin[$ecriture->n_saisie] = true;
                     $matrix['flux']['financement']['net'][$monthIndex] += $fluxTresorerie;
                     if($detailed) $this->addDetailMatrix($matrix['flux']['financement']['details']['net'], $compte, $fluxTresorerie, $monthIndex);
                 }
@@ -1004,7 +1004,7 @@ class AccountingReportingService
             if (!$compte) continue;
             
             // On ignore si déjà traité
-            if (isset($handledSaisiesInv[$ecriture->numero_saisie]) || isset($handledSaisiesFin[$ecriture->numero_saisie])) {
+            if (isset($handledSaisiesInv[$ecriture->n_saisie]) || isset($handledSaisiesFin[$ecriture->n_saisie])) {
                 continue; 
             }
 
@@ -1240,113 +1240,40 @@ class AccountingReportingService
         }
         $data['treso_initiale'] = $treso_initiale;
 
-        // 3. Groupement par Transaction (n_saisie)
-        $transactions = $allEcritures->filter(fn($e) => !$e->is_ran)->groupBy('n_saisie');
+        // 3. Décomposition en mouvements de trésorerie.
+        //
+        // Le montant et le sens de chaque mouvement se lisent sur la ligne
+        // elle-même, comme dans la balance ; la pièce, reconstituée sur
+        // l'équilibre, ne sert plus qu'à désigner la contrepartie, donc la
+        // section et le libellé. Un numéro de saisie partagé par plusieurs
+        // pièces ne peut donc plus compenser encaissements et décaissements.
+        // Voir AnalyseFluxTresorerie.
+        $mouvements = AnalyseFluxTresorerie::mouvements(
+            $allEcritures->filter(fn($e) => !$e->is_ran)
+        );
 
-        foreach ($transactions as $saisieId => $lignes) {
-            // A. Analyser la partie Trésorerie (La "Boussole")
-            $lignesTreso = $lignes->filter(function($line) {
-                return $line->planComptable && str_starts_with($line->planComptable->numero_de_compte, '5');
-            });
+        foreach ($mouvements as $mouvement) {
+            $date = \Carbon\Carbon::parse($mouvement->date);
 
-            if ($lignesTreso->isEmpty()) continue; 
-
-            // Calcul du Flux Net de Trésorerie pour cette saisie
-            $fluxTresoNet = $lignesTreso->sum(fn($l) => $l->debit - $l->credit);
-
-            // Ignorer les flux nuls
-            if (abs($fluxTresoNet) < 0.01) continue;
-
-            // Déterminer le Sens (Encaissement vs Décaissement)
-            $isEncaissement = $fluxTresoNet > 0;
-            $sensKey = $isEncaissement ? 'encaissements' : 'decaissements';
-            $absFluxTotal = abs($fluxTresoNet);
-
-            // Déterminer la Section (Via le Poste de Trésorerie PRINCIPAL)
-            $ligneTresoPrincipale = $lignesTreso->first(fn($l) => $l->posteTresorerie) ?? $lignesTreso->first();
-            
-            $activityKey = 'operationnelle'; // Par défaut
-            if ($ligneTresoPrincipale->posteTresorerie) {
-                $poste = $ligneTresoPrincipale->posteTresorerie;
-                $sysCode = $poste->syscohada_line_id;
-                $catName = $poste->category ? strtolower($poste->category->name) : '';
-                
-                if (($sysCode && str_starts_with($sysCode, 'INV_')) || str_contains($catName, 'investissement')) {
-                    $activityKey = 'investissement';
-                } elseif (($sysCode && str_starts_with($sysCode, 'FIN_')) || str_contains($catName, 'financement')) {
-                    $activityKey = 'financement';
-                }
-            }
-
-            // FALLBACK : Si aucune activité spécifique via le poste, on regarde la CLASSE DES CONTREPARTIES
-            if ($activityKey === 'operationnelle') {
-                $hasInvest = $lignes->contains(function($l) {
-                     if (!$l->planComptable) return false;
-                     $num = $l->planComptable->numero_de_compte;
-                     // Classe 2 (Immo) sauf Amortissements (28) et Dépréciations (29)
-                     return str_starts_with($num, '2') && !str_starts_with($num, '28') && !str_starts_with($num, '29');
-                });
-                
-                if ($hasInvest) {
-                    $activityKey = 'investissement';
-                } else {
-                    $hasFin = $lignes->contains(function($l) {
-                        if (!$l->planComptable) return false;
-                        $num = $l->planComptable->numero_de_compte;
-                        // Classe 1 (Capitaux, Emprunts...)
-                        return str_starts_with($num, '1');
-                    });
-                    if ($hasFin) {
-                        $activityKey = 'financement';
-                    }
-                }
-            }
-
-            // Identifier le mois
-            $ecDate = \Carbon\Carbon::parse($ligneTresoPrincipale->date);
             $monthIndex = -1;
             foreach ($months as $idx => $m) {
-                if ($m['id'] == $ecDate->month && $m['year'] == $ecDate->year) {
+                if ($m['id'] == $date->month && $m['year'] == $date->year) {
                     $monthIndex = $idx;
                     break;
                 }
             }
             if ($monthIndex === -1) continue;
 
-            // B. Identifier les Contreparties (L'Affichage)
-            $lignesContrepartie = $lignes->filter(function($line) {
-                return !$line->planComptable || !str_starts_with($line->planComptable->numero_de_compte, '5');
-            });
-            
-            $totalContrepartieAbs = $lignesContrepartie->sum(fn($l) => abs($l->debit - $l->credit));
+            $activityKey = $mouvement->section;
+            $sensKey = $mouvement->sens;
 
-            if ($totalContrepartieAbs == 0) {
-                 // Fallback si pas de contrepartie claire (ex: 521 a 521)
-                 $compte = $ligneTresoPrincipale->planComptable;
-                 $labelFallback = $compte->numero_de_compte . ' - ' . $compte->intitule . ' (Sans contrepartie)';
-                 $data['activities'][$activityKey][$sensKey]['total'][$monthIndex] += $absFluxTotal;
-                 $this->addManualCategoryDetail($data['activities'][$activityKey][$sensKey]['categories'], $labelFallback, $absFluxTotal, $monthIndex, $monthCount);
-                 continue;
-            }
-
-            // Répartition
-            foreach ($lignesContrepartie as $cp) {
-                $compteCp = $cp->planComptable;
-                if (!$compteCp) continue;
-
-                $cpAmountAbs = abs($cp->debit - $cp->credit);
-                if ($cpAmountAbs < 0.01) continue;
-
-                // Prorata
-                $partDuFlux = ($cpAmountAbs / $totalContrepartieAbs) * $absFluxTotal;
-
-                // Format : [Numéro] - [Intitulé]
-                $labelAffichage = $compteCp->numero_de_compte . ' - ' . $compteCp->intitule;
-
-                $data['activities'][$activityKey][$sensKey]['total'][$monthIndex] += $partDuFlux;
-                $this->addManualCategoryDetail($data['activities'][$activityKey][$sensKey]['categories'], $labelAffichage, $partDuFlux, $monthIndex, $monthCount);
-            }
+            $data['activities'][$activityKey][$sensKey]['total'][$monthIndex] += $mouvement->montant;
+            $this->addManualCategoryDetail(
+                $data['activities'][$activityKey][$sensKey]['categories'],
+                $mouvement->libelle, $mouvement->montant, $monthIndex, $monthCount
+            );
         }
+
 
         // 4. Calculs Finaux (Nets et Cumuls)
         $currentCumul = $treso_initiale;
