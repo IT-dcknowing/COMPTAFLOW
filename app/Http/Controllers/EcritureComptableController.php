@@ -1270,15 +1270,25 @@ class EcritureComptableController extends Controller
     }
 
     /**
-     * Soldes du journal ouvert en saisie, présentés comme dans Sage :
-     *   - ancien solde  : ce qui est cumulé depuis le début de l'exercice jusqu'à la veille du mois choisi ;
-     *   - mouvements    : débits et crédits du mois (de tout l'exercice si aucun mois n'est choisi) ;
-     *   - nouveau solde : ancien solde + débits − crédits.
+     * Soldes affichés dans l'en-tête de la saisie.
      *
-     * Comme dans Sage, seules les écritures du journal comptent. Un journal de
-     * trésorerie se lit sur son compte de trésorerie (la caisse, la banque) :
-     * une sortie de caisse passée dans un autre journal (OD) n'y figure pas.
-     * Les autres journaux se lisent sur toutes leurs écritures.
+     * Le journal choisi sert à DÉSIGNER les comptes de trésorerie à suivre —
+     * son compte réglé, et ceux réellement mouvementés dans ce journal. Mais
+     * les montants, eux, se lisent sur TOUS LES JOURNAUX, comme dans la
+     * balance : le solde d'une caisse, c'est la caisse entière, et non la part
+     * qui est passée par un journal.
+     *
+     * Auparavant tout était limité au journal. Une caisse partagée entre le
+     * journal de caisse et les opérations diverses n'affichait donc qu'une
+     * tranche, sous un libellé — « Solde août » — qui annonce un solde de
+     * compte. Le cadre ne pouvait pas tomber d'accord avec la balance, et le
+     * nouveau solde pouvait paraître créditeur alors que la caisse était
+     * pleine.
+     *
+     * Chaque compte a sa ligne, pour que le chiffre soit vérifiable un par un
+     * sur la balance. Un journal sans compte de trésorerie (achats, ventes)
+     * garde une lecture par journal, sur toutes ses écritures.
+     *
      * Les écritures rejetées ne comptent pas.
      */
     public function soldesJournal(Request $request)
@@ -1324,24 +1334,26 @@ class EcritureComptableController extends Controller
         }
         $compte = $compteId ? PlanComptable::where('company_id', $companyId)->find($compteId) : null;
 
-        $base = EcritureComptable::where('company_id', $companyId)
+        $retenues = fn ($q) => $q->whereNull('statut')->orWhere('statut', '!=', 'rejected');
+
+        $duJournal = EcritureComptable::where('company_id', $companyId)
             ->where('exercices_comptables_id', $exercice->id)
             ->where('code_journal_id', $journal->id)
-            ->where(fn ($q) => $q->whereNull('statut')->orWhere('statut', '!=', 'rejected'));
+            ->where($retenues);
 
-        // Les comptes de trésorerie lus. Le compte réglé sur le journal ne
-        // correspond pas toujours à celui des écritures (plan importé, compte
-        // renuméroté : journal réglé sur 55200000, écritures sur 55200100) ; tout
-        // restait alors à zéro. On lit donc le compte réglé ET les comptes de
+        // Les comptes suivis. Le compte réglé sur le journal ne correspond pas
+        // toujours à celui des écritures (plan importé, compte renuméroté :
+        // journal réglé sur 55200000, écritures sur 55200100) ; tout restait
+        // alors à zéro. On prend donc le compte réglé ET les comptes de
         // trésorerie réellement mouvementés dans ce journal : classe 5, hors
         // virements internes (58), qui sont des contreparties.
         $estTresorerie = $compte || in_array($journal->type, ['Banque', 'Caisse', 'Trésorerie', 'Tresorerie'], true);
         $comptesLus = collect();
         if ($estTresorerie) {
             $comptesLus = PlanComptable::where('company_id', $companyId)
-                ->where(function ($q) use ($base, $compte) {
-                    $q->where(function ($r) use ($base) {
-                        $r->whereIn('id', (clone $base)->select('plan_comptable_id')->distinct())
+                ->where(function ($q) use ($duJournal, $compte) {
+                    $q->where(function ($r) use ($duJournal) {
+                        $r->whereIn('id', (clone $duJournal)->select('plan_comptable_id')->distinct())
                             ->where('numero_de_compte', 'like', '5%')
                             ->where('numero_de_compte', 'not like', '58%');
                     });
@@ -1350,38 +1362,95 @@ class EcritureComptableController extends Controller
                     }
                 })
                 ->orderBy('numero_de_compte')
-                ->get();
+                ->get(['id', 'numero_de_compte', 'intitule']);
         }
-        if ($comptesLus->isNotEmpty()) {
-            $base->whereIn('plan_comptable_id', $comptesLus->pluck('id'));
-        }
-
-        $avant = (clone $base)->whereDate('date', '<', $debutPeriode->toDateString())
-            ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
-        $periode = (clone $base)->whereDate('date', '>=', $debutPeriode->toDateString())
-            ->whereDate('date', '<=', $finPeriode->toDateString())
-            ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
-
-        $ancien = round((float) $avant->debit - (float) $avant->credit, 2);
 
         // « Solde février » quand on saisit mars : le solde porte le nom du mois qui le clôt.
         $nomsMois = [1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
         $libelleAncien = $debutPeriode->gt($debutExercice) || ($mois >= 1 && $mois <= 12)
             ? 'Solde ' . $nomsMois[$debutPeriode->copy()->subMonthNoOverflow()->month]
             : "Solde d'ouverture";
-        $debit = round((float) $periode->debit, 2);
-        $credit = round((float) $periode->credit, 2);
+
+        $veille = $debutPeriode->toDateString();
+        $jusqua = $finPeriode->toDateString();
+
+        // Les montants se lisent sur tous les journaux — c'est ce que fait la
+        // balance, et c'est la seule lecture qu'un comptable puisse recouper.
+        $surLesComptes = fn () => EcritureComptable::where('company_id', $companyId)
+            ->where('exercices_comptables_id', $exercice->id)
+            ->where($retenues);
+
+        $lignes = [];
+        $totalAncien = $totalDebit = $totalCredit = 0.0;
+
+        if ($comptesLus->isNotEmpty()) {
+            $ids = $comptesLus->pluck('id');
+
+            $avant = $surLesComptes()
+                ->whereIn('plan_comptable_id', $ids)
+                ->whereDate('date', '<', $veille)
+                ->groupBy('plan_comptable_id')
+                ->selectRaw('plan_comptable_id, COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')
+                ->get()->keyBy('plan_comptable_id');
+
+            $pendant = $surLesComptes()
+                ->whereIn('plan_comptable_id', $ids)
+                ->whereDate('date', '>=', $veille)
+                ->whereDate('date', '<=', $jusqua)
+                ->groupBy('plan_comptable_id')
+                ->selectRaw('plan_comptable_id, COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')
+                ->get()->keyBy('plan_comptable_id');
+
+            foreach ($comptesLus as $c) {
+                $a = $avant->get($c->id);
+                $p = $pendant->get($c->id);
+
+                $ancien = round((float) ($a->debit ?? 0) - (float) ($a->credit ?? 0), 2);
+                $debit = round((float) ($p->debit ?? 0), 2);
+                $credit = round((float) ($p->credit ?? 0), 2);
+
+                $lignes[] = [
+                    'numero' => $c->numero_de_compte,
+                    'intitule' => trim((string) $c->intitule),
+                    'ancien' => $ancien,
+                    'debit' => $debit,
+                    'credit' => $credit,
+                    'nouveau' => round($ancien + $debit - $credit, 2),
+                ];
+
+                $totalAncien += $ancien;
+                $totalDebit += $debit;
+                $totalCredit += $credit;
+            }
+        } else {
+            // Journal sans compte de trésorerie : on lit le journal lui-même.
+            $avant = (clone $duJournal)->whereDate('date', '<', $veille)
+                ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
+            $pendant = (clone $duJournal)->whereDate('date', '>=', $veille)->whereDate('date', '<=', $jusqua)
+                ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
+
+            $totalAncien = (float) $avant->debit - (float) $avant->credit;
+            $totalDebit = (float) $pendant->debit;
+            $totalCredit = (float) $pendant->credit;
+        }
+
+        $totalAncien = round($totalAncien, 2);
+        $totalDebit = round($totalDebit, 2);
+        $totalCredit = round($totalCredit, 2);
 
         return response()->json([
             'success' => true,
             'journal' => $journal->code_journal,
             'compte' => $comptesLus->pluck('numero_de_compte')->implode(', ') ?: null,
             'compte_regle' => $compte?->numero_de_compte,
+            'tous_journaux' => $comptesLus->isNotEmpty(),
             'periode' => [$debutPeriode->format('d/m/Y'), $finPeriode->format('d/m/Y')],
-            'ancien_solde' => $ancien,
             'libelle_ancien' => $libelleAncien,
-            'mouvements' => ['debit' => $debit, 'credit' => $credit],
-            'nouveau_solde' => round($ancien + $debit - $credit, 2),
+            'comptes' => $lignes,
+            // Conservés pour les appels qui ne lisent que le total.
+            'ancien_solde' => $totalAncien,
+            'mouvements' => ['debit' => $totalDebit, 'credit' => $totalCredit],
+            'nouveau_solde' => round($totalAncien + $totalDebit - $totalCredit, 2),
         ]);
     }
 

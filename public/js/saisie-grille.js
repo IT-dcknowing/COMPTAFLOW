@@ -18,6 +18,54 @@ const saisieGrille = (() => {
   const carte = document.getElementById('carteDesequilibre');
   const panel = document.getElementById('panelSaisie');
 
+  // ── Jeton de session ───────────────────────────────────────────────────
+  //
+  // Le jeton anti-rejeu est lu une fois au chargement de la page. Une page de
+  // saisie reste ouverte des heures ; passe la duree de vie de la session, le
+  // serveur refuse l'enregistrement avec « CSRF token mismatch » et le travail
+  // en cours semble perdu. On redemande donc un jeton frais et on rejoue la
+  // requete une fois. Si la session est vraiment finie, on le dit clairement
+  // au lieu d'une erreur technique.
+  let jetonCourant = csrfToken;
+
+  async function rafraichirJeton() {
+    try {
+      const r = await fetch('/jeton-csrf', { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) return false;
+      const j = await r.json();
+      if (!j || !j.token) return false;
+      jetonCourant = j.token;
+      const balise = document.querySelector('meta[name="csrf-token"]');
+      if (balise) balise.setAttribute('content', j.token);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function envoyer(url, options = {}, rejoue = false) {
+    const entetes = Object.assign({ 'Accept': 'application/json' }, options.headers || {});
+    entetes['X-CSRF-TOKEN'] = jetonCourant;
+
+    const reponse = await fetch(url, Object.assign({}, options, { headers: entetes }));
+
+    if (reponse.status === 419 && !rejoue && await rafraichirJeton()) {
+      return envoyer(url, options, true);
+    }
+
+    if (reponse.status === 419 || reponse.status === 401) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Session expirée',
+        html: "Votre session a pris fin. Reconnectez-vous dans un autre onglet, "
+            + "puis revenez ici : vos lignes sont toujours à l'écran.",
+        confirmButtonText: "J'ai compris",
+      });
+    }
+
+    return reponse;
+  }
+
   let addedLines = [];
   // L'utilisateur a-t-il retouché le libellé ou la référence de l'en-tête ?
   // Tant qu'il n'y touche pas, chaque ligne garde les siens.
@@ -777,9 +825,8 @@ const saisieGrille = (() => {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await fetch(`/ecritures/saisie/${encodeURIComponent(nSaisie)}`, {
+      const res = await envoyer(`/ecritures/saisie/${encodeURIComponent(nSaisie)}`, {
         method: 'DELETE',
-        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
       });
       const json = await res.json();
       if (json.success) {
@@ -934,9 +981,9 @@ const saisieGrille = (() => {
       const lignes = collecterLignes();
 
       if (modeEdition) {
-        res = await fetch(miseAJourMassiveUrl, {
+        res = await envoyer(miseAJourMassiveUrl, {
           method: 'POST',
-          headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lignes }),
         });
         json = await res.json();
@@ -960,15 +1007,15 @@ const saisieGrille = (() => {
           fd.append('ecritures', JSON.stringify(payload.ecritures));
           fd.append('lignes', JSON.stringify(payload.lignes));
           if (currentBatchId) fd.append('batch_id', currentBatchId);
-          res = await fetch(storeMultipleUrl, {
+          res = await envoyer(storeMultipleUrl, {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            
             body: fd,
           });
         } else {
-          res = await fetch(storeMultipleUrl, {
+          res = await envoyer(storeMultipleUrl, {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
         }
@@ -1069,9 +1116,9 @@ const saisieGrille = (() => {
     if (btn) btn.disabled = true;
 
     try {
-      const res = await fetch('/api/brouillons', {
+      const res = await envoyer('/api/brouillons', {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ batch_id: document.getElementById('n_saisie_user').value, ecritures: lines })
       });
       const json = await res.json();
@@ -1211,9 +1258,9 @@ const saisieGrille = (() => {
     }
 
     try {
-      const res = await fetch(ecritureModelesStoreUrl, {
+      const res = await envoyer(ecritureModelesStoreUrl, {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom, lignes }),
       });
       const json = await res.json();

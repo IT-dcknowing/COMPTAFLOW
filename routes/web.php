@@ -323,6 +323,15 @@ Route::middleware(['auth', 'exercice.context'])->group(function () {
     Route::post('/ecritures/update-approval', [EcritureComptableController::class, 'updateFromApproval'])->name('ecriture.update_approval');
     Route::get('/ecritures/check-reference', [EcritureComptableController::class, 'checkReference'])->name('ecriture.check_reference');
     Route::get('/ecritures/soldes-journal', [EcritureComptableController::class, 'soldesJournal'])->name('ecriture.soldes_journal');
+
+    // Jeton anti-rejeu frais. Une page de saisie reste ouverte des heures ;
+    // passé la durée de vie de la session, l'enregistrement était refusé par un
+    // « CSRF token mismatch » et le travail en cours semblait perdu. La page
+    // redemande un jeton et rejoue sa requête une fois.
+    Route::get('/jeton-csrf', fn () => response()->json([
+        'token' => csrf_token(),
+        'connecte' => auth()->check(),
+    ]))->name('jeton.csrf');
     Route::delete('/ecritures/saisie/{n_saisie}', [EcritureComptableController::class, 'deleteBySaisie'])->name('ecriture.delete_saisie');
     Route::delete('/ecritures/delete-all', [EcritureComptableController::class, 'deleteAll'])->name('ecriture.delete_all');
 
