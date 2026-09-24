@@ -870,8 +870,12 @@
                                                     <label for="numero_de_compte" class="input-label-premium">Numéro de
                                                         compte</label>
                                                     <input type="text" class="input-field-premium" id="numero_de_compte"
-                                                        name="numero_de_compte" maxlength="8" placeholder="Ex: 41110000"
-                                                        required>
+                                                        name="numero_de_compte" inputmode="numeric" autocomplete="off"
+                                                        placeholder="Ex: 41110000" required>
+                                                    {{-- Dit, pendant la frappe, si le numéro est libre et sous quelle
+                                                         forme il sera enregistré. La longueur vient du dossier. --}}
+                                                    <small id="avisNumeroCompte" class="d-block mt-1"
+                                                        style="font-size: 0.72rem; min-height: 1.1rem; color: #64748b;"></small>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="intitule" class="input-label-premium">Intitulé du
@@ -1365,6 +1369,72 @@
                                 btnCreateCompte.innerHTML = originalBtnHtml;
                             });
                     };
+
+                    // ── Le numéro est-il libre ? ───────────────────────────
+                    //
+                    // Le serveur complétait le numéro à la longueur du dossier
+                    // et coupait ce qui dépassait, sans le dire : le compte
+                    // créé ne portait alors pas le numéro demandé, et semblait
+                    // ne pas s'être enregistré. On annonce maintenant, pendant
+                    // la frappe, la forme finale et le compte déjà en place.
+                    const avis = document.getElementById('avisNumeroCompte');
+                    const urlVerif = '{{ route("verifierNumeroCompte") }}';
+                    let minuterieNumero = null;
+                    let longueurDossier = 0;
+
+                    function direAvis(texte, couleur) {
+                        if (!avis) return;
+                        avis.textContent = texte;
+                        avis.style.color = couleur;
+                    }
+
+                    async function verifierNumero() {
+                        const saisi = numeroCompteInput.value.trim();
+                        if (!saisi) { direAvis('', '#64748b'); return; }
+
+                        try {
+                            const reponse = await fetch(urlVerif, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                    'Accept': 'application/json',
+                                },
+                                body: JSON.stringify({ numero_de_compte: saisi }),
+                            });
+                            const r = await reponse.json();
+                            if (!r || r.error) return;
+
+                            if (r.longueur && r.longueur !== longueurDossier) {
+                                longueurDossier = r.longueur;
+                                numeroCompteInput.setAttribute('maxlength', String(r.longueur));
+                            }
+
+                            if (r.trop_long) {
+                                direAvis('Trop long : les comptes de ce dossier font ' + r.longueur + ' chiffres.', '#b91c1c');
+                                btnCreateCompte.disabled = true;
+                                return;
+                            }
+
+                            btnCreateCompte.disabled = false;
+
+                            if (r.exists) {
+                                direAvis('Le compte ' + r.numero_formatte + ' existe déjà : ' + (r.intitule_existant || ''), '#b45309');
+                            } else if (r.numero_formatte !== r.numero_saisi) {
+                                direAvis('Numéro libre. Il sera enregistré sous la forme ' + r.numero_formatte + '.', '#047857');
+                            } else {
+                                direAvis('Numéro libre, il peut être créé.', '#047857');
+                            }
+                        } catch (e) {
+                            /* la vérification est un confort : son échec ne bloque pas la saisie */
+                        }
+                    }
+
+                    numeroCompteInput.addEventListener('input', function () {
+                        clearTimeout(minuterieNumero);
+                        direAvis('', '#64748b');
+                        minuterieNumero = setTimeout(verifierNumero, 250);
+                    });
                 }
 
                 // --- GESTION DE LA CRÉATION DE JOURNAL INLINE ---

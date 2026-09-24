@@ -127,24 +127,57 @@ class PlanComptableController extends Controller
         }
     }
 
+    /**
+     * Le numero saisi est-il libre ?
+     *
+     * La verification comparait le numero brut aux numeros enregistres, qui
+     * sont completes a la longueur du dossier : « 605300 » ne ressemblait donc
+     * jamais a « 60530000 », et un numero deja pris etait annonce libre. On
+     * applique ici exactement le meme formatage que l'enregistrement.
+     */
     public function verifierNumeroCompte(Request $request)
     {
         try {
             $user = Auth::user();
             $companyId = session('current_company_id', $user->company_id);
-            $existe = PlanComptable::where('company_id', $companyId)
-                ->where('numero_de_compte', $request->numero_de_compte)
-                ->exists();
+            $digits = (int) (\App\Models\Company::find($companyId)?->account_digits ?? 8);
+
+            $saisi = trim((string) $request->numero_de_compte);
+            $formate = $this->formaterNumeroCompte($saisi, $digits);
+
+            $existant = $formate === null ? null : PlanComptable::where('company_id', $companyId)
+                ->where('numero_de_compte', $formate)
+                ->first(['id', 'numero_de_compte', 'intitule']);
 
             return response()->json([
-                'exists' => $existe,
-                'numero_formatte' => $request->numero_de_compte
+                'exists' => (bool) $existant,
+                'numero_formatte' => $formate ?? $saisi,
+                'numero_saisi' => $saisi,
+                'intitule_existant' => $existant?->intitule,
+                'longueur' => $digits,
+                'trop_long' => $formate === null,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Erreur lors de la vérification du numéro de compte : ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Complete un numero a la longueur du dossier, ou rend null s'il deborde.
+     *
+     * Les sous-comptes SYSCOHADA se lisent de gauche a droite : « 6053 » dans
+     * un dossier a huit chiffres designe « 60530000 ». Le complement se pose
+     * donc a droite.
+     */
+    private function formaterNumeroCompte(string $numero, int $digits): ?string
+    {
+        if ($numero === '' || strlen($numero) > $digits) {
+            return null;
+        }
+
+        return str_pad($numero, $digits, '0', STR_PAD_RIGHT);
     }
 
   public function store(Request $request)
@@ -160,25 +193,42 @@ class PlanComptableController extends Controller
         $company = \App\Models\Company::find($companyId);
         $digits = $company->account_digits ?? 8;
 
-        $numero_formate = str_pad($request->numero_de_compte, $digits, '0', STR_PAD_RIGHT);
-        if (strlen($numero_formate) > $digits) {
-            $numero_formate = substr($numero_formate, 0, $digits);
+        // Un numero trop long etait coupe en silence : « 4011760001 » devenait
+        // « 40117600 », et le compte cherche ensuite par l'utilisateur restait
+        // introuvable. On refuse, en disant pourquoi.
+        $numero_formate = $this->formaterNumeroCompte(trim((string) $request->numero_de_compte), $digits);
+
+        if ($numero_formate === null) {
+            $message = "Le numero de compte de ce dossier fait $digits chiffres : "
+                . trim((string) $request->numero_de_compte) . ' est trop long.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'error' => $message], 422);
+            }
+
+            return redirect()->back()->with('error', $message);
         }
+
         $intitule_formate = ucfirst(strtolower($request->intitule));
 
         // 2. Vérifier l'existence au sein de CETTE société uniquement
-        $exists = PlanComptable::where('company_id', $companyId)
-            ->where(function ($query) use ($numero_formate, $intitule_formate) {
-                $query->where('numero_de_compte', $numero_formate)
-                      ->orWhere('intitule', $intitule_formate);
-            })
-            ->exists();
+        // « Ce numero ou cet intitule existe deja » laissait chercher lequel
+        // des deux : on nomme le compte en cause.
+        $memeNumero = PlanComptable::where('company_id', $companyId)
+            ->where('numero_de_compte', $numero_formate)->first(['numero_de_compte', 'intitule']);
+        $memeIntitule = $memeNumero ? null : PlanComptable::where('company_id', $companyId)
+            ->where('intitule', $intitule_formate)->first(['numero_de_compte', 'intitule']);
 
-        if ($exists) {
+        if ($memeNumero || $memeIntitule) {
+            $pris = $memeNumero ?: $memeIntitule;
+            $message = $memeNumero
+                ? "Le numero $numero_formate est deja pris par « {$pris->intitule} »."
+                : "L'intitule « $intitule_formate » est deja porte par le compte {$pris->numero_de_compte}.";
+
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'error' => 'Ce numéro de compte ou cet intitulé existe déjà dans cette comptabilité.'], 422);
+                return response()->json(['success' => false, 'error' => $message], 422);
             }
-            return redirect()->back()->with('error', 'Ce numéro de compte ou cet intitulé existe déjà dans cette comptabilité.');
+            return redirect()->back()->with('error', $message);
         }
 
         $user = Auth::user();

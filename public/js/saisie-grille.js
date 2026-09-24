@@ -128,19 +128,42 @@ const saisieGrille = (() => {
     ).join('');
   }
 
+  // Les tiers proposés pour un compte général.
+  //
+  // La liste se rabattait sur TOUS les tiers du dossier dès que le compte
+  // choisi n'en avait aucun — ce qui est le cas courant après un import, où
+  // le rattachement reste vide. Les tiers d'un autre collectif apparaissaient
+  // alors sous ce compte, et pouvaient s'y retrouver enregistrés : un
+  // fournisseur finissait rattaché à un compte client.
+  //
+  // On propose donc les tiers de ce compte, et ceux qui ne sont rattachés à
+  // aucun compte — jamais ceux d'un autre.
   function optionsTiers(compteGeneralId, selectedId) {
-    let tiers = [];
-    if (compteGeneralId) {
-      tiers = plansTiers.filter(t => t.compte_general == compteGeneralId);
-    }
-    if (!tiers.length) {
-      tiers = plansTiers;
-    }
-    if (!tiers.length) return '<option value="">— Aucun tiers —</option>';
+    const option = t =>
+      `<option value="${t.id}" ${t.id == selectedId ? 'selected' : ''}>${t.numero_de_tiers} - ${t.intitule}</option>`;
 
-    return '<option value="">— Sélectionner un tiers —</option>' + tiers.map(t =>
-      `<option value="${t.id}" ${t.id == selectedId ? 'selected' : ''}>${t.numero_de_tiers} - ${t.intitule}</option>`
-    ).join('');
+    const sansRattachement = plansTiers.filter(t => !t.compte_general);
+
+    if (!compteGeneralId) {
+      if (!plansTiers.length) return '<option value="">— Aucun tiers —</option>';
+      return '<option value="">— Sélectionner un tiers —</option>' + plansTiers.map(option).join('');
+    }
+
+    const duCompte = plansTiers.filter(t => t.compte_general == compteGeneralId);
+
+    if (!duCompte.length && !sansRattachement.length) {
+      return '<option value="">— Aucun tiers rattaché à ce compte —</option>';
+    }
+
+    let html = '<option value="">— Sélectionner un tiers —</option>';
+    if (duCompte.length) {
+      html += '<optgroup label="Tiers de ce compte">' + duCompte.map(option).join('') + '</optgroup>';
+    }
+    if (sansRattachement.length) {
+      html += '<optgroup label="Tiers sans compte de rattachement">'
+            + sansRattachement.map(option).join('') + '</optgroup>';
+    }
+    return html;
   }
 
   function optionsPostes(selectedId) {
