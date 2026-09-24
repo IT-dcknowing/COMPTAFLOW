@@ -16,6 +16,8 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class UniversalImportController extends Controller
 {
+    use \App\Traits\HandlesTreasuryPosts;
+
     protected $parser;
     protected $analyzer;
 
@@ -391,6 +393,8 @@ class UniversalImportController extends Controller
 
             // PHASE 2: Insertion
             $ignoredCount = 0;
+            $postesConnus = [];   // plan_comptable_id => poste de tresorerie
+
             foreach ($validPayloads as $p) {
                 // Add System Fields
                 $p['company_id'] = $companyId;
@@ -456,14 +460,27 @@ class UniversalImportController extends Controller
                         ->where('numero_de_compte', $p['numero_de_compte'] ?? '')
                         ->value('id');
                      
-                     // Automating Treasury Post Selection
+                     // Poste de tresorerie.
+                     //
+                     // L'import se contentait de CHERCHER un poste existant :
+                     // une entreprise alimentee uniquement par import n'en
+                     // avait donc aucun, et ses banques et caisses restaient
+                     // absentes du module Tresorerie et du rapprochement
+                     // bancaire. La saisie manuelle, elle, cree le poste
+                     // manquant depuis toujours (voir HandlesTreasuryPosts).
+                     // L'import fait desormais de meme.
+                     //
+                     // Le resultat est memorise par compte : un import de
+                     // plusieurs milliers de lignes ne relit pas la base a
+                     // chaque ligne.
                      if ($p['plan_comptable_id']) {
-                         $compteTreso = \App\Models\CompteTresorerie::where('company_id', $companyId)
-                             ->where('plan_comptable_id', $p['plan_comptable_id'])
-                             ->first();
-                         if ($compteTreso) {
-                             $p['compte_tresorerie_id'] = $compteTreso->id;
-                             $p['poste_tresorerie_id'] = $compteTreso->id;
+                         $cle = $p['plan_comptable_id'];
+                         if (!array_key_exists($cle, $postesConnus)) {
+                             $postesConnus[$cle] = $this->resolveTreasuryPost($companyId, $cle);
+                         }
+                         if ($postesConnus[$cle]) {
+                             $p['compte_tresorerie_id'] = $postesConnus[$cle];
+                             $p['poste_tresorerie_id'] = $postesConnus[$cle];
                          }
                      }
                      
