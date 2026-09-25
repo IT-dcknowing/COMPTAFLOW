@@ -532,7 +532,15 @@ class ExternalSyncController extends Controller
         $request->validate([
             'selflow_company_id' => 'required|integer',
             'ecritures'          => 'required|array',
+            // Selflow déverse désormais une **opération entière** en un appel,
+            // et non ligne par ligne. Quand il le dit, une seule ligne refusée
+            // fait refuser le tout : une opération à moitié chez nous est un
+            // débit sans son crédit, et une balance qui ne balance plus.
+            'atomique'           => 'sometimes|boolean',
+            'operation'          => 'sometimes|nullable|string|max:100',
         ]);
+
+        $atomique = $request->boolean('atomique');
 
         $company = self::entrepriseDeLaRequete($request);
 
@@ -649,6 +657,32 @@ class ExternalSyncController extends Controller
                 ]);
 
                 $count++;
+            }
+
+            /*
+             * L'opération passe entière, ou pas du tout.
+             *
+             * Selflow envoyait ses écritures une par une : si la ligne du
+             * client passait et que celle de la vente était refusée — journal
+             * inconnu, compte absent —, nous gardions un débit sans son
+             * crédit. Rien ne recollait les morceaux, et la balance mentait.
+             *
+             * Depuis qu'il envoie l'opération d'un bloc, un refus partiel est
+             * une raison suffisante de tout annuler : mieux vaut une opération
+             * absente, que la reprise de Selflow repassera, qu'une opération
+             * boiteuse que personne ne verra.
+             */
+            if ($atomique && $refus) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'count'   => 0,
+                    'refus'   => $refus,
+                    'message' => "Opération refusée en entier : " . count($refus)
+                        . " ligne(s) sur " . count($request->ecritures)
+                        . " n'ont pas pu être rangées. Rien n'a été enregistré.",
+                ], 422);
             }
 
             self::daterLaReception($company);
