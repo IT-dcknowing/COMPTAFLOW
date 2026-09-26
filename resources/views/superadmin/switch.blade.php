@@ -76,70 +76,80 @@
                         </div>
                     @endif
 
-                    <!-- Filtres -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-                        <form method="GET" action="{{ route('superadmin.switch') }}">
-                            <div class="row g-3 align-items-end">
+                    @php
+                        $totalSwitchComp = $companies->total();
+                    @endphp
 
-                                {{-- Recherche --}}
-                                <div class="col-md-5">
-                                    <label class="form-label fw-semibold small text-muted mb-1">
-                                        <i class="fa-solid fa-magnifying-glass me-1"></i>Recherche
-                                    </label>
-                                    <input type="text" name="search"
-                                           class="form-control form-control-sm"
-                                           placeholder="Nom ou code entreprise…"
-                                           value="{{ request('search') }}">
+                    <!-- KPIs Grid (4 Colonnes) -->
+                    <div class="kpi-grid mb-4" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                        <div class="glass-card p-4 border-l-4 border-l-primary">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Entreprises</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $totalSwitchComp }}</h3>
                                 </div>
-
-                                {{-- Entreprise --}}
-                                <div class="col-md-5">
-                                    <label class="form-label fw-semibold small text-muted mb-1">
-                                        <i class="fa-solid fa-building me-1"></i>Entreprise
-                                    </label>
-                                    <select name="company_id" class="form-select form-select-sm">
-                                        <option value="">Toutes les entreprises</option>
-                                        @foreach($allCompanies as $item)
-                                            <option value="{{ $item->id }}" {{ request('company_id') == $item->id ? 'selected' : '' }}>
-                                                {{ $item->company_name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                <div class="p-3 bg-blue-50 text-primary rounded-2xl">
+                                    <i class="fa-solid fa-building text-lg"></i>
                                 </div>
-
-                                {{-- Boutons --}}
-                                <div class="col-md-2 d-flex gap-2">
-                                    <button type="submit" class="btn btn-primary btn-sm w-100" title="Filtrer">
-                                        <i class="fa-solid fa-filter"></i>
-                                    </button>
-                                    @if(request()->hasAny(['search', 'company_id']))
-                                        <a href="{{ route('superadmin.switch') }}" class="btn btn-outline-secondary btn-sm" title="Réinitialiser">
-                                            <i class="fa-solid fa-xmark"></i>
-                                        </a>
-                                    @endif
-                                </div>
-
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Toutes entités</p>
+                        </div>
 
-                            @if(request()->hasAny(['search', 'company_id']))
-                                <div class="mt-2 pt-2 border-top d-flex align-items-center gap-2">
-                                    <span class="badge bg-primary rounded-pill">{{ $companies->total() }} résultat(s)</span>
-                                    <span class="text-muted small">filtre(s) actif(s)</span>
+                        <div class="glass-card p-4 border-l-4 border-l-success">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Sociétés Mères</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $companies->where('parent_company_id', null)->count() }}</h3>
                                 </div>
-                            @endif
-                        </form>
+                                <div class="p-3 bg-green-50 text-success rounded-2xl">
+                                    <i class="fa-solid fa-crown text-lg"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Sièges autonomes</p>
+                        </div>
+
+                        <div class="glass-card p-4 border-l-4 border-l-purple">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Sous-entités</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $companies->whereNotNull('parent_company_id')->count() }}</h3>
+                                </div>
+                                <div class="p-3 bg-purple-50 text-purple-600 rounded-2xl">
+                                    <i class="fa-solid fa-sitemap text-lg"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Filiales & branches</p>
+                        </div>
+
+                        <div class="glass-card p-4 border-l-4 border-l-warning">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Actives</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $companies->where('is_active', true)->count() }}</h3>
+                                </div>
+                                <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                                    <i class="fa-solid fa-check-circle text-lg"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Opérationnelles</p>
+                        </div>
                     </div>
 
-                    <!-- Liste des entreprises -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                        <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="fw-semibold mb-0">Liste des Entreprises</h5>
-                            <span class="text-muted small">{{ $companies->total() }} entreprise(s) · classées par ordre alphabétique</span>
-                        </div>
+                    <!-- Carte Liste des Entreprises avec Filtres Colonnes -->
+                    <div class="glass-card overflow-hidden mb-4">
+                        @include('components.filtre_colonnes', [
+                            'corps' => '#corpsSwitch',
+                            'nom' => 'entreprises',
+                            'filtres' => [
+                                ['cle' => 'compagnie', 'libelle' => 'Entreprise', 'type' => 'texte'],
+                                ['cle' => 'type', 'libelle' => 'Type', 'type' => 'liste'],
+                                ['cle' => 'statut', 'libelle' => 'Statut', 'type' => 'liste'],
+                            ],
+                        ])
 
                         <div class="table-responsive">
                             <table class="table table-hover mb-0">
-                                <thead class="bg-gray-50">
+                                <thead class="bg-slate-50">
                                     <tr>
                                         <th class="fw-semibold">Entreprise</th>
                                         <th class="fw-semibold">Type</th>
@@ -149,9 +159,11 @@
                                         <th class="fw-semibold text-end">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="corpsSwitch">
                                     @forelse($companies as $company)
-                                        <tr>
+                                        <tr data-f-compagnie="{{ $company->company_name }}"
+                                            data-f-type="{{ is_null($company->parent_company_id) ? 'Siège' : 'Sous-entité' }}"
+                                            data-f-statut="{{ $company->is_active ? 'Active' : 'Inactive' }}">
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="avatar avatar-sm bg-primary text-white rounded-circle me-2">

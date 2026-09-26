@@ -51,7 +51,54 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         @endif
-                        
+                        <!-- KPIs Compacts (Style TFT) -->
+                        <div class="row g-3 mb-6">
+                            <div class="col-12 col-sm-6 col-xl-3">
+                                <div class="card shadow-sm border border-slate-200/60 rounded-2xl p-3 bg-white d-flex align-items-center flex-row">
+                                    <div class="stat-icon bg-blue-50 text-blue-600 rounded-xl p-3 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                        <i class="fa-solid fa-bell fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider mb-0">Total Recus</p>
+                                        <h4 class="font-black mb-0 text-slate-800">{{ $notifications->total() }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-xl-3">
+                                <div class="card shadow-sm border border-slate-200/60 rounded-2xl p-3 bg-white d-flex align-items-center flex-row">
+                                    <div class="stat-icon bg-amber-50 text-amber-600 rounded-xl p-3 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                        <i class="fa-solid fa-envelope-open fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider mb-0">Non Lues</p>
+                                        <h4 class="font-black mb-0 text-amber-600">{{ $notifications->where('is_read', false)->count() }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-xl-3">
+                                <div class="card shadow-sm border border-slate-200/60 rounded-2xl p-3 bg-white d-flex align-items-center flex-row">
+                                    <div class="stat-icon bg-emerald-50 text-emerald-600 rounded-xl p-3 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                        <i class="fa-solid fa-comments fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider mb-0">Messages</p>
+                                        <h4 class="font-black mb-0 text-slate-800">{{ $notifications->where('type', 'message')->count() }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-xl-3">
+                                <div class="card shadow-sm border border-slate-200/60 rounded-2xl p-3 bg-white d-flex align-items-center flex-row">
+                                    <div class="stat-icon bg-rose-50 text-rose-600 rounded-xl p-3 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                        <i class="fa-solid fa-triangle-exclamation fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider mb-0">Alertes / Urgences</p>
+                                        <h4 class="font-black mb-0 text-rose-600">{{ $notifications->where('type', 'error')->count() + $notifications->where('type', 'warning')->count() }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row g-4">
                             <!-- Liste des notifications -->
                             <div class="col-lg-8">

@@ -238,10 +238,31 @@ class Company extends Model
             ->withTimestamps();
     }
 
-     public function admin()
+    public function admin()
     {
         return $this->belongsTo(User::class, 'user_id');
-        // return $this->hasMany(User::class, 'company_id')->where('role', 'admin');
+    }
+
+    public function getAdminUserAttribute()
+    {
+        if ($this->relationLoaded('admin') && $this->admin) {
+            return $this->admin;
+        }
+        if ($this->user_id) {
+            $owner = User::find($this->user_id);
+            if ($owner) {
+                return $owner;
+            }
+        }
+        $userAdmin = User::where('company_id', $this->id)->where('role', 'admin')->first();
+        if ($userAdmin) {
+            return $userAdmin;
+        }
+        $pivotAdmin = $this->associatedUsers()->wherePivot('role', 'admin')->first();
+        if ($pivotAdmin) {
+            return $pivotAdmin;
+        }
+        return User::where('company_id', $this->id)->first() ?? $this->associatedUsers()->first();
     }
 
     /**

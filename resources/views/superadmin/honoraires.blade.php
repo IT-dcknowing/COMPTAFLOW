@@ -427,6 +427,13 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
                     </div>
 
                     <div class="card border-0 shadow-sm" style="border-radius:16px;overflow:hidden;">
+                        @include('components.filtre_colonnes', [
+                            'corps' => '#corpsHonoraires',
+                            'nom' => 'clients',
+                            'filtres' => [
+                                ['cle' => 'client', 'libelle' => 'Client', 'type' => 'texte'],
+                            ],
+                        ])
                         <div class="card-body p-0">
                             <div class="table-responsive">
                                 <table class="table table-hover mb-0" style="font-size:.82rem;">
@@ -441,9 +448,9 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
                                             <th class="pe-4 py-3"></th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="corpsHonoraires">
                                         @forelse($companies as $company)
-                                            <tr class="company-row">
+                                            <tr class="company-row" data-f-client="{{ $company->company_name }}">
                                                 <td class="ps-4 py-3">
                                                     <div class="d-flex align-items-center gap-2">
                                                         <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.8rem;flex-shrink:0;">

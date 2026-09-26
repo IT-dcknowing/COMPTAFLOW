@@ -63,130 +63,77 @@
                         </div>
                     @endif
 
-                    <!-- Statistiques rapides (Premium) -->
-                    <div class="row g-4 mb-8">
-                        <!-- KPI 1: Total -->
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-2xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl d-flex align-items-center justify-content-center shadow-lg shadow-blue-200">
-                                        <i class="fa-solid fa-tasks text-white fs-4"></i>
-                                    </div>
-                                    <div class="text-end">
-                                        <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Plateforme</span>
-                                    </div>
+                    <!-- KPIs Grid (4 Colonnes) -->
+                    <div class="kpi-grid mb-4" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                        <div class="glass-card p-4 border-l-4 border-l-primary">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Tâches</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $tasks->total() }}</h3>
                                 </div>
-                                <h6 class="text-gray-500 font-medium text-sm mb-1">Total Tâches</h6>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-0">{{ $tasks->total() }}</h3>
+                                <div class="p-3 bg-blue-50 text-primary rounded-2xl">
+                                    <i class="fa-solid fa-tasks text-lg"></i>
+                                </div>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Plateforme</p>
                         </div>
 
-                        <!-- KPI 2: En Attente -->
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-2xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl d-flex align-items-center justify-content-center shadow-lg shadow-yellow-200">
-                                        <i class="fa-solid fa-clock text-white fs-4"></i>
-                                    </div>
-                                    <div class="text-end text-warning">
-                                        <span class="text-xs font-bold uppercase tracking-wider">En Attente</span>
-                                    </div>
+                        <div class="glass-card p-4 border-l-4 border-l-warning">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">En Attente</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $tasks->where('status', 'pending')->count() }}</h3>
                                 </div>
-                                <h6 class="text-gray-500 font-medium text-sm mb-1">Tâches Ouvertes</h6>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-0">{{ $tasks->where('status', 'pending')->count() }}</h3>
+                                <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                                    <i class="fa-solid fa-clock text-lg"></i>
+                                </div>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Tâches ouvertes</p>
                         </div>
 
-                        <!-- KPI 3: En Cours -->
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-2xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl d-flex align-items-center justify-content-center shadow-lg shadow-purple-200">
-                                        <i class="fa-solid fa-spinner text-white fs-4"></i>
-                                    </div>
-                                    <div class="text-end text-purple-600">
-                                        <span class="text-xs font-bold uppercase tracking-wider">Action</span>
-                                    </div>
+                        <div class="glass-card p-4 border-l-4 border-l-purple">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">En Cours</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $tasks->where('status', 'in_progress')->count() }}</h3>
                                 </div>
-                                <h6 class="text-gray-500 font-medium text-sm mb-1">Tâches en cours</h6>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-0">{{ $tasks->where('status', 'in_progress')->count() }}</h3>
+                                <div class="p-3 bg-purple-50 text-purple-600 rounded-2xl">
+                                    <i class="fa-solid fa-spinner text-lg"></i>
+                                </div>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">En traitement</p>
                         </div>
 
-                        <!-- KPI 4: Complétées -->
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-2xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl d-flex align-items-center justify-content-center shadow-lg shadow-emerald-200">
-                                        <i class="fa-solid fa-check-circle text-white fs-4"></i>
-                                    </div>
-                                    <div class="text-end text-success">
-                                        <span class="text-xs font-bold uppercase tracking-wider">Succès</span>
-                                    </div>
+                        <div class="glass-card p-4 border-l-4 border-l-success">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Complétées</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $tasks->where('status', 'completed')->count() }}</h3>
                                 </div>
-                                <h6 class="text-gray-500 font-medium text-sm mb-1">Total Complétées</h6>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-0">{{ $tasks->where('status', 'completed')->count() }}</h3>
+                                <div class="p-3 bg-green-50 text-success rounded-2xl">
+                                    <i class="fa-solid fa-check-circle text-lg"></i>
+                                </div>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Succès</p>
                         </div>
                     </div>
 
-                    <!-- Filtres -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-                        <form method="GET" action="{{ route('superadmin.tasks.index') }}" class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold">Statut</label>
-                                <select name="status" class="form-select">
-                                    <option value="">Tous les statuts</option>
-                                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>En Attente</option>
-                                    <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>En Cours</option>
-                                    <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Complétée</option>
-                                    <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Annulée</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold">Priorité</label>
-                                <select name="priority" class="form-select">
-                                    <option value="">Toutes les priorités</option>
-                                    <option value="low" {{ request('priority') == 'low' ? 'selected' : '' }}>Basse</option>
-                                    <option value="medium" {{ request('priority') == 'medium' ? 'selected' : '' }}>Moyenne</option>
-                                    <option value="high" {{ request('priority') == 'high' ? 'selected' : '' }}>Haute</option>
-                                    <option value="urgent" {{ request('priority') == 'urgent' ? 'selected' : '' }}>Urgente</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold">Assigné à</label>
-                                <select name="assigned_to" class="form-select">
-                                    <option value="">Tous les utilisateurs</option>
-                                    @foreach($users as $user)
-                                        <option value="{{ $user->id }}" {{ request('assigned_to') == $user->id ? 'selected' : '' }}>
-                                            {{ $user->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-md-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary me-2">
-                                    <i class="fa-solid fa-filter me-1"></i> Filtrer
-                                </button>
-                                <a href="{{ route('superadmin.tasks.index') }}" class="btn btn-outline-secondary">
-                                    <i class="fa-solid fa-times"></i> Réinitialiser
-                                </a>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Tableau des tâches -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                        <div class="p-4 border-bottom">
-                            <h5 class="fw-semibold mb-0">Liste des tâches</h5>
-                        </div>
+                    <!-- Tableau des tâches avec Filtres Colonnes Instantanés -->
+                    <div class="glass-card overflow-hidden mb-4">
+                        @include('components.filtre_colonnes', [
+                            'corps' => '#corpsTasks',
+                            'nom' => 'tâches',
+                            'filtres' => [
+                                ['cle' => 'titre', 'libelle' => 'Titre / Sujet', 'type' => 'texte'],
+                                ['cle' => 'assigne', 'libelle' => 'Assigné à', 'type' => 'liste'],
+                                ['cle' => 'priorite', 'libelle' => 'Priorité', 'type' => 'liste'],
+                                ['cle' => 'statut', 'libelle' => 'Statut', 'type' => 'liste'],
+                            ],
+                        ])
                         
                         <div class="table-responsive">
                             <table class="table table-hover mb-0">
-                                <thead class="bg-gray-50">
+                                <thead class="bg-slate-50">
                                     <tr>
                                         <th class="fw-semibold">Titre</th>
                                         <th class="fw-semibold">Assigné à</th>
@@ -197,9 +144,12 @@
                                         <th class="fw-semibold text-end">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="corpsTasks">
                                     @forelse($tasks as $task)
-                                        <tr>
+                                        <tr data-f-titre="{{ $task->title }}"
+                                            data-f-assigne="{{ $task->assignedUser->name ?? 'Non assigné' }}"
+                                            data-f-priorite="{{ ucfirst($task->priority) }}"
+                                            data-f-statut="{{ ucfirst($task->status) }}">
                                             <td>
                                                 <div>
                                                     <span class="fw-medium">{{ $task->title }}</span>

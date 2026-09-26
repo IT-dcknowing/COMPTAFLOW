@@ -87,56 +87,56 @@
                             </div>
                         </div>
 
-                        <!-- KPIs Grid -->
-                        <div class="row g-4 mb-6">
+                        <!-- KPIs Grid (Style TFT sur 1 ligne) -->
+                        <div class="row g-3 mb-6">
                             <!-- Entreprises -->
-                            <div class="col-md-3">
-                                <div class="kpi-card shadow-sm">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="kpi-icon-container bg-blue-50 text-blue-600">
-                                            <i class="fa-solid fa-building"></i>
+                            <div class="col-12 col-sm-6 col-xl-3">
+                                <div class="kpi-card shadow-sm h-100 p-3 bg-white border border-slate-200/60 rounded-2xl">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="kpi-icon-container bg-blue-50 text-blue-600 rounded-xl p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                            <i class="fa-solid fa-building fs-5"></i>
                                         </div>
-                                        <span class="badge bg-green-100 text-green-700 rounded-pill font-bold fs-xs">
+                                        <span class="badge bg-green-100 text-green-700 rounded-pill font-bold text-[10px] px-2 py-1">
                                             {{ $kpis['active_companies'] }} Actives
                                         </span>
                                     </div>
-                                    <h3 class="font-black text-slate-800 mb-0">{{ $kpis['total_companies'] }}</h3>
-                                    <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider">Entreprises Totales</p>
+                                    <h3 class="font-black text-slate-800 mb-0 fs-4">{{ $kpis['total_companies'] }}</h3>
+                                    <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider mb-0">Entreprises Totales</p>
                                 </div>
                             </div>
                             
                             <!-- Utilisateurs -->
-                            <div class="col-md-3">
-                                <div class="kpi-card shadow-sm">
-                                    <div class="kpi-icon-container bg-purple-50 text-purple-600">
-                                        <i class="fa-solid fa-users"></i>
+                            <div class="col-12 col-sm-6 col-xl-3">
+                                <div class="kpi-card shadow-sm h-100 p-3 bg-white border border-slate-200/60 rounded-2xl">
+                                    <div class="kpi-icon-container bg-purple-50 text-purple-600 rounded-xl p-2 mb-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                        <i class="fa-solid fa-users fs-5"></i>
                                     </div>
-                                    <h3 class="font-black text-slate-800 mb-0">{{ $kpis['total_users'] }}</h3>
-                                    <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider">Utilisateurs Enregistrés</p>
+                                    <h3 class="font-black text-slate-800 mb-0 fs-4">{{ $kpis['total_users'] }}</h3>
+                                    <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider mb-0">Utilisateurs Enregistrés</p>
                                 </div>
                             </div>
 
                             <!-- Écritures -->
-                            <div class="col-md-3">
-                                <div class="kpi-card shadow-sm">
-                                    <div class="kpi-icon-container bg-emerald-50 text-emerald-600">
-                                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                            <div class="col-12 col-sm-6 col-xl-3">
+                                <div class="kpi-card shadow-sm h-100 p-3 bg-white border border-slate-200/60 rounded-2xl">
+                                    <div class="kpi-icon-container bg-emerald-50 text-emerald-600 rounded-xl p-2 mb-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                        <i class="fa-solid fa-file-invoice-dollar fs-5"></i>
                                     </div>
-                                    <h3 class="font-black text-slate-800 mb-0">{{ number_format($kpis['total_entries']) }}</h3>
-                                    <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider">Transactions Globales</p>
+                                    <h3 class="font-black text-slate-800 mb-0 fs-4">{{ number_format($kpis['total_entries']) }}</h3>
+                                    <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider mb-0">Transactions Globales</p>
                                 </div>
                             </div>
 
                             <!-- Taux d'Utilisation -->
-                            <div class="col-md-3">
-                                <div class="kpi-card shadow-sm">
-                                    <div class="kpi-icon-container bg-orange-50 text-orange-600">
-                                        <i class="fa-solid fa-gauge-high"></i>
+                            <div class="col-12 col-sm-6 col-xl-3">
+                                <div class="kpi-card shadow-sm h-100 p-3 bg-white border border-slate-200/60 rounded-2xl">
+                                    <div class="kpi-icon-container bg-orange-50 text-orange-600 rounded-xl p-2 mb-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                        <i class="fa-solid fa-gauge-high fs-5"></i>
                                     </div>
-                                    <h3 class="font-black text-slate-800 mb-0">
+                                    <h3 class="font-black text-slate-800 mb-0 fs-4">
                                         {{ $kpis['total_companies'] > 0 ? round(($kpis['active_companies'] / $kpis['total_companies']) * 100) : 0 }}%
                                     </h3>
-                                    <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider">Taux d'Engagement</p>
+                                    <p class="text-slate-400 text-xs font-bold text-uppercase tracking-wider mb-0">Taux d'Engagement</p>
                                 </div>
                             </div>
                         </div>

@@ -40,78 +40,74 @@
                         </div>
                     @endif
 
-                    <!-- Statistiques rapides (Premium) -->
-                    <div class="row g-4 mb-8">
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-2xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl d-flex align-items-center justify-content-center shadow-lg shadow-blue-200">
-                                        <i class="fa-solid fa-building text-white fs-4"></i>
-                                    </div>
-                                    <div class="text-end">
-                                        <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Entités</span>
-                                    </div>
+                    <!-- KPIs Grid (4 Colonnes) -->
+                    <div class="kpi-grid mb-4" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                        <div class="glass-card p-4 border-l-4 border-l-primary">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Entreprises</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $companies->count() }}</h3>
                                 </div>
-                                <h6 class="text-gray-500 font-medium text-sm mb-1">Total Entreprises</h6>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-0">{{ $companies->count() }}</h3>
+                                <div class="p-3 bg-blue-50 text-primary rounded-2xl">
+                                    <i class="fa-solid fa-building text-lg"></i>
+                                </div>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Entités du réseau</p>
                         </div>
 
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-2xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl d-flex align-items-center justify-content-center shadow-lg shadow-red-200">
-                                        <i class="fa-solid fa-ban text-white fs-4"></i>
-                                    </div>
-                                    <div class="text-end text-danger">
-                                        <span class="text-xs font-bold uppercase tracking-wider">Restrictions</span>
-                                    </div>
+                        <div class="glass-card p-4 border-l-4 border-l-danger">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Entités Bloquées</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $companies->where('is_blocked', true)->count() }}</h3>
                                 </div>
-                                <h6 class="text-gray-500 font-medium text-sm mb-1">Entités Bloquées</h6>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-0">{{ $companies->where('is_blocked', true)->count() }}</h3>
+                                <div class="p-3 bg-red-50 text-danger rounded-2xl">
+                                    <i class="fa-solid fa-ban text-lg"></i>
+                                </div>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Accès restreint</p>
                         </div>
 
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-2xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl d-flex align-items-center justify-content-center shadow-lg shadow-emerald-200">
-                                        <i class="fa-solid fa-users text-white fs-4"></i>
-                                    </div>
-                                    <div class="text-end text-success">
-                                        <span class="text-xs font-bold uppercase tracking-wider">Membres</span>
-                                    </div>
+                        <div class="glass-card p-4 border-l-4 border-l-success">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Utilisateurs Actifs</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $users->where('is_blocked', false)->count() }}</h3>
                                 </div>
-                                <h6 class="text-gray-500 font-medium text-sm mb-1">Utilisateurs Actifs</h6>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-0">{{ $users->where('is_blocked', false)->count() }}</h3>
+                                <div class="p-3 bg-green-50 text-success rounded-2xl">
+                                    <i class="fa-solid fa-users text-lg"></i>
+                                </div>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Comptes actifs</p>
                         </div>
 
-                        <div class="col-md-3">
-                            <div class="bg-white rounded-2xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl d-flex align-items-center justify-content-center shadow-lg shadow-amber-200">
-                                        <i class="fa-solid fa-user-slash text-white fs-4"></i>
-                                    </div>
-                                    <div class="text-end text-warning">
-                                        <span class="text-xs font-bold uppercase tracking-wider">Alertes</span>
-                                    </div>
+                        <div class="glass-card p-4 border-l-4 border-l-warning">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Utilisateurs Bloqués</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $users->where('is_blocked', true)->count() }}</h3>
                                 </div>
-                                <h6 class="text-gray-500 font-medium text-sm mb-1">Utilisateurs Bloqués</h6>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-0">{{ $users->where('is_blocked', true)->count() }}</h3>
+                                <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                                    <i class="fa-solid fa-user-slash text-lg"></i>
+                                </div>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Suspendus</p>
                         </div>
                     </div>
 
-                    <!-- Entreprises -->
-                    <div class="bg-white rounded-xl shadow-sm border mb-6">
-                        <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="fw-semibold mb-0">Gestion des Entreprises</h5>
-                            <span class="badge bg-label-primary">{{ $companies->count() }} Entités</span>
-                        </div>
+                    <!-- Entreprises avec Filtres Colonnes -->
+                    <div class="glass-card overflow-hidden mb-6">
+                        @include('components.filtre_colonnes', [
+                            'corps' => '#corpsAccessCompany',
+                            'nom' => 'entreprises',
+                            'filtres' => [
+                                ['cle' => 'compagnie', 'libelle' => 'Entreprise', 'type' => 'texte'],
+                                ['cle' => 'statut', 'libelle' => 'Statut', 'type' => 'liste'],
+                            ],
+                        ])
                         <div class="table-responsive">
                             <table class="table table-hover mb-0">
-                                <thead class="bg-gray-50">
+                                <thead class="bg-slate-50">
                                     <tr>
                                         <th>Entreprise</th>
                                         <th>Type</th>
@@ -120,9 +116,11 @@
                                         <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="corpsAccessCompany">
                                     @foreach($companies as $company)
-                                        <tr class="{{ $company->is_blocked ? 'table-danger' : '' }}">
+                                        <tr class="{{ $company->is_blocked ? 'table-danger' : '' }}"
+                                            data-f-compagnie="{{ $company->company_name }}"
+                                            data-f-statut="{{ $company->is_blocked ? 'Bloquée' : 'Active' }}">
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="avatar avatar-sm bg-label-secondary me-3">

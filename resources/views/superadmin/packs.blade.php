@@ -54,86 +54,89 @@
                             </div>
                         @endif
 
-                        <div class="row mb-6">
+                        <!-- Action Bar & Titre -->
+                        <div class="row mb-4">
                             <div class="col-12">
-                                <div class="bg-white p-6 rounded-[24px] shadow-sm d-flex align-items-center justify-content-between border border-slate-100 flex-wrap gap-3">
+                                <div class="bg-white p-4 rounded-[20px] shadow-sm d-flex align-items-center justify-content-between border border-slate-100 flex-wrap gap-3">
                                     <div>
                                         <h4 class="font-black mb-1 text-slate-800">Offres & Abonnements</h4>
-                                        <p class="text-slate-500 mb-0">
+                                        <p class="text-slate-500 mb-0 text-sm">
                                             Montées et descentes en gamme des comptes souscripteurs.
                                         </p>
                                     </div>
-                                    <button class="btn btn-outline-secondary px-4 py-2 rounded-xl font-bold" data-bs-toggle="collapse" data-bs-target="#filtrePacks">
-                                        <i class="fa-solid fa-filter me-2"></i>Filtrer
-                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="row g-4 mb-6">
-                            <div class="col-md-4">
-                                <div class="kpi-card">
-                                    <div class="text-slate-500 text-xs fw-bold text-uppercase mb-2">Pack Entreprise</div>
-                                    <div class="h3 fw-black mb-0 text-success">{{ number_format($stats['entreprise'], 0, ',', ' ') }}</div>
-                                    <small class="text-slate-400">Une comptabilité, sans création ni fusion</small>
+                        <!-- KPIs Grid Horizontale (4 colonnes) -->
+                        <div class="kpi-grid mb-4" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                            <div class="glass-card p-4 border-l-4 border-l-success">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Pack Entreprise</p>
+                                        <h3 class="text-2xl font-black text-slate-800 mb-0">{{ number_format($stats['entreprise'], 0, ',', ' ') }}</h3>
+                                    </div>
+                                    <div class="p-3 bg-green-50 text-success rounded-2xl">
+                                        <i class="fa-solid fa-building text-lg"></i>
+                                    </div>
                                 </div>
+                                <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Une seule comptabilité</p>
                             </div>
-                            <div class="col-md-4">
-                                <div class="kpi-card">
-                                    <div class="text-slate-500 text-xs fw-bold text-uppercase mb-2">Pack Cabinet</div>
-                                    <div class="h3 fw-black mb-0 text-primary">{{ number_format($stats['cabinet'], 0, ',', ' ') }}</div>
-                                    <small class="text-slate-400">Espace multi-dossiers, sociétés illimitées</small>
+
+                            <div class="glass-card p-4 border-l-4 border-l-primary">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Pack Cabinet</p>
+                                        <h3 class="text-2xl font-black text-slate-800 mb-0">{{ number_format($stats['cabinet'], 0, ',', ' ') }}</h3>
+                                    </div>
+                                    <div class="p-3 bg-blue-50 text-primary rounded-2xl">
+                                        <i class="fa-solid fa-briefcase text-lg"></i>
+                                    </div>
                                 </div>
+                                <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Multi-dossiers illimité</p>
                             </div>
-                            <div class="col-md-4">
-                                <div class="kpi-card">
-                                    <div class="text-slate-500 text-xs fw-bold text-uppercase mb-2">Comptabilités</div>
-                                    <div class="h3 fw-black mb-0 text-slate-800">{{ number_format($stats['comptas'], 0, ',', ' ') }}</div>
-                                    <small class="text-slate-400">Toutes offres confondues</small>
+
+                            <div class="glass-card p-4 border-l-4 border-l-purple">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Comptabilités</p>
+                                        <h3 class="text-2xl font-black text-slate-800 mb-0">{{ number_format($stats['comptas'], 0, ',', ' ') }}</h3>
+                                    </div>
+                                    <div class="p-3 bg-purple-50 text-purple-600 rounded-2xl">
+                                        <i class="fa-solid fa-calculator text-lg"></i>
+                                    </div>
                                 </div>
+                                <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Toutes offres confondues</p>
+                            </div>
+
+                            <div class="glass-card p-4 border-l-4 border-l-warning">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Abonnés</p>
+                                        <h3 class="text-2xl font-black text-slate-800 mb-0">{{ number_format($comptes->total(), 0, ',', ' ') }}</h3>
+                                    </div>
+                                    <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                                        <i class="fa-solid fa-users text-lg"></i>
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Titulaires actifs</p>
                             </div>
                         </div>
 
-                        <div class="collapse mb-6 {{ $recherche !== '' || $packFiltre || $portee === 'tous' ? 'show' : '' }}" id="filtrePacks">
-                            <div class="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm">
-                                <form action="{{ route('superadmin.packs') }}" method="GET" class="row g-4">
-                                    <div class="col-md-4">
-                                        <label class="form-label font-bold text-xs text-slate-500 uppercase">Rechercher</label>
-                                        <input type="text" name="q" value="{{ $recherche }}" placeholder="Nom, prénom ou e-mail"
-                                               class="form-control border-slate-200 rounded-xl py-2.5">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label font-bold text-xs text-slate-500 uppercase">Offre</label>
-                                        <select name="pack" class="form-select border-slate-200 rounded-xl py-2.5">
-                                            <option value="">Toutes les offres</option>
-                                            <option value="entreprise" {{ $packFiltre === 'entreprise' ? 'selected' : '' }}>Pack Entreprise</option>
-                                            <option value="cabinet" {{ $packFiltre === 'cabinet' ? 'selected' : '' }}>Pack Cabinet</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label font-bold text-xs text-slate-500 uppercase">Périmètre</label>
-                                        <select name="portee" class="form-select border-slate-200 rounded-xl py-2.5">
-                                            <option value="titulaires" {{ $portee !== 'tous' ? 'selected' : '' }}>Titulaires d'une offre</option>
-                                            <option value="tous" {{ $portee === 'tous' ? 'selected' : '' }}>Tous les comptes</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label font-bold text-xs text-slate-500 uppercase">Par page</label>
-                                        <select name="per_page" class="form-select border-slate-200 rounded-xl py-2.5">
-                                            @foreach([20, 50, 100] as $taille)
-                                                <option value="{{ $taille }}" {{ $parPage === $taille ? 'selected' : '' }}>{{ $taille }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-12 d-flex gap-2">
-                                        <button type="submit" class="btn btn-primary px-4 py-2.5 rounded-xl font-bold">Appliquer</button>
-                                        <a href="{{ route('superadmin.packs') }}" class="btn btn-outline-secondary px-4 py-2.5 rounded-xl">Réinitialiser</a>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
+                        <!-- Carte Tableau avec Filtres en Ligne Instantanés -->
+                        <div class="glass-card overflow-hidden mb-4">
 
-                        <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+                            @include('components.filtre_colonnes', [
+                                'corps' => '#corpsPacks',
+                                'nom' => 'comptes',
+                                'filtres' => [
+                                    ['cle' => 'compte', 'libelle' => 'Recherche Compte', 'type' => 'texte'],
+                                    ['cle' => 'offre', 'libelle' => 'Offre', 'type' => 'liste'],
+                                    ['cle' => 'role', 'libelle' => 'Rôle', 'type' => 'liste'],
+                                    ['cle' => 'nouvelles', 'libelle' => 'Nouvelles sociétés', 'type' => 'liste'],
+                                ],
+                            ])
+
                             <div class="table-responsive">
                                 <table class="table pack-table mb-0">
                                     <thead>
@@ -147,10 +150,14 @@
                                             <th class="text-end">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="corpsPacks">
                                         @forelse($comptes as $compte)
                                             @php $estEntreprise = ($compte->pack ?: 'cabinet') === 'entreprise'; @endphp
-                                            <tr class="pack-row">
+                                            <tr class="pack-row"
+                                                data-f-compte="{{ $compte->name }} {{ $compte->last_name }} {{ $compte->email_adresse }}"
+                                                data-f-offre="{{ $compte->libellePack() }}"
+                                                data-f-role="{{ $compte->role === 'admin' ? 'Gérant' : ucfirst($compte->role) }}"
+                                                data-f-nouvelles="{{ $compte->peutCreerDesSocietes() ? 'Oui' : 'Non' }}">
                                                 <td>
                                                     <div class="fw-bold text-slate-800">{{ $compte->name }} {{ $compte->last_name }}</div>
                                                     <div class="text-slate-400" style="font-size:0.78rem;">{{ $compte->email_adresse }}</div>

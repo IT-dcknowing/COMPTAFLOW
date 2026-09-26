@@ -111,23 +111,21 @@
                                     <p class="text-muted small mb-4">Définissez les accès spécifiques pour cet administrateur sécondaire.</p>
 
                                     @foreach(config('accounting_permissions.permissions') as $section => $permissions)
-                                        <div class="mb-4 permission-section" data-section-name="{{ $section }}">
-                                            <h6 class="text-xs font-bold text-slate-600 uppercase mb-2">{{ $section }}</h6>
-                                            <div class="row g-3">
-                                                @foreach($permissions as $key => $label)
-                                                    <div class="col-md-4 col-sm-6">
-                                                        <div class="permission-card">
-                                                            <div class="form-check">
-                                                                <input class="form-check-input permission-checkbox" type="checkbox" name="habilitations[{{ $key }}]" value="1" id="perm_{{ $key }}" checked>
-                                                                <label class="form-check-label fw-medium text-dark cursor-pointer" for="perm_{{ $key }}">
-                                                                    {{ $label }}
-                                                                </label>
-                                                            </div>
+                                        @if(!str_contains($section, 'Super Admin'))
+                                            <div class="mb-4 permission-section" data-section-name="{{ $section }}">
+                                                <h6 class="text-xs font-bold text-slate-600 uppercase mb-2">{{ $section }}</h6>
+                                                <div class="row g-2">
+                                                    @foreach($permissions as $key => $label)
+                                                        <div class="col-md-6 col-lg-4">
+                                                            <label class="d-flex align-items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/70 hover:border-blue-300 cursor-pointer shadow-2xs w-100">
+                                                                <input class="form-check-input mt-0 permission-checkbox" type="checkbox" name="habilitations[{{ $key }}]" value="1" id="perm_{{ $key }}" checked style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                                                                <span class="text-xs font-semibold text-slate-700 ms-1" style="line-height: 1.2;">{{ $label }}</span>
+                                                            </label>
                                                         </div>
-                                                    </div>
-                                                @endforeach
+                                                    @endforeach
+                                                </div>
                                             </div>
-                                        </div>
+                                        @endif
                                     @endforeach
                                 </div>
                             </div>

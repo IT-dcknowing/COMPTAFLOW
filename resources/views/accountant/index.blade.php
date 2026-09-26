@@ -1150,8 +1150,8 @@ body {
                 </div>
                 @php $companyFailed = old('form_origin') === 'company'; @endphp
                 <div class="col-md-6">
-                    <label class="dark-label">Email *</label>
-                    <input type="email" name="email_adresse" class="dark-input @if($companyFailed && $errors->has('email_adresse')) field-invalid @endif" required placeholder="contact@société.com" value="{{ $companyFailed ? old('email_adresse') : '' }}">
+                    <label class="dark-label">Mail société <span style="color:var(--text-muted);font-weight:500;font-size:0.7rem;">(facultatif)</span></label>
+                    <input type="email" name="email_adresse" class="dark-input @if($companyFailed && $errors->has('email_adresse')) field-invalid @endif" placeholder="contact@société.com" value="{{ $companyFailed ? old('email_adresse') : '' }}">
                     @if($companyFailed && $errors->has('email_adresse'))
                     <div class="field-error">{{ $errors->first('email_adresse') }}</div>
                     @endif

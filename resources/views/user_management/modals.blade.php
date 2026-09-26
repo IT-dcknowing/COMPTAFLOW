@@ -81,19 +81,21 @@
                                 @include('components.tout_cocher', ['cible' => 'habilitationsGroup'])
                             </h6>
                             @foreach(config('accounting_permissions.permissions') as $section => $groupPermissions)
-                                <div class="mb-4 permission-section" data-section-name="{{ $section }}">
-                                    <h6 class="text-xs font-bold text-slate-600 uppercase mb-2">{{ $section }}</h6>
-                                    <div class="row g-3">
-                                        @foreach($groupPermissions as $key => $label)
-                                            <div class="col-md-6">
-                                                <div class="form-check custom-option custom-option-basic p-3 border rounded-xl hover:bg-slate-50 transition-colors d-flex align-items-center">
-                                                    <input class="form-check-input permission-checkbox" type="checkbox" name="habilitations[{{ $key }}]" value="1" id="hab_{{ $key }}" style="float: none;">
-                                                    <label class="form-check-label font-bold text-sm text-slate-700 ms-3 mb-0" for="hab_{{ $key }}">{{ $label }}</label>
+                                @if(!str_contains($section, 'Super Admin'))
+                                    <div class="mb-4 permission-section" data-section-name="{{ $section }}">
+                                        <h6 class="text-xs font-bold text-slate-600 uppercase mb-2">{{ $section }}</h6>
+                                        <div class="row g-2">
+                                            @foreach($groupPermissions as $key => $label)
+                                                <div class="col-md-6 col-lg-4">
+                                                    <label class="d-flex align-items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/70 hover:border-blue-300 cursor-pointer shadow-2xs w-100">
+                                                        <input class="form-check-input mt-0 permission-checkbox" type="checkbox" name="habilitations[{{ $key }}]" value="1" id="hab_{{ $key }}" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                                                        <span class="text-xs font-semibold text-slate-700 ms-1" style="line-height: 1.2;">{{ $label }}</span>
+                                                    </label>
                                                 </div>
-                                            </div>
-                                        @endforeach
+                                            @endforeach
+                                        </div>
                                     </div>
-                                </div>
+                                @endif
                             @endforeach
                         </div>
                     </div>
@@ -109,7 +111,7 @@
 
 <!-- Modal Update -->
 <div class="modal fade" id="modalCenterUpdate" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
         <div class="modal-content premium-modal-content">
             <div class="modal-header border-0 pb-0">
                 <div>
@@ -163,20 +165,22 @@
                             @include('components.tout_cocher', ['cible' => 'updateHabilitationsSection'])
                         </h6>
                         @foreach(config('accounting_permissions.permissions') as $section => $groupPermissions)
-                            <div class="mb-4 permission-section" data-section-name="{{ $section }}">
-                                <h6 class="text-xs font-bold text-slate-600 uppercase mb-2">{{ $section }}</h6>
-                                <div class="row g-3">
-                                    @foreach($groupPermissions as $key => $label)
-                                        <div class="col-md-6">
-                                            <div class="form-check custom-option custom-option-basic p-3 border rounded-xl hover:bg-slate-50 transition-colors d-flex align-items-center">
-                                                <input type="hidden" name="habilitations[{{ $key }}]" value="0">
-                                                <input class="form-check-input permission-checkbox" type="checkbox" id="update_{{ $key }}" name="habilitations[{{ $key }}]" value="1" style="float: none;">
-                                                <label class="form-check-label font-bold text-sm text-slate-700 ms-3 mb-0" for="update_{{ $key }}">{{ $label }}</label>
+                            @if(!str_contains($section, 'Super Admin'))
+                                <div class="mb-4 permission-section" data-section-name="{{ $section }}">
+                                    <h6 class="text-xs font-bold text-slate-600 uppercase mb-2">{{ $section }}</h6>
+                                    <div class="row g-2">
+                                        @foreach($groupPermissions as $key => $label)
+                                            <div class="col-md-6 col-lg-4">
+                                                <label class="d-flex align-items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/70 hover:border-blue-300 cursor-pointer shadow-2xs w-100">
+                                                    <input type="hidden" name="habilitations[{{ $key }}]" value="0">
+                                                    <input class="form-check-input mt-0 permission-checkbox" type="checkbox" id="update_{{ $key }}" name="habilitations[{{ $key }}]" value="1" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                                                    <span class="text-xs font-semibold text-slate-700 ms-1" style="line-height: 1.2;">{{ $label }}</span>
+                                                </label>
                                             </div>
-                                        </div>
-                                    @endforeach
+                                        @endforeach
+                                    </div>
                                 </div>
-                            </div>
+                            @endif
                         @endforeach
                     </div>
                     
@@ -229,19 +233,21 @@
                 <div id="seeHabilitationsSection" class="mt-8">
                     <h6 class="text-xs font-black text-slate-400 uppercase tracking-widest border-bottom pb-2 mb-4">Habilitations Actives</h6>
                     @foreach(config('accounting_permissions.permissions') as $section => $groupPermissions)
-                        <div class="mb-4 permission-section" data-section-name="{{ $section }}">
-                            <h6 class="text-xs font-bold text-slate-600 uppercase mb-2">{{ $section }}</h6>
-                            <div class="row g-3">
-                                @foreach($groupPermissions as $key => $label)
-                                    <div class="col-md-6">
-                                        <div class="form-check custom-option custom-option-basic p-3 border rounded-xl opacity-75 d-flex align-items-center">
-                                            <input class="form-check-input permission-checkbox" type="checkbox" id="see_{{ $key }}" disabled style="float: none;">
-                                            <label class="form-check-label font-bold text-sm text-slate-700 ms-3 mb-0" for="see_{{ $key }}">{{ $label }}</label>
+                        @if(!str_contains($section, 'Super Admin'))
+                            <div class="mb-4 permission-section" data-section-name="{{ $section }}">
+                                <h6 class="text-xs font-bold text-slate-600 uppercase mb-2">{{ $section }}</h6>
+                                <div class="row g-2">
+                                    @foreach($groupPermissions as $key => $label)
+                                        <div class="col-md-6 col-lg-4">
+                                            <label class="d-flex align-items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200/70 shadow-2xs w-100 opacity-75">
+                                                <input class="form-check-input mt-0 permission-checkbox" type="checkbox" id="see_{{ $key }}" disabled style="width: 1.1rem; height: 1.1rem;">
+                                                <span class="text-xs font-semibold text-slate-700 ms-1" style="line-height: 1.2;">{{ $label }}</span>
+                                            </label>
                                         </div>
-                                    </div>
-                                @endforeach
+                                    @endforeach
+                                </div>
                             </div>
-                        </div>
+                        @endif
                     @endforeach
                 </div>
             </div>
@@ -290,25 +296,9 @@
         </div>
     </div>
 </div>
-    <style>
-        .restricted-permission {
-            opacity: 0.5 !important;
-            pointer-events: none !important;
-            background-color: #f8fafc !important;
-        }
-    </style>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const accountantPermissions = [
-            'compta.dashboard', 'plan_comptable', 'plan_tiers', 'accounting_journals',
-            'postetresorerie.index', 'modal_saisie_direct', 'accounting_entry_list', 'ecriture.rejected',
-            'brouillons.index', 'accounting_entry_real',
-            'gestion_tresorerie', 'accounting_ledger', 'accounting_ledger_tiers',
-            'accounting_balance', 'Balance_Tiers', 'flux_tresorerie', 'tasks.view_daily', 'immobilisations.index'
-        ];
-
-        // Logique de grisement pour les modales
         function getIsSubCompany(modal) {
             const companySelect = modal.querySelector('select[name="company_id"]');
             if (!companySelect) return {{ isset($currentCompany) && $currentCompany->parent_company_id ? 'true' : 'false' }};
@@ -332,20 +322,14 @@
                 forceUnchecked = true;
             }
 
-            // 3. Accountant Restrictions
-            if (role === 'comptable' && !accountantPermissions.includes(key)) {
-                isRestricted = true;
-                forceUnchecked = true;
-            }
-
             const checkbox = container.querySelector('.permission-checkbox');
             if (isRestricted) {
                 if (checkbox && forceUnchecked && !checkbox.disabled) checkbox.checked = false;
                 if (checkbox) checkbox.disabled = true;
-                container.classList.add('restricted-permission');
+                container.classList.add('opacity-50');
             } else {
-                if (checkbox && !container.id.includes('see_')) checkbox.disabled = false;
-                container.classList.remove('restricted-permission');
+                if (checkbox && !container.id?.includes('see_')) checkbox.disabled = false;
+                container.classList.remove('opacity-50');
             }
         }
 
@@ -360,12 +344,14 @@
 
             sections.forEach(section => {
                 const sectionName = section.getAttribute('data-section-name');
-                const containers = section.querySelectorAll('.form-check');
+                const containers = section.querySelectorAll('label, .form-check');
                 
                 containers.forEach(container => {
                     const checkbox = container.querySelector('.permission-checkbox');
-                    const key = checkbox.id.split('_').pop(); // hab_key or update_key or see_key
-                    applyGrisementToContainer(container, role, sectionName, key, isSubCompany);
+                    if (checkbox) {
+                        const key = checkbox.id.split('_').pop();
+                        applyGrisementToContainer(container, role, sectionName, key, isSubCompany);
+                    }
                 });
             });
         }
@@ -390,29 +376,29 @@
             updateCompany.addEventListener('change', () => updateModalPermissions('modalCenterUpdate', 'updateRole'));
         }
 
-        // Pour la visualisation, on applique le grisement à l'ouverture du modal
+        // Pour la visualisation
         const seeModal = document.getElementById('modalCenterSee');
         if (seeModal) {
             seeModal.addEventListener('show.bs.modal', function() {
-                // On attend un peu que le role soit injecté par user_m.js
                 setTimeout(() => {
                     const role = document.getElementById('seeRole').value;
                     const isSubCompany = {{ isset($currentCompany) && $currentCompany->parent_company_id ? 'true' : 'false' }};
                     const sections = seeModal.querySelectorAll('.permission-section');
                     sections.forEach(section => {
                         const sectionName = section.getAttribute('data-section-name');
-                        const containers = section.querySelectorAll('.form-check');
+                        const containers = section.querySelectorAll('label, .form-check');
                         containers.forEach(container => {
                             const checkbox = container.querySelector('.permission-checkbox');
-                            const key = checkbox.id.split('_').pop();
-                            applyGrisementToContainer(container, role, sectionName, key, isSubCompany);
+                            if (checkbox) {
+                                const key = checkbox.id.split('_').pop();
+                                applyGrisementToContainer(container, role, sectionName, key, isSubCompany);
+                            }
                         });
                     });
                 }, 100);
             });
         }
         
-        // Initialisation si nécessaire
         const createModal = document.getElementById('modalCenterCreate');
         if (createModal) {
             createModal.addEventListener('show.bs.modal', () => updateModalPermissions('modalCenterCreate', 'role'));

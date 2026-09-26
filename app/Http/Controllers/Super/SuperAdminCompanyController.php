@@ -232,21 +232,25 @@ class SuperAdminCompanyController extends Controller
 
 public function update(Request $request, Company $company)
 {
+    $adminUser = $company->admin_user;
+    $adminId = $adminUser ? $adminUser->id : 0;
+
     // 1. Validation des données
     $request->validate([
         'company_name' => 'required|string|max:255|unique:companies,company_name,' . $company->id,
         'admin_name' => 'required|string|max:255',
         'admin_last_name' => 'required|string|max:255',
-        'admin_email_adresse' => 'required|email|unique:users,email_adresse,' . $company->user_id,
+        'admin_email_adresse' => 'required|email|unique:users,email_adresse,' . $adminId,
         'admin_password' => 'nullable|string|min:8|confirmed',
         'juridique_form' => 'required|string|max:255',
         'activity' => 'required|string|max:255',
         'social_capital' => 'nullable|numeric|min:0',
-        'adresse' => 'required|string|max:255',
-        'code_postal' => 'required|string|max:20',
-        'city' => 'required|string|max:255',
-        'country' => 'required|string|max:255',
-        'phone_number' => 'nullable|string|max:20',
+        'adresse' => 'nullable|string|max:255',
+        'code_postal' => 'nullable|string|max:20',
+        'city' => 'nullable|string|max:255',
+        'country' => 'nullable|string|max:255',
+        'phone_number' => 'nullable|string|max:30',
+        'email_adresse' => 'nullable|email|max:255',
         'identification_TVA' => 'nullable|string|max:50',
     ]);
 
@@ -258,17 +262,18 @@ public function update(Request $request, Company $company)
             'juridique_form' => $request->juridique_form,
             'activity' => $request->activity,
             'social_capital' => $request->social_capital,
+            'is_active' => $request->boolean('is_active') || $request->input('is_active') == '1',
             'adresse' => $request->adresse,
             'code_postal' => $request->code_postal,
             'city' => $request->city,
             'country' => $request->country,
             'phone_number' => $request->phone_number,
+            'email_adresse' => $request->email_adresse,
             'identification_TVA' => $request->identification_TVA,
+            'parent_company_id' => $request->parent_company_id ?: null,
         ]);
 
         // 3. Mise à jour de l'admin associé
-        $adminUser = User::find($company->user_id);
-
         if ($adminUser) {
             $userData = [
                 'name' => $request->admin_name,
@@ -281,24 +286,24 @@ public function update(Request $request, Company $company)
                 $userData['password'] = Hash::make($request->admin_password);
             }
 
-            // Traitement des habilitations : si c'est un admin, on force tout.
-            if ($adminUser->role === 'admin') {
-                $userController = new UserController();
-                $userData['habilitations'] = array_fill_keys($userController->getAllHabilitations(), true);
-            } else {
-                $requestedHabilitations = $request->input('habilitations', []);
-                $formattedHabilitations = [];
-                foreach ($requestedHabilitations as $key => $value) {
-                    $formattedHabilitations[$key] = true;
-                }
-                $userData['habilitations'] = $formattedHabilitations;
+            // Habilitations envoyées dans la requête
+            $requestedHabilitations = $request->input('habilitations', []);
+            $formattedHabilitations = [];
+            foreach ($requestedHabilitations as $key => $value) {
+                $formattedHabilitations[$key] = "1";
             }
+            $userData['habilitations'] = $formattedHabilitations;
 
             $adminUser->update($userData);
+
+            if (!$company->user_id) {
+                $company->user_id = $adminUser->id;
+                $company->save();
+            }
         }
 
         DB::commit();
-        return redirect()->route('superadmin.dashboard')->with('success', 'La compagnie et son administrateur ont été mis à jour avec succès.');
+        return redirect()->route('superadmin.entities')->with('success', 'La compagnie « ' . $company->company_name . ' » et son administrateur ont été mis à jour avec succès.');
 
     } catch (\Exception $e) {
         DB::rollBack();

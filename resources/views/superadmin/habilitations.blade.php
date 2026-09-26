@@ -144,41 +144,30 @@
                                     <div class="card-body p-0">
                                         <form id="permissions-form" method="POST" action="">
                                             @csrf
-                                            {{-- On utilisera AJAX ou le submit classique --}}
                                             
-                                            <div class="accordion accordion-flush" id="accordionPermissions">
+                                            <div id="permissions-container" class="p-4 overflow-auto" style="max-height: 700px;">
+                                                <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                                                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Périmètre des Habilitations</span>
+                                                    <div class="d-flex gap-2">
+                                                        <button type="button" class="btn btn-xs btn-outline-primary rounded-lg font-bold" style="font-size: 0.75rem; padding: 3px 10px;" id="btn-check-all">Tout cocher</button>
+                                                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-lg font-bold" style="font-size: 0.75rem; padding: 3px 10px;" id="btn-uncheck-all">Tout décocher</button>
+                                                    </div>
+                                                </div>
                                                 @foreach($modules as $groupName => $permissions)
-                                                    <div class="accordion-item bg-transparent border-bottom-0 mb-2" data-section-name="{{ $groupName }}">
-                                                        <h2 class="accordion-header" id="heading{{ \Illuminate\Support\Str::slug($groupName) }}">
-                                                            <button class="accordion-button collapsed bg-white border rounded shadow-sm fw-bold text-dark mx-3 mt-2 w-auto" type="button" 
-                                                                    data-bs-toggle="collapse" data-bs-target="#collapse{{ \Illuminate\Support\Str::slug($groupName) }}"
-                                                                    style="border-left: 4px solid #1e40af !important; min-width: calc(100% - 2rem);">
-                                                                <span class="d-flex align-items-center w-100 justify-content-between pe-3">
-                                                                    <span>
-                                                                        <i class="fa-solid fa-folder me-2 text-primary opacity-75"></i>
-                                                                        {{ $groupName }}
-                                                                    </span>
-                                                                    <span class="badge bg-light text-primary rounded-pill border">{{ count($permissions) }}</span>
-                                                                </span>
-                                                            </button>
-                                                        </h2>
-                                                        <div id="collapse{{ \Illuminate\Support\Str::slug($groupName) }}" class="accordion-collapse collapse" 
-                                                             data-bs-parent="#accordionPermissions">
-                                                            <div class="accordion-body bg-slate-50 border-start border-end border-bottom rounded-bottom shadow-sm mx-3 mb-3 pt-3">
-                                                                <div class="row g-3">
-                                                                    @foreach($permissions as $key => $label)
-                                                                        <div class="col-md-6">
-                                                                            <div class="form-check form-switch custom-switch-premium p-3 bg-white rounded border h-100 d-flex align-items-center gap-3">
-                                                                                <input class="form-check-input permission-checkbox ms-0" type="checkbox" 
-                                                                                       name="habilitations[{{ $key }}]" value="1" id="perm_{{ $key }}" style="float: none;">
-                                                                                <label class="form-check-label cursor-pointer fw-semibold text-slate-600 small mb-0" for="perm_{{ $key }}">
-                                                                                    {{ $label }}
-                                                                                </label>
-                                                                            </div>
-                                                                        </div>
-                                                                    @endforeach
+                                                    <div class="mb-4 permission-section" data-section-name="{{ $groupName }}" data-is-superadmin-section="{{ str_contains($groupName, 'Super Admin') ? 'true' : 'false' }}">
+                                                        <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-1">
+                                                            <h6 class="text-xs font-bold text-slate-600 uppercase mb-0">{{ $groupName }}</h6>
+                                                            <span class="badge bg-slate-100 text-slate-500 rounded-pill px-2 py-0.5 text-[10px]">{{ count($permissions) }} permissions</span>
+                                                        </div>
+                                                        <div class="row g-2">
+                                                            @foreach($permissions as $key => $label)
+                                                                <div class="col-md-6 col-lg-4">
+                                                                    <label class="d-flex align-items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/70 hover:border-blue-300 cursor-pointer shadow-2xs w-100 permission-card">
+                                                                        <input class="form-check-input mt-0 permission-checkbox" type="checkbox" name="habilitations[{{ $key }}]" value="1" id="perm_{{ $key }}" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                                                                        <span class="text-xs font-semibold text-slate-700 ms-1" style="line-height: 1.2;">{{ $label }}</span>
+                                                                    </label>
                                                                 </div>
-                                                            </div>
+                                                            @endforeach
                                                         </div>
                                                     </div>
                                                 @endforeach
@@ -220,13 +209,21 @@
             const currentUserId = {{ auth()->id() }};
             const isPrimarySA = {{ auth()->user()->isPrimarySuperAdmin() ? 'true' : 'false' }};
 
-            const accountantPermissions = [
-                'compta.dashboard', 'plan_comptable', 'plan_tiers', 'accounting_journals',
-                'postetresorerie.index', 'modal_saisie_direct', 'accounting_entry_list', 'ecriture.rejected',
-                'brouillons.index', 'accounting_entry_real',
-                'gestion_tresorerie', 'accounting_ledger', 'accounting_ledger_tiers',
-                'accounting_balance', 'Balance_Tiers', 'flux_tresorerie', 'tasks.view_daily', 'immobilisations.index'
-            ];
+            document.getElementById('btn-check-all')?.addEventListener('click', () => {
+                document.querySelectorAll('.permission-section').forEach(sec => {
+                    if (sec.style.display !== 'none') {
+                        sec.querySelectorAll('.permission-checkbox:not(:disabled)').forEach(cb => cb.checked = true);
+                    }
+                });
+            });
+
+            document.getElementById('btn-uncheck-all')?.addEventListener('click', () => {
+                document.querySelectorAll('.permission-section').forEach(sec => {
+                    if (sec.style.display !== 'none') {
+                        sec.querySelectorAll('.permission-checkbox:not(:disabled)').forEach(cb => cb.checked = false);
+                    }
+                });
+            });
 
             userButtons.forEach(btn => {
                 btn.addEventListener('click', function(e) {
@@ -249,13 +246,6 @@
                     
                     form.action = `/superadmin/habilitations/update/${userId}`;
 
-                    // Reset checkboxes
-                    checkboxes.forEach(cb => {
-                        cb.checked = false;
-                        cb.disabled = false;
-                        cb.closest('.form-check').classList.remove('restricted-permission');
-                    });
-
                     // Parse current permissions
                     let userHasPermissions = {};
                     try {
@@ -265,69 +255,45 @@
                         console.error("Erreur parsing permissions:", err);
                     }
 
-                    // Accountant section logic
-                    const sections = document.querySelectorAll('.accordion-item');
+                    const sections = document.querySelectorAll('.permission-section');
                     sections.forEach(section => {
-                        section.classList.remove('restricted-permission');
-                        const sectionCheckboxes = section.querySelectorAll('.permission-checkbox');
-                        let hasAllowedPermission = false;
+                        const isSaSection = section.getAttribute('data-is-superadmin-section') === 'true';
+                        
+                        // Masquer les sections Super Admin si l'utilisateur ciblé n'est pas Super Admin
+                        if (isSaSection && userRole !== 'super_admin') {
+                            section.style.display = 'none';
+                        } else {
+                            section.style.display = 'block';
+                        }
 
+                        const sectionCheckboxes = section.querySelectorAll('.permission-checkbox');
                         sectionCheckboxes.forEach(cb => {
                             const key = cb.name.match(/habilitations\[(.+)\]/)[1];
+                            const card = cb.closest('.permission-card');
                             
-                            // Reset
-                            cb.disabled = false;
-                            cb.closest('.form-check').classList.remove('restricted-permission');
-
-                            // Check current state from data
+                            // Cocher / Décocher
                             if (userHasPermissions[key] == "1" || userHasPermissions[key] === true || userHasPermissions[key] === 1) {
                                 cb.checked = true;
                             } else {
                                 cb.checked = false;
                             }
 
-                            // Admin/Comptable filters for Internal Admin
-                            if ((userRole === 'admin' || userRole === 'comptable') && key === 'superadmin.secondary.index') {
-                                cb.checked = false;
-                                cb.disabled = true;
-                                cb.closest('.form-check').classList.add('restricted-permission');
-                            }
-
-                            // Accountant filters
-                            if (userRole === 'comptable') {
-                                if (accountantPermissions.includes(key)) {
-                                    hasAllowedPermission = true;
-                                } else {
-                                    cb.checked = false;
-                                    cb.disabled = true;
-                                    cb.closest('.form-check').classList.add('restricted-permission');
-                                }
-                            } else if (userRole === 'super_admin') {
-                                // For Super Admins, everything is allowed and nothing is grayed out
-                                hasAllowedPermission = true;
-                            } else {
-                                // For other roles (Admins)
-                                if (key !== 'superadmin.secondary.index') {
-                                    hasAllowedPermission = true;
-                                }
-                            }
-
-                            // Security: SA secondaire ne peut pas modifier un SA
-                            if (userRole === 'super_admin' && !isPrimarySA) {
-                                cb.disabled = true;
-                                cb.closest('.form-check').classList.add('restricted-permission');
-                            }
-
-                            // Empêcher d'enlever ses propres droits
+                            // Désactivation éventuelle
+                            let isForbidden = false;
                             if (userId == currentUserId) {
+                                isForbidden = true;
+                            } else if (userRole === 'super_admin' && !isPrimarySA) {
+                                isForbidden = true;
+                            }
+
+                            if (isForbidden) {
                                 cb.disabled = true;
-                                cb.closest('.form-check').classList.add('restricted-permission');
+                                if (card) card.classList.add('opacity-50', 'pointer-events-none');
+                            } else {
+                                cb.disabled = false;
+                                if (card) card.classList.remove('opacity-50', 'pointer-events-none');
                             }
                         });
-
-                        if (!hasAllowedPermission && userRole === 'comptable') {
-                            section.classList.add('restricted-permission');
-                        }
                     });
                 });
             });

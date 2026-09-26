@@ -265,7 +265,7 @@ class AccountantSpaceController extends Controller
             'city'             => 'nullable|string|max:50',
             'country'          => 'nullable|string|max:255',
             'phone_number'     => 'nullable|string|min:8|max:30',
-            'email_adresse'    => 'required|email|max:191|unique:companies,email_adresse',
+            'email_adresse'    => 'nullable|email|max:191|unique:companies,email_adresse',
             'identification_TVA' => 'nullable|string|max:50',
         ], [
             'company_name.required' => 'Le nom de la société est obligatoire.',
@@ -274,7 +274,6 @@ class AccountantSpaceController extends Controller
             'juridique_form.required' => 'La forme juridique est obligatoire.',
             'social_capital.numeric' => 'Le capital social doit être un nombre.',
             'phone_number.min'      => 'Le numéro de téléphone doit contenir au moins 8 caractères.',
-            'email_adresse.required' => 'L’adresse email de la société est obligatoire.',
             'email_adresse.email'   => 'Cette adresse email n’est pas valide (exemple : contact@societe.com).',
             'email_adresse.unique'  => 'Adresse email existante. Veuillez saisir une adresse email différente.',
         ], [
@@ -807,16 +806,36 @@ class AccountantSpaceController extends Controller
         return redirect()->route('accountant.space')->with('success', 'Collaborateur retiré de l’entreprise avec succès.');
     }
 
-    /**
-     * Basculer de contexte d'entreprise
-     */
     public function switchCompany($id)
     {
         $user = Auth::user();
 
-        // Sécurité : Vérifier que l'utilisateur a accès à cette entreprise
-        $hasAccess = Company::where('id', $id)->where('user_id', $user->id)->exists()
-            || DB::table('company_user')->where('company_id', $id)->where('user_id', $user->id)->exists();
+        $company = Company::find($id);
+        if (!$company) {
+            return redirect()->route('accountant.space')->with('error', 'Entreprise introuvable.');
+        }
+
+        // Sécurité : Vérifier que l'utilisateur a accès à cette entreprise dans son espace
+        $hasAccess = false;
+
+        if ($user->role === 'superadmin' || $user->role === 'super_admin' || (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin())) {
+            $hasAccess = true;
+        } elseif ((int) $company->user_id === (int) $user->id) {
+            $hasAccess = true;
+        } elseif ((int) $user->company_id === (int) $id) {
+            $hasAccess = true;
+        } elseif (DB::table('company_user')->where('company_id', $id)->where('user_id', $user->id)->exists()) {
+            $hasAccess = true;
+        } elseif ($company->parent_company_id && (int) $company->parent_company_id === (int) $user->company_id) {
+            $hasAccess = true;
+        } else {
+            $cabinetGere = Cabinet::where('user_id', $user->id)->first();
+            if ($cabinetGere && (int) $company->cabinet_id === (int) $cabinetGere->id) {
+                $hasAccess = true;
+            } elseif ($user->cabinet_id && (int) $company->cabinet_id === (int) $user->cabinet_id) {
+                $hasAccess = true;
+            }
+        }
 
         if (!$hasAccess) {
             return redirect()->route('accountant.space')->with('error', 'Accès non autorisé à cette entreprise.');
@@ -1064,17 +1083,36 @@ class AccountantSpaceController extends Controller
     }
 
     /**
-     * Générer automatiquement les codes pour toutes les entreprises qui n'en ont pas.
+     * Générer automatiquement les codes pour toutes les entreprises qui n'en ont pas dans cet espace.
      */
     public function bulkGenerateCodes()
     {
         $user = Auth::user();
 
-        // Récupérer les entreprises du gérant sans code
-        $companies = Company::where('user_id', $user->id)
-            ->whereNull('company_code')
-            ->orWhere(function($q) use ($user) {
-                $q->where('user_id', $user->id)->where('company_code', '');
+        // Récupérer toutes les entreprises de l'espace courant
+        $myCompanyIds = Company::where('user_id', $user->id)->pluck('id')->toArray();
+        $assignedCompanyIds = DB::table('company_user')->where('user_id', $user->id)->pluck('company_id')->toArray();
+
+        $cabinetGere = Cabinet::where('user_id', $user->id)->first();
+        if ($cabinetGere) {
+            $assignedCompanyIds = array_merge(
+                $assignedCompanyIds,
+                Company::where('cabinet_id', $cabinetGere->id)->pluck('id')->toArray()
+            );
+        }
+
+        if ($user->company_id && !in_array($user->company_id, $assignedCompanyIds)) {
+            $assignedCompanyIds[] = $user->company_id;
+        }
+
+        $allCompanyIds = array_values(array_unique(array_merge($myCompanyIds, $assignedCompanyIds)));
+
+        // Récupérer uniquement les entreprises de cet espace sans code validé
+        $companies = Company::whereIn('id', $allCompanyIds)
+            ->where(function($q) {
+                $q->whereNull('company_code')
+                  ->orWhere('company_code', '')
+                  ->orWhereRaw('TRIM(company_code) = ""');
             })
             ->get();
 
@@ -1096,9 +1134,9 @@ class AccountantSpaceController extends Controller
         }
 
         if ($generated === 0) {
-            return back()->with('info', 'Toutes vos entreprises ont déjà un code d\'accès.');
+            return back()->with('info', 'Toutes les entreprises de votre espace ont déjà un code d\'accès.');
         }
 
-        return back()->with('success', $generated . ' code(s) généré(s) avec succès.');
+        return back()->with('success', $generated . ' code(s) d\'entreprise généré(s) avec succès pour cet espace.');
     }
 }

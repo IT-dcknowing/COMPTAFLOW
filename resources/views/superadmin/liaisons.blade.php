@@ -20,7 +20,8 @@
             <div class="layout-page">
                 @include('components.header', ['page_title' => 'Liaisons COMPTAFLOW ↔ SELFLOW'])
 
-                <div class="content-wrapper" style="padding: 32px; width: 100%; min-height: calc(100vh - 80px);">
+                <div class="content-wrapper">
+                    <div class="container-xxl flex-grow-1 container-p-y">
 
                     {{-- Alertes --}}
                     @if(session('success'))
@@ -37,7 +38,7 @@
                     @endif
 
                     {{-- Header Banner --}}
-                    <div class="d-flex justify-content-between align-items-center mb-6 flex-wrap gap-3">
+                    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                         <div>
                             <h3 class="fw-bold mb-1"><i class="fa-solid fa-link text-primary me-2"></i> Tableau croisé des liaisons</h3>
                             <p class="text-muted mb-0">Supervision des connexions et création d'entreprises bidirectionnelle.</p>
@@ -55,8 +56,78 @@
                         </div>
                     </div>
 
-                    {{-- Table Card --}}
-                    <div class="glass-card overflow-hidden mb-8">
+                    @php
+                        $totalComps = count($companies);
+                        $linkedComps = $companies->whereNotNull('selflow_company_id')->count();
+                        $unlinkedComps = $totalComps - $linkedComps;
+                    @endphp
+
+                    <!-- KPIs Grid (4 Colonnes) -->
+                    <div class="kpi-grid mb-4" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                        <div class="glass-card p-4 border-l-4 border-l-primary">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Entreprises</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $totalComps }}</h3>
+                                </div>
+                                <div class="p-3 bg-blue-50 text-primary rounded-2xl">
+                                    <i class="fa-solid fa-building text-lg"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">COMPTAFLOW</p>
+                        </div>
+
+                        <div class="glass-card p-4 border-l-4 border-l-success">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Liaisons Actives</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $linkedComps }}</h3>
+                                </div>
+                                <div class="p-3 bg-green-50 text-success rounded-2xl">
+                                    <i class="fa-solid fa-link text-lg"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Connectées à SELFLOW</p>
+                        </div>
+
+                        <div class="glass-card p-4 border-l-4 border-l-warning">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Non Liées</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $unlinkedComps }}</h3>
+                                </div>
+                                <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                                    <i class="fa-solid fa-unlink text-lg"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">En attente de synchro</p>
+                        </div>
+
+                        <div class="glass-card p-4 border-l-4 border-l-indigo">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Taux de Liaison</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $totalComps > 0 ? round(($linkedComps / $totalComps) * 100) : 0 }}%</h3>
+                                </div>
+                                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                                    <i class="fa-solid fa-chart-line text-lg"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-bold uppercase mb-0">Synchro globale</p>
+                        </div>
+                    </div>
+
+                    {{-- Table Card avec Filtres Colonnes --}}
+                    <div class="glass-card overflow-hidden mb-4">
+                        @include('components.filtre_colonnes', [
+                            'corps' => '#corpsLiaisons',
+                            'nom' => 'liaisons',
+                            'filtres' => [
+                                ['cle' => 'compagnie', 'libelle' => 'Entreprise', 'type' => 'texte'],
+                                ['cle' => 'statut', 'libelle' => 'Statut Liaison', 'type' => 'liste'],
+                            ],
+                        ])
+
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="bg-slate-50">
@@ -69,10 +140,11 @@
                                         <th class="pe-6 text-end">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="corpsLiaisons">
                                     @forelse($companies as $comp)
                                         @php $isLinked = !empty($comp->selflow_company_id); @endphp
-                                        <tr>
+                                        <tr data-f-compagnie="{{ $comp->company_name }}"
+                                            data-f-statut="{{ $isLinked && $comp->selflow_sync_status === 'active' ? 'Active' : 'Non liée' }}">
                                             <td class="ps-6">
                                                 <div class="fw-bold text-slate-800">{{ $comp->company_name }}</div>
                                                 <div class="text-xs text-muted">{{ $comp->juridique_form ?? 'SARL' }} · {{ $comp->email_adresse }}</div>
@@ -121,6 +193,8 @@
                         </div>
                     </div>
 
+                    </div>
+                    @include('components.footer')
                 </div>
             </div>
         </div>
