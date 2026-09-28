@@ -1007,7 +1007,7 @@ class AccountingReportingService
         // Initialize structure
         $data = [
             'produits' => [
-                'vente_marchandises' => ['label' => 'Vente de marchandises (70)', 'data' => array_fill(0, count($months), 0), 'details' => []],
+                'vente_marchandises' => ['label' => 'Ventes (70)', 'data' => array_fill(0, count($months), 0), 'details' => []],
                 'production_vendue' => ['label' => 'Production vendue (71)', 'data' => array_fill(0, count($months), 0), 'details' => []],
                 'production_stockee' => ['label' => 'Production stockée (72-73)', 'data' => array_fill(0, count($months), 0), 'details' => []],
                 'autres_produits' => ['label' => 'Autres produits (75-78)', 'data' => array_fill(0, count($months), 0), 'details' => []],

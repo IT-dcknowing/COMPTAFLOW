@@ -457,9 +457,14 @@
                             </div>
 
                             <div class="d-flex gap-2 mb-1">
+                                {{-- 255 caractères : la limite de la colonne. Le champ s'arrête
+                                     de lui-même et le dit, au lieu de laisser taper puis d'échouer
+                                     à l'enregistrement. --}}
                                 <input id="description_operation" class="form-control form-control-sm"
+                                    maxlength="255" data-limite-message="Libellé : 255 caractères atteints."
                                     placeholder="Libellé de l'opération *">
                                 <input id="reference_piece" class="form-control form-control-sm" style="width:140px"
+                                    maxlength="255" data-limite-message="Référence : 255 caractères atteints."
                                     placeholder="Réf. pièce">
                                 <label class="btn btn-outline-secondary btn-sm mb-0 d-flex align-items-center gap-1"
                                     style="width:150px;cursor:pointer;font-size:11px">
@@ -1408,6 +1413,9 @@
                             if (r.longueur && r.longueur !== longueurDossier) {
                                 longueurDossier = r.longueur;
                                 numeroCompteInput.setAttribute('maxlength', String(r.longueur));
+                                numeroCompteInput.dataset.limiteMessage =
+                                    'Numéro de compte : ' + r.longueur + ' chiffres atteints.';
+                                numeroCompteInput.placeholder = 'Ex : ' + '4'.padEnd(r.longueur, '1');
                             }
 
                             if (r.trop_long) {
@@ -1434,6 +1442,13 @@
                         clearTimeout(minuterieNumero);
                         direAvis('', '#64748b');
                         minuterieNumero = setTimeout(verifierNumero, 250);
+                    });
+
+                    // La longueur du dossier est connue des l'ouverture : le champ
+                    // s'arrete tout seul au lieu de laisser taper puis de refuser.
+                    modalCenterCreateEl.addEventListener('shown.bs.modal', function () {
+                        direAvis('', '#64748b');
+                        verifierNumero();
                     });
                 }
 
@@ -1651,6 +1666,37 @@
                     });
                 };
             </script>
+
+{{-- Limite de longueur : le champ s'arrête, et le dit trois secondes. --}}
+<script>
+(function () {
+    let bulle = null;
+    let minuterie = null;
+
+    function afficher(texte) {
+        if (!bulle) {
+            bulle = document.createElement('div');
+            bulle.setAttribute('role', 'status');
+            bulle.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);'
+                + 'background:#1e293b;color:#fff;padding:0.55rem 1rem;border-radius:10px;'
+                + 'font-size:0.8rem;font-weight:600;z-index:20000;box-shadow:0 8px 24px rgba(15,23,42,.25);'
+                + 'opacity:0;transition:opacity .18s;pointer-events:none';
+            document.body.appendChild(bulle);
+        }
+        bulle.textContent = texte;
+        bulle.style.opacity = '1';
+        clearTimeout(minuterie);
+        minuterie = setTimeout(function () { bulle.style.opacity = '0'; }, 3000);
+    }
+
+    document.addEventListener('input', function (e) {
+        const champ = e.target;
+        if (!champ || !champ.dataset || !champ.dataset.limiteMessage) return;
+        const max = parseInt(champ.getAttribute('maxlength') || '0', 10);
+        if (max > 0 && champ.value.length >= max) afficher(champ.dataset.limiteMessage);
+    }, true);
+})();
+</script>
 </body>
 
 </html>

@@ -1459,7 +1459,13 @@ const saisieGrille = (() => {
     if (fPiece) {
       lignes = lignes.filter(e => normaliser(e.reference_piece).includes(fPiece));
     }
-    lignes.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Date, puis numero de saisie, puis identifiant : les lignes d'une meme
+    // piece restent ensemble. Trier sur la seule date les laissait dans
+    // l'ordre ou la base les avait rendues, c'est-a-dire melangees.
+    lignes.sort((a, b) =>
+      String(a.date).localeCompare(String(b.date))
+      || String(a.n_saisie ?? '').localeCompare(String(b.n_saisie ?? ''))
+      || (Number(a.id) - Number(b.id)));
 
     if (filtreDesequilibre) {
       const parGroupe = {};

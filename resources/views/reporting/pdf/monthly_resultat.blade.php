@@ -162,8 +162,25 @@
                 </td>
                 <td style="width: 30%; border-bottom: 1px solid #000; text-align: right;">
                     <div class="period">
-                        Période du {{ \Carbon\Carbon::parse($exercice->date_debut)->format('d/m/Y') }}<br>
-                        au {{ \Carbon\Carbon::parse($exercice->date_fin)->format('d/m/Y') }}<br>
+                        {{-- L'en-tête annonçait l'exercice entier quel que soit le
+                             filtre : un tirage de janvier à mars se presentait
+                             « du 01/01 au 31/12 ». On prend les bornes des mois
+                             reellement imprimes. --}}
+                        @php
+                            $moisImprimes = array_values($visibleMonths ?? []);
+                            $premier = $moisImprimes[0] ?? null;
+                            $dernier = $moisImprimes ? end($moisImprimes) : null;
+                            $debutAffiche = $premier
+                                ? \Carbon\Carbon::create($premier['year'], $premier['id'], 1)->startOfMonth()
+                                : \Carbon\Carbon::parse($exercice->date_debut);
+                            $finAffichee = $dernier
+                                ? \Carbon\Carbon::create($dernier['year'], $dernier['id'], 1)->endOfMonth()
+                                : \Carbon\Carbon::parse($exercice->date_fin);
+                            $debutAffiche = $debutAffiche->max(\Carbon\Carbon::parse($exercice->date_debut));
+                            $finAffichee = $finAffichee->min(\Carbon\Carbon::parse($exercice->date_fin));
+                        @endphp
+                        Période du {{ $debutAffiche->format('d/m/Y') }}<br>
+                        au {{ $finAffichee->format('d/m/Y') }}<br>
                         Tenue de compte : {{ $exercice->company->currency ?? 'FCFA' }}
                     </div>
                 </td>

@@ -26,6 +26,38 @@
 <!-- GitHub Button -->
 <script async defer src="https://buttons.github.io/buttons.js"></script>
 
+<!-- Session tenue en vie tant que l'utilisateur travaille -->
+<script>
+(function () {
+    // La duree de session compte le temps depuis la DERNIERE REQUETE, pas
+    // depuis la derniere action. Un comptable qui saisit une heure sans rien
+    // enregistrer est « inactif » pour le serveur : sa session tombe, et
+    // l'enregistrement est refuse. On signale donc l'activite reelle.
+    //
+    // Un simple appel toutes les cinq minutes, et seulement s'il s'est passe
+    // quelque chose : une machine laissee seule finit bien par se deconnecter.
+    var actif = false;
+    var INTERVALLE = 5 * 60 * 1000;
+
+    ['keydown', 'click', 'input', 'change', 'scroll'].forEach(function (nom) {
+        document.addEventListener(nom, function () { actif = true; }, { passive: true, capture: true });
+    });
+
+    setInterval(function () {
+        if (!actif || document.hidden) return;
+        actif = false;
+        fetch('/jeton-csrf', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) {
+                if (!j || !j.token) return;
+                var balise = document.querySelector('meta[name="csrf-token"]');
+                if (balise) balise.setAttribute('content', j.token);
+            })
+            .catch(function () { /* sans reseau, on retentera dans cinq minutes */ });
+    }, INTERVALLE);
+})();
+</script>
+
 <!-- Initialisation bootstrap-select -->
 <script>
     // Utiliser document.addEventListener pour s'assurer que le DOM est prêt,

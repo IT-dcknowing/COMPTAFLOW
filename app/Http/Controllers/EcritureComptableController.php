@@ -119,8 +119,16 @@ class EcritureComptableController extends Controller
             $query->where('exercices_comptables_id', $data['id_exercice']);
         }
 
+        // Un import ecrit ses milliers de lignes dans la meme seconde : triees
+        // sur created_at seul, les lignes d'une meme piece revenaient dans un
+        // ordre quelconque et le tableau paraissait melange — au point de
+        // faire croire que les filtres ne s'appliquaient pas. On trie donc par
+        // date, puis par numero de saisie, puis par identifiant : chaque piece
+        // reste d'un seul bloc.
         $ecritures = $query->with(['planComptable', 'planTiers', 'codeJournal', 'compteTresorerie', 'posteTresorerie'])
-            ->orderBy('created_at', 'desc')
+            ->orderBy('date')
+            ->orderBy('n_saisie')
+            ->orderBy('id')
             ->get();
 
         // Gestion du mode édition depuis l'approbation
@@ -980,7 +988,11 @@ class EcritureComptableController extends Controller
             ->groupBy('ecriture_comptables.n_saisie')
             ->orderBy('max_date', 'desc')
             ->orderBy('ecriture_comptables.n_saisie', 'desc')
-            ->paginate(10);
+            // Sans withQueryString, chaque lien de page repart sans les
+            // filtres : le journal, le mois ou le libelle choisis etaient
+            // perdus des la page 2.
+            ->paginate(10)
+            ->withQueryString();
 
         $saisieList = $paginatedSaisies->pluck('n_saisie')->toArray();
 

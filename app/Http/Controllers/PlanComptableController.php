@@ -143,6 +143,16 @@ class PlanComptableController extends Controller
             $digits = (int) (\App\Models\Company::find($companyId)?->account_digits ?? 8);
 
             $saisi = trim((string) $request->numero_de_compte);
+
+            // Champ vide : on ne juge rien, mais on donne la longueur du
+            // dossier pour que le champ s'y regle des l'ouverture.
+            if ($saisi === '') {
+                return response()->json([
+                    'exists' => false, 'numero_formatte' => '', 'numero_saisi' => '',
+                    'intitule_existant' => null, 'longueur' => $digits, 'trop_long' => false,
+                ]);
+            }
+
             $formate = $this->formaterNumeroCompte($saisi, $digits);
 
             $existant = $formate === null ? null : PlanComptable::where('company_id', $companyId)

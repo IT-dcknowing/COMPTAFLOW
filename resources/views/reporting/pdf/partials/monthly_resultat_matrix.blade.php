@@ -1,6 +1,15 @@
 @php
     // Somme limitée aux mois réellement affichés (filtre de période).
     $sumVisible = fn ($arr) => array_sum(array_intersect_key((array) ($arr ?? []), $visibleMonths));
+
+    // Une rubrique restée à zéro sur toute la période demandée n'apprend rien
+    // et allonge le document : on ne l'imprime pas.
+    $aDesMontants = function ($arr) use ($visibleMonths) {
+        foreach (array_intersect_key((array) ($arr ?? []), $visibleMonths) as $v) {
+            if (round((float) $v, 2) != 0.0) return true;
+        }
+        return false;
+    };
 @endphp
     <table>
         <thead>
@@ -19,7 +28,7 @@
             </tr>
             
             @foreach($data['data']['produits'] as $key => $row)
-                @if($key !== 'total')
+                @if($key !== 'total' && $aDesMontants($row['data']))
                     <tr>
                         <td class="label-col">{{ $row['label'] }}</td>
                         @foreach($visibleMonths as $i => $m)
@@ -55,7 +64,7 @@
             </tr>
             
             @foreach($data['data']['charges'] as $key => $row)
-                @if($key !== 'total')
+                @if($key !== 'total' && $aDesMontants($row['data']))
                     <tr>
                         <td class="label-col">{{ $row['label'] }}</td>
                         @foreach($visibleMonths as $i => $m)
@@ -87,7 +96,7 @@
 
             <!-- RÉSULTAT -->
             <tr class="main-total">
-                <td class="label-col">RÉSULTAT NET</td>
+                <td class="label-col">RÉSULTAT D'EXPLOITATION</td>
                 @foreach($visibleMonths as $i => $m)
                     <td>{{ number_format($data['data']['resultat'][$i], 0, ',', ' ') }}</td>
                 @endforeach
