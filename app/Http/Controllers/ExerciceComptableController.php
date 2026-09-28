@@ -428,14 +428,21 @@ public function index()
                 }
             }
 
-            // Ajouter le résultat dans le RAN (Compte 131 ou 139)
-            $compteResultatNum = $montantResultat >= 0 ? '131' : '139';
-            $compteResultat = PlanComptable::where('company_id', $companyId)
-                ->where('numero_de_compte', 'like', $compteResultatNum . '%')
-                ->first();
+            // Le resultat, porte dans le meme mouvement que le report a nouveau.
+            //
+            // ATTENTION AU SENS. Les soldes ci-dessus sont algebriques :
+            // debit moins credit. Sur les classes 1 a 5, leur somme vaut
+            // exactement le resultat — un benefice laisse les comptes de bilan
+            // debiteurs d'autant. Pour equilibrer, le benefice doit donc etre
+            // porte au CREDIT, c'est-a-dire ajoute en NEGATIF dans ce tableau.
+            //
+            // Le code ajoutait le resultat en positif : un benefice de cinq
+            // millions partait au debit, et le report a nouveau se retrouvait
+            // desequilibre de dix millions.
+            $compteResultat = \App\Services\ComptesDeResultat::pour($companyId, $montantResultat);
 
             if ($compteResultat) {
-                $soldes[$compteResultat->id] = ($soldes[$compteResultat->id] ?? 0) + $montantResultat;
+                $soldes[$compteResultat->id] = ($soldes[$compteResultat->id] ?? 0) - $montantResultat;
             }
 
             // 7. Générer les écritures de RAN dans le nouvel exercice

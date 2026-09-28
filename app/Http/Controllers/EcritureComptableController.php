@@ -670,14 +670,34 @@ class EcritureComptableController extends Controller
                 $groups[$ns][] = $e;
             }
 
+            // Les numeros des comptes utilises : l'ecriture de resultat s'y
+            // reconnait, quelle que soit la longueur du plan du dossier.
+            $numerosDesComptes = PlanComptable::where('company_id', $activeCompanyId)
+                ->whereIn('id', collect($ecrituresRaw)->pluck('plan_comptable_id')->filter()->unique())
+                ->pluck('numero_de_compte', 'id');
+
             // --- VALIDATE EACH GROUP BALANCE ---
             foreach ($groups as $ns => $groupEcritures) {
                 $totalDebit = 0;
                 $totalCredit = 0;
+                $porteLeResultat = false;
                 foreach ($groupEcritures as $e) {
                     $totalDebit += floatval($e['debit'] ?? 0);
                     $totalCredit += floatval($e['credit'] ?? 0);
+                    $porteLeResultat = $porteLeResultat || \App\Services\ComptesDeResultat::estCompteDeResultat(
+                        $numerosDesComptes[$e['plan_comptable_id'] ?? null] ?? null
+                    );
                 }
+
+                // L'affectation du resultat est, par nature, une seule ligne :
+                // sa contrepartie est le report a nouveau, deja passe. Exiger
+                // une parite debit-credit obligeait a inventer une seconde
+                // ligne. Une piece qui touche un compte de classe 13 echappe
+                // donc au controle d'equilibre.
+                if ($porteLeResultat) {
+                    continue;
+                }
+
                 $diff = abs($totalDebit - $totalCredit);
                 if ($diff > 0.1) {
                     return response()->json([

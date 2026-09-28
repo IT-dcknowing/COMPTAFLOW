@@ -38,6 +38,11 @@ class EcritureComptable extends Model
         'user_id',
         'company_id',
         'statut',
+        // Report a nouveau. Absent de cette liste, il etait rejete en silence
+        // a la cloture : les lignes de report naissaient a false. La tresorerie
+        // d'ouverture du tableau des flux restait donc a zero, et les reports
+        // comptaient comme de vrais encaissements de janvier.
+        'is_ran',
         // Cle d'idempotence du deversement Selflow : SELFLOW-{entreprise}-{ecriture}.
         // Elle distingue un renvoi d'une ecriture nouvelle ; sans elle, rejouer
         // une synchronisation dupliquait tout et la balance doublait.

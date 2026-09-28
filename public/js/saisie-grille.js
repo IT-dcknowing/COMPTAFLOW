@@ -539,10 +539,16 @@ const saisieGrille = (() => {
     const btnValider = document.getElementById('btnValiderGrille');
     const ecart = Math.abs(totalDebitVal - totalCreditVal);
 
-    const equilibre = ecart < 0.01 && totalDebitVal > 0 && (addedLines.length >= 1 || (curDebit > 0 || curCredit > 0));
+    const affectationDuResultat = porteLeResultat() && (totalDebitVal > 0 || totalCreditVal > 0);
+    const equilibre = affectationDuResultat
+      || (ecart < 0.01 && totalDebitVal > 0 && (addedLines.length >= 1 || (curDebit > 0 || curCredit > 0)));
 
     if (equilibre) {
-      badge.textContent = 'Équilibré';
+      // Une affectation de resultat n'a qu'une ligne : on le dit, plutot que
+      // d'annoncer un equilibre que les totaux dementent.
+      badge.textContent = affectationDuResultat && ecart >= 0.01
+        ? 'Affectation du résultat'
+        : 'Équilibré';
       badge.className = 'badge bg-success rounded-pill px-3 py-2';
       if (btnValider) {
         btnValider.disabled = false;
@@ -1370,6 +1376,22 @@ const saisieGrille = (() => {
     }
   }
 
+  // Un compte de classe 13 porte le resultat de l'exercice.
+  function estCompteDeResultat(numero) {
+    return String(numero || '').startsWith('13');
+  }
+
+  // L'ecriture d'affectation du resultat est, par nature, une seule ligne :
+  // sa contrepartie est le report a nouveau, deja passe. Exiger une parite
+  // debit-credit obligeait a inventer une seconde ligne.
+  function porteLeResultat() {
+    if (addedLines.some(l => estCompteDeResultat(l.compte_general))) return true;
+
+    const select = document.getElementById('input_compte_general');
+    const compte = select ? plansComptables.find(p => p.id == select.value) : null;
+    return !!(compte && estCompteDeResultat(compte.numero_de_compte));
+  }
+
   function estEquilibre() {
     let debit = 0, credit = 0;
     addedLines.forEach(l => {
@@ -1378,10 +1400,15 @@ const saisieGrille = (() => {
     });
     const curDebit = parseFloat(document.getElementById('input_debit')?.value || 0);
     const curCredit = parseFloat(document.getElementById('input_credit')?.value || 0);
-    
+
     const finalDebit = debit + curDebit;
     const finalCredit = credit + curCredit;
     const ecart = Math.abs(finalDebit - finalCredit);
+    const montantPose = finalDebit > 0 || finalCredit > 0;
+
+    if (porteLeResultat() && montantPose) {
+      return { debit: finalDebit, credit: finalCredit, equilibre: true, resultat: true };
+    }
 
     return { debit: finalDebit, credit: finalCredit, equilibre: ecart < 0.01 && finalDebit > 0 };
   }

@@ -462,12 +462,31 @@
                                             </h1>
                                         </div>
 
-                                        <div class="text-center space-y-3 mb-8">
+                                        <div class="text-center space-y-3 mb-6">
                                             <p class="text-slate-500 text-sm font-medium leading-relaxed">
                                                 Êtes-vous sûr de vouloir <strong>clôturer</strong> cet exercice ?<br>
                                                 Après clôture, aucune modification ne sera possible.
                                             </p>
                                             <p class="text-slate-900 font-bold" id="exerciceToCloture"></p>
+                                        </div>
+
+                                        {{-- Passée à la main, l'écriture de résultat oblige à deux lignes et
+                                             son sens se trompe une fois sur deux. La clôture la porte donc
+                                             elle-même, dans le même mouvement que le report à nouveau. --}}
+                                        <div class="text-start mb-8 p-3"
+                                            style="background:#fefce8;border:1px solid #fde68a;border-radius:12px">
+                                            <p class="mb-2" style="font-size:0.78rem;font-weight:800;color:#854d0e">
+                                                <i class="bx bx-info-circle me-1"></i>Ce que la clôture va écrire
+                                            </p>
+                                            <ul class="mb-0 ps-3" style="font-size:0.75rem;color:#713f12;line-height:1.5">
+                                                <li>Le <strong>report à nouveau</strong> des comptes de bilan (classes 1 à 5)
+                                                    dans l'exercice suivant.</li>
+                                                <li>L'<strong>écriture de résultat</strong>, dans le même mouvement :
+                                                    un <strong>bénéfice</strong> au <strong>crédit</strong> du compte
+                                                    <strong>1301</strong>, une <strong>perte</strong> au
+                                                    <strong>débit</strong> du compte <strong>1309</strong>.</li>
+                                                <li>Vous n'avez donc pas à la passer à la main.</li>
+                                            </ul>
                                         </div>
 
                                         <!-- Actions -->
