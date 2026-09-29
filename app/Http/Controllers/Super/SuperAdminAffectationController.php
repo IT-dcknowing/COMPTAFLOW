@@ -1,0 +1,220 @@
+<?php
+
+namespace App\Http\Controllers\Super;
+
+use App\Http\Controllers\Controller;
+use App\Models\Cabinet;
+use App\Models\Company;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+
+/**
+ * Rattacher des personnes à des comptabilités et à des cabinets.
+ *
+ * Deux rattachements, deux portées :
+ *
+ *   - une COMPTABILITÉ se donne nommément. Un collaborateur ne voit que les
+ *     dossiers qu'on lui affecte, jamais tout le portefeuille du cabinet.
+ *
+ *   - un CABINET rattache la personne à la maison. Les dossiers qu'elle
+ *     ouvrira porteront ce cabinet, et y resteront même si elle part : c'est
+ *     ce qui empêche un départ d'emporter des comptabilités.
+ *
+ * L'adresse suffit : si personne ne la porte, le compte est créé.
+ */
+class SuperAdminAffectationController extends Controller
+{
+    public function index(Request $request)
+    {
+        $entreprises = Company::orderBy('company_name')->get(['id', 'company_name', 'cabinet_id']);
+        $cabinets = Cabinet::with('gerant:id,name,last_name,email_adresse')->orderBy('nom')->get();
+
+        // Qui est déjà rattaché à quoi : la page ne sert à rien sans cela.
+        $parEntreprise = DB::table('company_user')
+            ->join('users', 'company_user.user_id', '=', 'users.id')
+            ->select('company_user.company_id', 'company_user.role', 'users.id', 'users.name',
+                     'users.last_name', 'users.email_adresse')
+            ->get()
+            ->groupBy('company_id');
+
+        $parCabinet = DB::table('cabinet_user')
+            ->join('users', 'cabinet_user.user_id', '=', 'users.id')
+            ->select('cabinet_user.cabinet_id', 'users.id', 'users.name',
+                     'users.last_name', 'users.email_adresse')
+            ->get()
+            ->groupBy('cabinet_id');
+
+        $entrepriseChoisie = $request->integer('company_id') ?: null;
+        $cabinetChoisi = $request->integer('cabinet_id') ?: null;
+
+        return view('superadmin.affectations', compact(
+            'entreprises', 'cabinets', 'parEntreprise', 'parCabinet',
+            'entrepriseChoisie', 'cabinetChoisi'
+        ));
+    }
+
+    /**
+     * Rattache une personne à une comptabilité, en la créant au besoin.
+     */
+    public function affecterAUneComptabilite(Request $request)
+    {
+        $donnees = $request->validate([
+            'company_id' => ['required', Rule::exists('companies', 'id')],
+            'email_adresse' => ['required', 'email', 'max:191'],
+            'role' => ['required', Rule::in(['admin', 'comptable'])],
+            'name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['nullable', 'string', 'max:100'],
+        ], [
+            'email_adresse.email' => "Cette adresse n'est pas valide (exemple : jean@societe.com).",
+        ]);
+
+        $company = Company::findOrFail($donnees['company_id']);
+        [$user, $cree] = $this->trouverOuCreer($donnees);
+
+        $dejaLa = DB::table('company_user')
+            ->where('company_id', $company->id)->where('user_id', $user->id)->exists();
+
+        if ($dejaLa) {
+            return back()->with('error', sprintf(
+                '%s est déjà rattaché à « %s ».', $user->email_adresse, $company->company_name
+            ));
+        }
+
+        DB::table('company_user')->insert([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => $donnees['role'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', sprintf(
+            '%s %s rattaché%s à « %s » en %s.%s',
+            $user->email_adresse,
+            $cree ? '(compte créé)' : '',
+            '',
+            $company->company_name,
+            $donnees['role'] === 'admin' ? 'administrateur' : 'comptable',
+            $cree ? ' Un mot de passe provisoire lui a été attribué : il devra le changer.' : ''
+        ));
+    }
+
+    /**
+     * Retire une personne d'une comptabilité.
+     */
+    public function retirerDUneComptabilite(Request $request)
+    {
+        $donnees = $request->validate([
+            'company_id' => ['required', Rule::exists('companies', 'id')],
+            'user_id' => ['required', Rule::exists('users', 'id')],
+        ]);
+
+        DB::table('company_user')
+            ->where('company_id', $donnees['company_id'])
+            ->where('user_id', $donnees['user_id'])
+            ->delete();
+
+        // Le rattachement historique compte aussi : sans cela, la personne
+        // continue de voir le dossier par users.company_id.
+        User::where('id', $donnees['user_id'])
+            ->where('company_id', $donnees['company_id'])
+            ->update(['company_id' => null]);
+
+        return back()->with('success', "L'accès a été retiré.");
+    }
+
+    /**
+     * Rattache une personne à un cabinet, en la créant au besoin.
+     */
+    public function affecterAUnCabinet(Request $request)
+    {
+        $donnees = $request->validate([
+            'cabinet_id' => ['required', Rule::exists('cabinets', 'id')],
+            'email_adresse' => ['required', 'email', 'max:191'],
+            'name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $cabinet = Cabinet::findOrFail($donnees['cabinet_id']);
+        [$user, $cree] = $this->trouverOuCreer($donnees + ['role' => 'comptable']);
+
+        $dejaLa = DB::table('cabinet_user')
+            ->where('cabinet_id', $cabinet->id)->where('user_id', $user->id)->exists();
+
+        if ($dejaLa) {
+            return back()->with('error', sprintf(
+                '%s appartient déjà au cabinet « %s ».', $user->email_adresse, $cabinet->nom
+            ));
+        }
+
+        DB::table('cabinet_user')->insert([
+            'cabinet_id' => $cabinet->id,
+            'user_id' => $user->id,
+            'role' => 'collaborateur',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', sprintf(
+            '%s rattaché au cabinet « %s ».%s Les dossiers qu\'il ouvrira resteront au cabinet, '
+            . 'même s\'il le quitte. Ses accès aux comptabilités se donnent dossier par dossier.',
+            $user->email_adresse, $cabinet->nom,
+            $cree ? ' Compte créé, avec un mot de passe provisoire à changer.' : ''
+        ));
+    }
+
+    /**
+     * Retire une personne d'un cabinet.
+     *
+     * Les dossiers, eux, restent au cabinet : c'est tout l'intérêt du
+     * rattachement.
+     */
+    public function retirerDUnCabinet(Request $request)
+    {
+        $donnees = $request->validate([
+            'cabinet_id' => ['required', Rule::exists('cabinets', 'id')],
+            'user_id' => ['required', Rule::exists('users', 'id')],
+        ]);
+
+        DB::table('cabinet_user')
+            ->where('cabinet_id', $donnees['cabinet_id'])
+            ->where('user_id', $donnees['user_id'])
+            ->delete();
+
+        return back()->with('success',
+            'La personne ne fait plus partie du cabinet. Les dossiers qu\'elle avait ouverts y restent.');
+    }
+
+    /**
+     * Le compte derrière une adresse, créé s'il n'existe pas.
+     *
+     * @return array{0: User, 1: bool}  le compte, et s'il vient d'être créé
+     */
+    private function trouverOuCreer(array $donnees): array
+    {
+        $user = User::where('email_adresse', $donnees['email_adresse'])->first();
+
+        if ($user) {
+            return [$user, false];
+        }
+
+        // Un mot de passe provisoire, jamais affiché : la personne passe par
+        // « mot de passe oublié ». Le montrer à l'écran le ferait circuler.
+        // Les champs facultatifs peuvent manquer : la validation ne rend que
+        // ce qui a ete envoye.
+        $user = User::create([
+            'name' => ($donnees['name'] ?? null) ?: Str::before($donnees['email_adresse'], '@'),
+            'last_name' => ($donnees['last_name'] ?? null) ?: '',
+            'email_adresse' => $donnees['email_adresse'],
+            'password' => Hash::make(Str::random(32)),
+            'role' => $donnees['role'] ?? 'comptable',
+            'is_active' => true,
+        ]);
+
+        return [$user, true];
+    }
+}

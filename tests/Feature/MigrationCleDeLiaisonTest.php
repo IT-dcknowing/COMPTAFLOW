@@ -31,7 +31,11 @@ class MigrationCleDeLiaisonTest extends TestCase
             $table->unsignedBigInteger('selflow_company_id')->nullable();
             $table->string('selflow_sync_key', 100)->nullable();
             $table->timestamps();
-        });
+                    // La corbeille : une entreprise supprimee reste recuperable
+            // trente jours. Le modele porte SoftDeletes, la table doit
+            // donc offrir la colonne.
+            $table->softDeletes();
+});
     }
 
     /** `require` — et non `require_once` : chaque appel doit rendre une instance neuve. */

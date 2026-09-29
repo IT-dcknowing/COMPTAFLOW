@@ -3,11 +3,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 class Company extends Model
 {
-    use HasFactory, LogsActivity;
+    // Une entreprise supprimee part en corbeille : elle disparait de toutes
+    // les listes, sa comptabilite reste intacte, et trente jours durant on
+    // peut la remettre en place. Voir CORBEILLE_JOURS.
+    use HasFactory, LogsActivity, SoftDeletes;
+
+    /** Duree pendant laquelle une entreprise supprimee reste recuperable. */
+    public const CORBEILLE_JOURS = 30;
 
     protected $fillable = [
         'company_name', 'company_code', 'pack', 'cabinet_id', 'activity', 'juridique_form', 'social_capital',

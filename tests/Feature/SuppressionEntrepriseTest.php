@@ -86,19 +86,22 @@ class SuppressionEntrepriseTest extends TestCase
         return $this->delete(route('superadmin.companies.destroy', $company->id));
     }
 
-    public function test_la_comptabilite_part_avec_lentreprise(): void
+    public function test_lentreprise_part_en_corbeille_avec_sa_comptabilite(): void
     {
         $company = $this->entreprise('A Supprimer');
         $this->comptabilite($company, 4);
 
         $this->supprimer($company);
 
-        $this->assertSame(0, Company::where('id', $company->id)->count());
-        $this->assertSame(0, EcritureComptable::where('company_id', $company->id)->count(),
-            "Sans cela, les écritures survivent sans entreprise pour les ouvrir.");
-        $this->assertSame(0, ExerciceComptable::where('company_id', $company->id)->count());
-        $this->assertSame(0, CodeJournal::where('company_id', $company->id)->count());
-        $this->assertSame(0, PlanComptable::where('company_id', $company->id)->count());
+        $this->assertSame(0, Company::where('id', $company->id)->count(),
+            "L'entreprise doit disparaître des listes.");
+        $this->assertSame(1, Company::onlyTrashed()->where('id', $company->id)->count(),
+            'Mais rester en corbeille, récupérable trente jours.');
+
+        // La comptabilité ne bouge pas : c'est ce qui rend la remise en place
+        // possible. Elle ne part qu'à l'effacement définitif.
+        $this->assertSame(4, EcritureComptable::where('company_id', $company->id)->count());
+        $this->assertSame(1, ExerciceComptable::where('company_id', $company->id)->count());
     }
 
     public function test_les_comptes_utilisateurs_survivent(): void
@@ -145,7 +148,7 @@ class SuppressionEntrepriseTest extends TestCase
         $this->supprimer($mere);
 
         $this->assertSame(0, Company::where('id', $filiale->id)->count());
-        $this->assertSame(0, EcritureComptable::where('company_id', $filiale->id)->count());
+        $this->assertSame(1, Company::onlyTrashed()->where('id', $filiale->id)->count());
     }
 
     public function test_lapercu_annonce_ce_qui_va_partir(): void
@@ -175,5 +178,6 @@ class SuppressionEntrepriseTest extends TestCase
 
         $this->assertSame(7, EcritureComptable::where('company_id', $voisin->id)->count());
         $this->assertSame(1, Company::where('id', $voisin->id)->count());
+        $this->assertSame(0, Company::onlyTrashed()->where('id', $voisin->id)->count());
     }
 }

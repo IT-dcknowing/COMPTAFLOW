@@ -217,29 +217,98 @@ class SuperAdminCompanyController extends Controller
     {
         DB::beginTransaction();
         try {
-            // Tout ce qui part avec l'entreprise partage un meme lot d'archive :
-            // l'ecran des suppressions le montre comme une seule operation, et
-            // chaque ligne reste recuperable trente jours.
-            $lot = \App\Models\ArchivedRecord::nouveauLot();
-
             $ids = Company::where('id', $company->id)
                 ->orWhere('parent_company_id', $company->id)
                 ->pluck('id');
 
             $nom = $company->company_name;
+            $compte = \App\Models\EcritureComptable::whereIn('company_id', $ids)->count();
 
             // Les COMPTES UTILISATEURS survivent a l'entreprise.
             //
             // La suppression les emportait : un collaborateur qui travaillait
             // sur plusieurs dossiers perdait son acces a tous parce qu'un seul
-            // avait ete ferme. On coupe donc le rattachement — la personne
-            // reste, elle n'entre simplement plus dans ce dossier.
+            // avait ete ferme. On coupe seulement le rattachement.
             $liberes = User::whereIn('company_id', $ids)->update(['company_id' => null]);
             DB::table('company_user')->whereIn('company_id', $ids)->delete();
 
-            // La comptabilite, elle, part avec la fiche : la laisser produisait
-            // des ecritures orphelines, sans entreprise pour les ouvrir.
-            $compte = \App\Models\EcritureComptable::whereIn('company_id', $ids)->count();
+            // La comptabilite RESTE EN PLACE. L'entreprise part en corbeille :
+            // elle disparait de toutes les listes, mais trente jours durant on
+            // peut la remettre — une erreur de clic ne coute plus une
+            // comptabilite entiere.
+            Company::whereIn('id', $ids)->delete();
+
+            DB::commit();
+
+            return back()->with('success', sprintf(
+                '« %s » est en corbeille avec sa comptabilite (%s ecriture(s)). '
+                . 'Recuperable %d jours. %d compte(s) utilisateur conserves.',
+                $nom, number_format($compte, 0, ',', ' '), Company::CORBEILLE_JOURS, $liberes
+            ));
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Erreur lors de la suppression : ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * La corbeille : ce qui a ete supprime et reste recuperable.
+     */
+    public function corbeille()
+    {
+        $entreprises = Company::onlyTrashed()
+            ->orderByDesc('deleted_at')
+            ->get()
+            ->map(function ($c) {
+                $reste = Company::CORBEILLE_JOURS - $c->deleted_at->diffInDays(now());
+
+                return [
+                    'modele' => $c,
+                    'ecritures' => \App\Models\EcritureComptable::where('company_id', $c->id)->count(),
+                    'exercices' => \App\Models\ExerciceComptable::where('company_id', $c->id)->count(),
+                    'jours_restants' => max(0, (int) $reste),
+                    'expire_le' => $c->deleted_at->copy()->addDays(Company::CORBEILLE_JOURS),
+                ];
+            });
+
+        return view('superadmin.corbeille', compact('entreprises'));
+    }
+
+    /**
+     * Remet une entreprise en place, avec sa comptabilite.
+     */
+    public function restaurer($id)
+    {
+        $company = Company::onlyTrashed()->findOrFail($id);
+
+        Company::onlyTrashed()
+            ->where(fn ($q) => $q->where('id', $company->id)->orWhere('parent_company_id', $company->id))
+            ->restore();
+
+        return back()->with('success', sprintf(
+            '« %s » est de nouveau en place, avec sa comptabilite. '
+            . 'Les acces des collaborateurs sont a redonner depuis la page des affectations.',
+            $company->company_name
+        ));
+    }
+
+    /**
+     * Efface definitivement une entreprise de la corbeille.
+     */
+    public function supprimerDefinitivement($id)
+    {
+        $company = Company::onlyTrashed()->findOrFail($id);
+        $nom = $company->company_name;
+
+        $ids = Company::onlyTrashed()
+            ->where(fn ($q) => $q->where('id', $company->id)->orWhere('parent_company_id', $company->id))
+            ->pluck('id');
+
+        DB::transaction(function () use ($ids) {
+            // Un seul lot d'archive : l'ecran des suppressions le montre comme
+            // une seule operation.
+            $lot = \App\Models\ArchivedRecord::nouveauLot();
+
             \App\Services\SuppressionTracee::supprimer(
                 \App\Models\EcritureComptable::whereIn('company_id', $ids), $lot);
 
@@ -247,20 +316,10 @@ class SuperAdminCompanyController extends Controller
             \App\Models\CodeJournal::whereIn('company_id', $ids)->delete();
             \App\Models\PlanComptable::whereIn('company_id', $ids)->delete();
 
-            Company::whereIn('id', $ids)->where('id', '!=', $company->id)->delete();
-            $company->delete();
+            Company::onlyTrashed()->whereIn('id', $ids)->forceDelete();
+        });
 
-            DB::commit();
-
-            return back()->with('success', sprintf(
-                '« %s » a ete supprimee avec sa comptabilite (%s ecriture(s)). '
-                . '%d compte(s) utilisateur ont ete conserves : ils n\'ont plus acces a ce dossier.',
-                $nom, number_format($compte, 0, ',', ' '), $liberes
-            ));
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Erreur lors de la suppression : ' . $e->getMessage());
-        }
+        return back()->with('success', "« $nom » a ete effacee definitivement.");
     }
 
     // METHODE MANQUANTE: edit() - Nécessaire pour resource controller ou route existante

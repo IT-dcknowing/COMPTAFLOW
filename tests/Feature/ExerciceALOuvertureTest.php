@@ -256,7 +256,11 @@ class ExerciceALOuvertureTest extends TestCase
             $table->timestamp('selflow_sync_key_precedente_expire_at')->nullable();
             $table->timestamp('selflow_sync_key_rotated_at')->nullable();
             $table->timestamps();
-        });
+                    // La corbeille : une entreprise supprimee reste recuperable
+            // trente jours. Le modele porte SoftDeletes, la table doit
+            // donc offrir la colonne.
+            $table->softDeletes();
+});
 
         Schema::create('treasury_categories', function (Blueprint $table) {
             $table->id();

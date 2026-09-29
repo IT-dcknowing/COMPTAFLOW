@@ -1427,6 +1427,22 @@ const saisieGrille = (() => {
       .toLowerCase().trim();
   }
 
+  const NOMS_DE_MOIS = {
+    1: 'janvier', 2: 'février', 3: 'mars', 4: 'avril', 5: 'mai', 6: 'juin',
+    7: 'juillet', 8: 'août', 9: 'septembre', 10: 'octobre', 11: 'novembre', 12: 'décembre',
+  };
+
+  // Un clic sur un journal ou un mois annoncé dans la liste vide y emmène.
+  document.addEventListener('click', function (e) {
+    const bouton = e.target.closest('[data-vers]');
+    if (!bouton) return;
+    const champ = document.getElementById(bouton.dataset.vers);
+    if (!champ) return;
+    champ.value = bouton.dataset.valeur;
+    champ.dispatchEvent(new Event('change', { bubbles: true }));
+    rafraichirListe();
+  });
+
   // Mois (rang 1) ou jour (rang 2) d'une date AAAA-MM-JJ, en nombre.
   function partieDeDate(date, rang) {
     const p = String(date || '').split('-');
@@ -1549,25 +1565,41 @@ const saisieGrille = (() => {
           return true;
         });
         const ailleurs = memeFiltresAilleurs.filter(e => journalId && e.code_journal_id != journalId);
-        const autreMois = memeFiltresAilleurs.filter(e => moisVal && partieDeDate(e.date, 1) != moisVal).length;
+        const dAutresMois = memeFiltresAilleurs.filter(e => moisVal && partieDeDate(e.date, 1) != moisVal);
 
-        // Nommer les journaux : « 12 dans un autre journal » oblige a les
-        // essayer un par un ; « 12 dans CAI1, BQ02 » dit ou aller.
-        const parJournal = {};
-        ailleurs.forEach(e => {
-          const nom = e.code_journal || ('journal ' + e.code_journal_id);
-          parJournal[nom] = (parJournal[nom] || 0) + 1;
-        });
-        const nomsJournaux = Object.entries(parJournal)
-          .sort((a, b) => b[1] - a[1])
-          .map(([nom, n]) => nom + ' (' + n + ')');
+        // Nommer journaux et mois, et les rendre cliquables : « 12 ailleurs »
+        // oblige a essayer un par un ; « CAI1 (8) » y mene en un clic.
+        const compter = (liste, cle) => {
+          const par = {};
+          liste.forEach(e => {
+            const k = cle(e);
+            if (k.valeur === null || k.valeur === undefined || k.valeur === '') return;
+            par[k.valeur] = par[k.valeur] || { nom: k.nom, n: 0 };
+            par[k.valeur].n++;
+          });
+          return Object.entries(par).sort((a, b) => b[1].n - a[1].n);
+        };
+
+        const boutons = (entrees, champ) => entrees.map(([valeur, d]) =>
+          `<button type="button" class="btn btn-link btn-sm p-0 align-baseline"
+                   style="font-size:inherit" data-vers="${champ}" data-valeur="${valeur}"
+                   title="Voir ces écritures">${d.nom} (${d.n})</button>`).join(', ');
+
+        const journaux = compter(ailleurs, e => ({
+          valeur: e.code_journal_id, nom: e.code_journal || ('journal ' + e.code_journal_id),
+        }));
+        const mois = compter(dAutresMois, e => ({
+          valeur: partieDeDate(e.date, 1), nom: NOMS_DE_MOIS[partieDeDate(e.date, 1)] || '',
+        }));
 
         const pistes = [];
-        if (nomsJournaux.length) {
-          pistes.push(ailleurs.length + ' dans ' + (nomsJournaux.length > 1 ? 'les journaux ' : 'le journal ')
-            + nomsJournaux.join(', '));
+        if (journaux.length) {
+          pistes.push(ailleurs.length + ' dans ' + (journaux.length > 1 ? 'les journaux ' : 'le journal ')
+            + boutons(journaux, 'code_journal_id'));
         }
-        if (autreMois) pistes.push(autreMois + ' sur un autre mois');
+        if (mois.length) {
+          pistes.push(dAutresMois.length + ' en ' + boutons(mois, 'mois_ecriture'));
+        }
         if (pistes.length) {
           message += ' — mais ' + pistes.join(', ') + '.';
         }

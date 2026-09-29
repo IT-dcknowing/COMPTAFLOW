@@ -915,6 +915,22 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
     Route::get('/companies/{company}/apercu-suppression', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'apercuSuppression'])->name('superadmin.companies.apercu_suppression');
     Route::delete('/companies/{company}', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'destroy'])->name('superadmin.companies.destroy');
 
+    // Corbeille : une entreprise supprimee reste recuperable trente jours.
+    // Mot de passe du compte connecte.
+    Route::get('/superadmin/mot-de-passe', [\App\Http\Controllers\Super\SuperAdminMotDePasseController::class, 'formulaire'])->name('superadmin.mot_de_passe');
+    Route::post('/superadmin/mot-de-passe', [\App\Http\Controllers\Super\SuperAdminMotDePasseController::class, 'enregistrer'])->name('superadmin.mot_de_passe.enregistrer');
+
+    // Affectations : rattacher des personnes a des comptabilites et a des cabinets.
+    Route::get('/superadmin/affectations', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'index'])->name('superadmin.affectations');
+    Route::post('/superadmin/affectations/comptabilite', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'affecterAUneComptabilite'])->name('superadmin.affectations.comptabilite');
+    Route::delete('/superadmin/affectations/comptabilite', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'retirerDUneComptabilite'])->name('superadmin.affectations.comptabilite.retirer');
+    Route::post('/superadmin/affectations/cabinet', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'affecterAUnCabinet'])->name('superadmin.affectations.cabinet');
+    Route::delete('/superadmin/affectations/cabinet', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'retirerDUnCabinet'])->name('superadmin.affectations.cabinet.retirer');
+
+    Route::get('/superadmin/corbeille', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'corbeille'])->name('superadmin.corbeille');
+    Route::post('/superadmin/corbeille/{id}/restaurer', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'restaurer'])->name('superadmin.corbeille.restaurer');
+    Route::delete('/superadmin/corbeille/{id}', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'supprimerDefinitivement'])->name('superadmin.corbeille.definitif');
+
     // Modification Habilitations (Super Admin)
     Route::get('/superadmin/habilitations', [\App\Http\Controllers\Super\SuperAdminHabilitationController::class, 'index'])->name('superadmin.habilitations.index');
     Route::post('/superadmin/habilitations/update/{user}', [\App\Http\Controllers\Super\SuperAdminHabilitationController::class, 'update'])->name('superadmin.habilitations.update');
