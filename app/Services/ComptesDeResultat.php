@@ -59,6 +59,39 @@ class ComptesDeResultat
     }
 
     /**
+     * Le compte à mouvementer, créé au besoin.
+     *
+     * Tous les plans ne portent pas de compte 1301 ni 1309. La clôture se
+     * contentait alors de NE PAS ÉCRIRE la ligne de résultat — silencieusement.
+     * Le report à nouveau partait donc déséquilibré du montant exact du
+     * résultat, sans que rien ne le signale.
+     *
+     * Le compte est désormais créé, à la longueur du dossier.
+     */
+    public static function pourOuCreer(int $companyId, float $resultat, ?int $userId = null): PlanComptable
+    {
+        $existant = self::pour($companyId, $resultat);
+
+        if ($existant) {
+            return $existant;
+        }
+
+        $digits = (int) (\App\Models\Company::find($companyId)?->account_digits ?? 8);
+        $prefixe = $resultat >= 0 ? self::BENEFICE : self::PERTE;
+
+        return PlanComptable::create([
+            'company_id' => $companyId,
+            'user_id' => $userId,
+            'numero_de_compte' => str_pad($prefixe, max($digits, strlen($prefixe)), '0', STR_PAD_RIGHT),
+            'intitule' => $resultat >= 0
+                ? "Resultat en instance d'affectation - Benefice"
+                : "Resultat en instance d'affectation - Perte",
+            'adding_strategy' => 'automatique',
+            'classe' => '1',
+        ]);
+    }
+
+    /**
      * Le sens et le montant à porter sur ce compte.
      *
      * @return array{debit: float, credit: float}

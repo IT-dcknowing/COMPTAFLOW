@@ -153,6 +153,58 @@ class ReparerLeResultatDesReportsTest extends TestCase
         $this->assertEqualsWithDelta(5000000, (float) $resultat->fresh()->credit, 0.01);
     }
 
+    public function test_une_ligne_de_resultat_absente_est_ajoutee(): void
+    {
+        // Le cas d'A & I VENTURE : la clôture n'a jamais écrit la ligne de
+        // résultat, faute de compte 1301 dans le plan. L'écart vaut alors le
+        // résultat lui-même, et non le double.
+        $this->ligne('RAN-2025', '57100000', 12072100, 0);
+
+        $this->reparer()->assertSuccessful();
+
+        $lignes = EcritureComptable::where('n_saisie', 'RAN-2025')->with('planComptable')->get();
+
+        $this->assertCount(2, $lignes, 'La ligne de résultat doit avoir été ajoutée.');
+
+        $resultat = $lignes->first(fn ($l) => str_starts_with($l->planComptable->numero_de_compte, '13'));
+        $this->assertNotNull($resultat);
+        $this->assertEqualsWithDelta(12072100, (float) $resultat->credit, 0.01, 'Un bénéfice va au crédit.');
+        $this->assertSame('13010000', $resultat->planComptable->numero_de_compte);
+        $this->assertTrue((bool) $resultat->is_ran);
+    }
+
+    public function test_le_compte_de_resultat_est_cree_sil_manque_au_plan(): void
+    {
+        // Un plan sans compte 13 du tout : la clôture passait son chemin.
+        PlanComptable::where('company_id', $this->company->id)
+            ->where('numero_de_compte', 'like', '13%')->delete();
+
+        $this->ligne('RAN-2025', '57100000', 0, 4000000);
+
+        $this->reparer()->assertSuccessful();
+
+        $cree = PlanComptable::where('company_id', $this->company->id)
+            ->where('numero_de_compte', 'like', '1309%')->first();
+
+        $this->assertNotNull($cree, 'Le compte de perte doit être créé.');
+
+        $lignes = EcritureComptable::where('n_saisie', 'RAN-2025')->get();
+        $this->assertEqualsWithDelta(
+            $lignes->sum(fn ($l) => (float) $l->debit),
+            $lignes->sum(fn ($l) => (float) $l->credit),
+            0.01
+        );
+    }
+
+    public function test_la_simulation_najoute_aucune_ligne(): void
+    {
+        $this->ligne('RAN-2025', '57100000', 12072100, 0);
+
+        $this->reparer(false)->assertSuccessful();
+
+        $this->assertCount(1, EcritureComptable::where('n_saisie', 'RAN-2025')->get());
+    }
+
     public function test_un_ecart_qui_ne_vient_pas_du_resultat_est_ecarte(): void
     {
         // Écart de 300 000, mais la ligne de résultat n'en vaut pas la moitié.

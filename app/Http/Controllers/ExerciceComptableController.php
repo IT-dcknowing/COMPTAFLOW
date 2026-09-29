@@ -439,9 +439,14 @@ public function index()
             // Le code ajoutait le resultat en positif : un benefice de cinq
             // millions partait au debit, et le report a nouveau se retrouvait
             // desequilibre de dix millions.
-            $compteResultat = \App\Services\ComptesDeResultat::pour($companyId, $montantResultat);
+            // Le compte est cree s'il manque au plan. Sans cela, la cloture
+            // sautait la ligne de resultat en silence, et le report partait
+            // desequilibre du montant exact du resultat.
+            if (abs($montantResultat) >= 0.01) {
+                $compteResultat = \App\Services\ComptesDeResultat::pourOuCreer(
+                    $companyId, $montantResultat, Auth::id()
+                );
 
-            if ($compteResultat) {
                 $soldes[$compteResultat->id] = ($soldes[$compteResultat->id] ?? 0) - $montantResultat;
             }
 

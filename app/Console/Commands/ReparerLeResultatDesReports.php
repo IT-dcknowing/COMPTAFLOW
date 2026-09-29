@@ -58,8 +58,9 @@ class ReparerLeResultatDesReports extends Command
             ->where('n_saisie', 'like', 'RAN-%')
             ->where('reference_piece', 'like', 'RAN-%')
             ->with('planComptable:id,numero_de_compte,intitule')
-            ->get(['id', 'company_id', 'exercices_comptables_id', 'n_saisie', 'plan_comptable_id',
-                   'date', 'debit', 'credit']);
+            ->get(['id', 'company_id', 'exercices_comptables_id', 'n_saisie', 'n_saisie_user',
+                   'reference_piece', 'description_operation', 'code_journal_id', 'user_id',
+                   'plan_comptable_id', 'date', 'debit', 'credit']);
 
         if ($lignes->isEmpty()) {
             $this->info('Aucun report produit par la clôture : rien à réparer.');
@@ -107,9 +108,50 @@ class ReparerLeResultatDesReports extends Command
             $ligneResultat = $duLot->first(fn ($e) => $e->planComptable
                 && ComptesDeResultat::estCompteDeResultat($e->planComptable->numero_de_compte));
 
+            // Deuxième forme du défaut, la plus discrète : la ligne de
+            // résultat n'a JAMAIS été écrite. Le plan du dossier ne portait
+            // aucun compte 1301 ni 1309, et la clôture passait son chemin sans
+            // rien dire. Le report part alors déséquilibré du montant exact du
+            // résultat — et non du double.
             if (!$ligneResultat) {
-                $this->warn('    → aucune ligne sur un compte de classe 13 : écart inexpliqué, rien touché.');
-                $refuses++;
+                // La somme des soldes de bilan VAUT le resultat : un ecart
+                // debiteur est donc un benefice, qui se porte au credit.
+                $resultat = $ecart;
+                $modele = $duLot->first();
+
+                $this->line(sprintf('    ligne de résultat ABSENTE : le plan ne portait ni 1301 ni 1309.'));
+                $this->line(sprintf('    à ajouter : %s au %s (%s de %s)',
+                    number_format(abs($ecart), 0, ',', ' '),
+                    $ecart > 0 ? 'CRÉDIT' : 'DÉBIT',
+                    $resultat >= 0 ? 'bénéfice' : 'perte',
+                    number_format(abs($resultat), 0, ',', ' ')));
+
+                if ($appliquer) {
+                    $compte = ComptesDeResultat::pourOuCreer((int) $companyId, $resultat, $modele->user_id ?? null);
+                    $sens = ComptesDeResultat::sens($resultat);
+
+                    EcritureComptable::create([
+                        'company_id' => $companyId,
+                        'code_journal_id' => $modele->code_journal_id,
+                        'user_id' => $modele->user_id,
+                        'exercices_comptables_id' => $exerciceId,
+                        'date' => $modele->date,
+                        'n_saisie' => $numero,
+                        'n_saisie_user' => $modele->n_saisie_user,
+                        'reference_piece' => $modele->reference_piece,
+                        'description_operation' => $modele->description_operation,
+                        'plan_comptable_id' => $compte->id,
+                        'debit' => $sens['debit'],
+                        'credit' => $sens['credit'],
+                        'statut' => 'approved',
+                        'is_ran' => true,
+                        'plan_analytique' => 0,
+                    ]);
+
+                    $this->line('    compte utilisé : ' . $compte->numero_de_compte . ' — ' . $compte->intitule);
+                }
+
+                $reparees++;
                 continue;
             }
 
