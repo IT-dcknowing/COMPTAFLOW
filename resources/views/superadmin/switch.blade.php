@@ -141,7 +141,10 @@
                             'corps' => '#corpsSwitch',
                             'nom' => 'entreprises',
                             'filtres' => [
-                                ['cle' => 'compagnie', 'libelle' => 'Entreprise', 'type' => 'texte', 'serveur' => 'search'],
+                                ['cle' => 'compagnie', 'libelle' => 'Chercher', 'type' => 'texte', 'serveur' => 'search'],
+                                ['cle' => 'entreprise', 'libelle' => 'Entreprise', 'type' => 'liste',
+                                 'serveur' => 'company_id',
+                                 'options' => $allCompanies->pluck('company_name', 'id')->all()],
                                 ['cle' => 'type', 'libelle' => 'Type', 'type' => 'liste'],
                                 ['cle' => 'statut', 'libelle' => 'Statut', 'type' => 'liste'],
                             ],

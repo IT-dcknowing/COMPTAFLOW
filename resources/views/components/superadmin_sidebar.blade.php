@@ -105,6 +105,26 @@
                 <span>Liaisons SELFLOW</span>
             </a>
 
+            <a href="{{ route('superadmin.affectations') }}" class="menu-link-new {{ request()->routeIs('superadmin.affectations*') ? 'active' : '' }}">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Affectations</span>
+            </a>
+
+            <a href="{{ route('superadmin.archives') }}" class="menu-link-new {{ request()->routeIs('superadmin.archives*') ? 'active' : '' }}">
+                <i class="fa-solid fa-box-archive"></i>
+                <span>Archive des suppressions</span>
+            </a>
+
+            <a href="{{ route('superadmin.corbeille') }}" class="menu-link-new {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
+                <i class="fa-solid fa-trash-can-arrow-up"></i>
+                <span>Corbeille</span>
+            </a>
+
+            <a href="{{ route('superadmin.mot_de_passe') }}" class="menu-link-new {{ request()->routeIs('superadmin.mot_de_passe*') ? 'active' : '' }}">
+                <i class="fa-solid fa-key"></i>
+                <span>Mon mot de passe</span>
+            </a>
+
 
             {{-- SECTION : CRÉATION RAPIDE --}}
             <div class="menu-section-header mt-4">Création Rapide</div>

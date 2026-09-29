@@ -65,6 +65,16 @@
     }
     #soldesJournal tbody td + td { border-left: 1px solid #cbd5e1; }
     #soldesJournal tbody td .sens { font-weight: 600; color: #64748b; margin-left: 0.18rem; }
+    #soldesJournal thead th small {
+        display: block;
+        font-size: 0.52rem;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        color: #94a3b8;
+    }
+    #soldesJournal thead th.entete-ailleurs, #soldesJournal tbody td[data-colonne="ailleurs"] { background: #f8fafc; }
+    #soldesJournal tbody td[data-colonne="ailleurs"] { color: #64748b; font-weight: 600; }
     #soldesJournal tbody tr.total { background: #e0f2fe; }
     #soldesJournal tbody tr.total th, #soldesJournal tbody tr.total td { font-weight: 800; }
     #soldesJournal tbody tr.total td[data-colonne="nouveau"] { color: #0c4a6e; }
@@ -78,8 +88,10 @@
             <tr>
                 <th id="soldesJournalTitre">Journal</th>
                 <th id="soldesJournalEnteteAncien">Solde précédent</th>
-                <th>Débit</th>
-                <th>Crédit</th>
+                <th class="entete-ici">Débit <small>ce journal</small></th>
+                <th class="entete-ici">Crédit <small>ce journal</small></th>
+                <th class="entete-ailleurs">Débit <small>autres journaux</small></th>
+                <th class="entete-ailleurs">Crédit <small>autres journaux</small></th>
                 <th>Nouveau solde</th>
             </tr>
         </thead>
@@ -117,8 +129,10 @@
             + '<th title="' + (sousTitre || titre).replace(/"/g, '') + '">' + titre
             + (sousTitre ? ' <small>' + sousTitre + '</small>' : '') + '</th>'
             + cellule(solde(l.ancien))
-            + cellule(montant(l.debit))
-            + cellule(montant(l.credit))
+            + cellule(montant(l.debit_ici), 'ici')
+            + cellule(montant(l.credit_ici), 'ici')
+            + cellule(montant(l.debit_ailleurs), 'ailleurs')
+            + cellule(montant(l.credit_ailleurs), 'ailleurs')
             + cellule(solde(l.nouveau), 'nouveau')
             + '</tr>';
     }
@@ -151,19 +165,23 @@
 
             // Le titre dit exactement ce qui a été calculé.
             document.getElementById('soldesJournalTitre').textContent =
-                json.journal + (json.tous_journaux ? ' · tous journaux' : ' · ce journal');
+                json.journal + (json.tous_journaux ? ' · soldes des comptes' : ' · totaux du journal');
             document.getElementById('soldesJournalEnteteAncien').textContent =
                 json.libelle_ancien || 'Solde précédent';
             cadre.title = 'Période du ' + json.periode[0] + ' au ' + json.periode[1]
                 + (json.tous_journaux
-                    ? ' — soldes de ces comptes, tous journaux confondus : à recouper avec la balance.'
+                    ? ' — le solde d'un compte se lit sur tous les journaux, sinon il ne se recoupe '
+                      + 'plus avec la balance. Les colonnes disent ce qui vient de ce journal et ce qui '
+                      + 'vient des autres.'
                     : ' — totaux de ce journal.');
 
             const comptes = json.comptes || [];
             const total = {
                 ancien: json.ancien_solde,
-                debit: json.mouvements.debit,
-                credit: json.mouvements.credit,
+                debit_ici: json.mouvements.debit_ici,
+                credit_ici: json.mouvements.credit_ici,
+                debit_ailleurs: json.mouvements.debit_ailleurs,
+                credit_ailleurs: json.mouvements.credit_ailleurs,
                 nouveau: json.nouveau_solde,
             };
 

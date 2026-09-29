@@ -52,7 +52,7 @@
               style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
             <div>
                 <label class="d-block text-uppercase" style="font-size:.62rem;font-weight:800;color:#64748b;">Dossier</label>
-                <select name="company_id" class="form-select form-select-sm no-search" style="min-width:230px;border-radius:10px;">
+                <select name="company_id" class="form-select form-select-sm" style="min-width:230px;border-radius:10px;">
                     <option value="">Tous les dossiers</option>
                     @foreach($parDossier as $d)
                         <option value="{{ $d['company_id'] }}" @selected(request('company_id') == $d['company_id'])>
@@ -63,7 +63,7 @@
             </div>
             <div>
                 <label class="d-block text-uppercase" style="font-size:.62rem;font-weight:800;color:#64748b;">Type</label>
-                <select name="module" class="form-select form-select-sm no-search" style="min-width:170px;border-radius:10px;">
+                <select name="module" class="form-select form-select-sm" style="min-width:170px;border-radius:10px;">
                     <option value="">Tous les types</option>
                     @foreach($modules as $m)
                         <option value="{{ $m }}" @selected(request('module') === $m)>{{ $m }}</option>

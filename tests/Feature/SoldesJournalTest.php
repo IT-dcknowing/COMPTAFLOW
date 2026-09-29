@@ -161,6 +161,60 @@ class SoldesJournalTest extends TestCase
         );
     }
 
+    public function test_les_mouvements_disent_de_quel_journal_ils_viennent(): void
+    {
+        // Le cœur du malentendu : le cadre annonçait un journal et montrait des
+        // montants venus de partout, sans le dire. Le solde reste celui du
+        // compte entier — sinon il ne se recoupe plus avec la balance — mais
+        // chaque mouvement annonce désormais sa provenance.
+        $this->piece($this->caisse, '2026-03-05', [
+            [$this->compteCaisse, 100000, 0],
+            [$this->compteWave, 0, 100000],
+        ]);
+
+        $this->piece($this->od, '2026-03-12', [
+            [$this->compteAchats, 40000, 0],
+            [$this->compteCaisse, 0, 40000],
+        ]);
+
+        $json = $this->soldes($this->caisse, 3);
+        $caisse = collect($json['comptes'])->firstWhere('numero', '57100000');
+
+        $this->assertEqualsWithDelta(100000, $caisse['debit_ici'], 0.01,
+            "L'entrée est passée par le journal ouvert.");
+        $this->assertEqualsWithDelta(0, $caisse['credit_ici'], 0.01);
+        $this->assertEqualsWithDelta(40000, $caisse['credit_ailleurs'], 0.01,
+            'La sortie est passée par les opérations diverses.');
+
+        // Et le solde, lui, tient compte des deux.
+        $this->assertEqualsWithDelta(60000, $caisse['nouveau'], 0.01);
+    }
+
+    public function test_les_totaux_separent_aussi_les_deux_provenances(): void
+    {
+        $this->piece($this->caisse, '2026-03-05', [
+            [$this->compteCaisse, 100000, 0],
+            [$this->compteWave, 0, 100000],
+        ]);
+        $this->piece($this->od, '2026-03-12', [
+            [$this->compteAchats, 40000, 0],
+            [$this->compteCaisse, 0, 40000],
+        ]);
+
+        $json = $this->soldes($this->caisse, 3);
+
+        $this->assertEqualsWithDelta(100000, $json['mouvements']['debit_ici'], 0.01);
+        $this->assertEqualsWithDelta(100000, $json['mouvements']['credit_ici'], 0.01);
+        $this->assertEqualsWithDelta(40000, $json['mouvements']['credit_ailleurs'], 0.01);
+
+        // Les deux provenances réunies font le mouvement total.
+        $this->assertEqualsWithDelta(
+            $json['mouvements']['debit_ici'] + $json['mouvements']['debit_ailleurs'],
+            $json['mouvements']['debit'],
+            0.01
+        );
+    }
+
     public function test_chaque_compte_a_sa_ligne(): void
     {
         $this->piece($this->caisse, '2026-03-05', [

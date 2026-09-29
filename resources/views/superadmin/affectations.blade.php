@@ -56,7 +56,7 @@
                                     @csrf
                                     <div class="mb-3">
                                         <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">Comptabilité</label>
-                                        <select name="company_id" class="form-select form-select-sm no-search" required
+                                        <select name="company_id" class="form-select form-select-sm" required
                                                 style="border-radius:10px;" onchange="this.form.dataset.choisie = this.value;">
                                             <option value="">— Choisir la comptabilité —</option>
                                             @foreach($entreprises as $e)
@@ -89,7 +89,7 @@
 
                                     <div class="mb-3">
                                         <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">Rôle sur ce dossier</label>
-                                        <select name="role" class="form-select form-select-sm no-search" required style="border-radius:10px;">
+                                        <select name="role" class="form-select form-select-sm" required style="border-radius:10px;">
                                             <option value="comptable">Comptable — saisie et états</option>
                                             <option value="admin">Administrateur — configuration comprise</option>
                                         </select>
@@ -153,7 +153,7 @@
                                     @csrf
                                     <div class="mb-3">
                                         <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">Cabinet</label>
-                                        <select name="cabinet_id" class="form-select form-select-sm no-search" required style="border-radius:10px;">
+                                        <select name="cabinet_id" class="form-select form-select-sm" required style="border-radius:10px;">
                                             <option value="">— Choisir le cabinet —</option>
                                             @foreach($cabinets as $c)
                                                 <option value="{{ $c->id }}" @selected($cabinetChoisi == $c->id)>

@@ -1414,6 +1414,7 @@ class EcritureComptableController extends Controller
 
         $lignes = [];
         $totalAncien = $totalDebit = $totalCredit = 0.0;
+        $totalDebitIci = $totalCreditIci = $totalDebitAilleurs = $totalCreditAilleurs = 0.0;
 
         if ($comptesLus->isNotEmpty()) {
             $ids = $comptesLus->pluck('id');
@@ -1425,21 +1426,43 @@ class EcritureComptableController extends Controller
                 ->selectRaw('plan_comptable_id, COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')
                 ->get()->keyBy('plan_comptable_id');
 
-            $pendant = $surLesComptes()
-                ->whereIn('plan_comptable_id', $ids)
-                ->whereDate('date', '>=', $veille)
-                ->whereDate('date', '<=', $jusqua)
-                ->groupBy('plan_comptable_id')
-                ->selectRaw('plan_comptable_id, COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')
-                ->get()->keyBy('plan_comptable_id');
+            // Les mouvements du mois, separes en deux : ceux passes par le
+            // journal ouvert, et ceux passes ailleurs.
+            //
+            // Le cadre annoncait un journal et montrait des montants tous
+            // journaux confondus, sans le dire. Le solde, lui, DOIT rester
+            // celui du compte entier — sinon il ne se recoupe plus avec la
+            // balance. Mais on montre desormais d'ou vient chaque mouvement.
+            $mouvements = function (bool $duJournalOuvert) use ($surLesComptes, $ids, $veille, $jusqua, $journal) {
+                return $surLesComptes()
+                    ->whereIn('plan_comptable_id', $ids)
+                    ->whereDate('date', '>=', $veille)
+                    ->whereDate('date', '<=', $jusqua)
+                    ->where(fn ($q) => $duJournalOuvert
+                        ? $q->where('code_journal_id', $journal->id)
+                        : $q->where('code_journal_id', '!=', $journal->id))
+                    ->groupBy('plan_comptable_id')
+                    ->selectRaw('plan_comptable_id, COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')
+                    ->get()->keyBy('plan_comptable_id');
+            };
+
+            $ici = $mouvements(true);
+            $ailleurs = $mouvements(false);
 
             foreach ($comptesLus as $c) {
                 $a = $avant->get($c->id);
-                $p = $pendant->get($c->id);
+                $i = $ici->get($c->id);
+                $ail = $ailleurs->get($c->id);
 
                 $ancien = round((float) ($a->debit ?? 0) - (float) ($a->credit ?? 0), 2);
-                $debit = round((float) ($p->debit ?? 0), 2);
-                $credit = round((float) ($p->credit ?? 0), 2);
+
+                $debitIci = round((float) ($i->debit ?? 0), 2);
+                $creditIci = round((float) ($i->credit ?? 0), 2);
+                $debitAilleurs = round((float) ($ail->debit ?? 0), 2);
+                $creditAilleurs = round((float) ($ail->credit ?? 0), 2);
+
+                $debit = round($debitIci + $debitAilleurs, 2);
+                $credit = round($creditIci + $creditAilleurs, 2);
 
                 $nouveau = round($ancien + $debit - $credit, 2);
 
@@ -1457,12 +1480,20 @@ class EcritureComptableController extends Controller
                     'ancien' => $ancien,
                     'debit' => $debit,
                     'credit' => $credit,
+                    'debit_ici' => $debitIci,
+                    'credit_ici' => $creditIci,
+                    'debit_ailleurs' => $debitAilleurs,
+                    'credit_ailleurs' => $creditAilleurs,
                     'nouveau' => $nouveau,
                 ];
 
                 $totalAncien += $ancien;
                 $totalDebit += $debit;
                 $totalCredit += $credit;
+                $totalDebitIci += $debitIci;
+                $totalCreditIci += $creditIci;
+                $totalDebitAilleurs += $debitAilleurs;
+                $totalCreditAilleurs += $creditAilleurs;
             }
         } else {
             // Journal sans compte de trésorerie : on lit le journal lui-même.
@@ -1472,8 +1503,8 @@ class EcritureComptableController extends Controller
                 ->selectRaw('COALESCE(SUM(debit), 0) AS debit, COALESCE(SUM(credit), 0) AS credit')->first();
 
             $totalAncien = (float) $avant->debit - (float) $avant->credit;
-            $totalDebit = (float) $pendant->debit;
-            $totalCredit = (float) $pendant->credit;
+            $totalDebit = $totalDebitIci = (float) $pendant->debit;
+            $totalCredit = $totalCreditIci = (float) $pendant->credit;
         }
 
         $totalAncien = round($totalAncien, 2);
@@ -1491,7 +1522,14 @@ class EcritureComptableController extends Controller
             'comptes' => $lignes,
             // Conservés pour les appels qui ne lisent que le total.
             'ancien_solde' => $totalAncien,
-            'mouvements' => ['debit' => $totalDebit, 'credit' => $totalCredit],
+            'mouvements' => [
+                'debit' => $totalDebit,
+                'credit' => $totalCredit,
+                'debit_ici' => round($totalDebitIci, 2),
+                'credit_ici' => round($totalCreditIci, 2),
+                'debit_ailleurs' => round($totalDebitAilleurs, 2),
+                'credit_ailleurs' => round($totalCreditAilleurs, 2),
+            ],
             'nouveau_solde' => round($totalAncien + $totalDebit - $totalCredit, 2),
         ]);
     }

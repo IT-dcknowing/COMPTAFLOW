@@ -11,7 +11,12 @@
     Variables :
       $corps   — sélecteur du <tbody> filtré
       $filtres — liste de ['cle', 'libelle', 'type' => 'texte'|'liste', 'mode' => 'debut'|'contient',
-                           'serveur' => '<nom du paramètre>']
+                           'serveur' => '<nom du paramètre>', 'options' => [valeur => libellé]]
+
+    Une liste qui porte 'options' ET 'serveur' ne filtre pas l'écran : elle
+    recharge la page avec le choix. C'est ce qu'il faut pour désigner une
+    entreprise dans un tableau paginé — la liste vient du serveur, et le choix
+    y retourne.
       $nom     — ce que comptent les lignes (« comptes », « tiers »…)
 
     Un filtre marqué « serveur » ne filtre pas l'écran : il recharge la page avec
@@ -133,8 +138,13 @@
                         <input type="text" class="form-control liste-recherche" autocomplete="off" placeholder="Rechercher…">
                         <div class="liste-options"></div>
                     </div>
-                    <select id="{{ $idFiltre }}_{{ $filtre['cle'] }}" class="no-search liste-source" data-filtre="{{ $filtre['cle'] }}" data-type="liste" hidden>
+                    <select id="{{ $idFiltre }}_{{ $filtre['cle'] }}" class="no-search liste-source"
+                            data-filtre="{{ $filtre['cle'] }}" data-type="liste"
+                            @if(!empty($filtre['serveur'])) data-serveur="{{ $filtre['serveur'] }}" @endif hidden>
                         <option value="">Tous</option>
+                        @foreach(($filtre['options'] ?? []) as $valeur => $libelle)
+                            <option value="{{ $valeur }}" @selected((string) request($filtre['serveur'] ?? '') === (string) $valeur)>{{ $libelle }}</option>
+                        @endforeach
                     </select>
                 </div>
             @else
@@ -178,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Les listes proposent « Tous » puis les valeurs présentes dans le tableau.
-    champs.filter(c => c.dataset.type === 'liste').forEach(function (liste) {
+    champs.filter(c => c.dataset.type === 'liste' && !c.dataset.serveur).forEach(function (liste) {
         const cle = cleDe(liste);
         const valeurs = [...new Set(lignes.map(l => (l.tr.dataset[cle] || '').trim()).filter(Boolean))]
             .sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
@@ -238,7 +248,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function rechercherAuServeur() {
         const url = new URL(window.location.href);
         champsServeur.forEach(function (c) {
-            const valeur = c.value.trim();
+            const valeur = (c.value || '').trim();
             if (valeur) { url.searchParams.set(c.dataset.serveur, valeur); }
             else { url.searchParams.delete(c.dataset.serveur); }
         });
@@ -247,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     let minuterieServeur = null;
-    champsServeur.forEach(function (c) {
+    champsServeur.filter(c => c.dataset.type === 'texte').forEach(function (c) {
         c.classList.toggle('filtre-actif', c.value.trim() !== '');
         c.addEventListener('input', function () {
             clearTimeout(minuterieServeur);
@@ -293,10 +303,24 @@ document.addEventListener('DOMContentLoaded', function () {
                     etiquette.textContent = o.text;
                     bouton.classList.toggle('filtre-actif', o.value !== '');
                     fermer();
+
+                    // Une liste servie par le serveur y retourne : le tableau
+                    // est pagine, l'ecran ne porte pas toutes les lignes.
+                    if (source.dataset.serveur) { rechercherAuServeur(); return; }
+
                     filtrer();
                 });
                 options.appendChild(b);
             });
+        }
+
+        // Une liste alimentee par le serveur arrive avec son choix deja fait.
+        if (source.value) {
+            const choisie = source.options[source.selectedIndex];
+            if (choisie) {
+                etiquette.textContent = choisie.text;
+                bouton.classList.add('filtre-actif');
+            }
         }
 
         function ouvrir() {
