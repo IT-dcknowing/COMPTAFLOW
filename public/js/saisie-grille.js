@@ -1537,8 +1537,30 @@ const saisieGrille = (() => {
     });
 
     if (listeBody) {
+      // Une liste vide sans explication laisse croire que les ecritures ont
+      // disparu. On dit ou elles sont : le cadre des soldes lit TOUS les
+      // journaux, cette liste n'affiche que le journal ouvert.
+      let message = 'Aucune écriture pour ces critères de filtre';
+      if (!lignes.length && ecritures.length) {
+        const memeFiltresAilleurs = ecritures.filter(e => {
+          if (fLibelle && !normaliser(e.description_operation).includes(fLibelle)) return false;
+          if (fCompte && !normaliser([e.compte_general, e.compte_general_intitule,
+              e.compte_tiers, e.compte_tiers_intitule].filter(Boolean).join(' ')).includes(fCompte)) return false;
+          return true;
+        });
+        const autreJournal = memeFiltresAilleurs.filter(e => journalId && e.code_journal_id != journalId).length;
+        const autreMois = memeFiltresAilleurs.filter(e => moisVal && partieDeDate(e.date, 1) != moisVal).length;
+
+        const pistes = [];
+        if (autreJournal) pistes.push(autreJournal + ' dans un autre journal');
+        if (autreMois) pistes.push(autreMois + ' sur un autre mois');
+        if (pistes.length) {
+          message += ' — mais ' + pistes.join(', ') + '.';
+        }
+      }
+
       listeBody.innerHTML = lignes.map(e => construireLigneHTML(e, desequilibreParGroupe[e.n_saisie], statutClasses, statutLabels)).join('')
-        || `<tr><td colspan="15" class="text-center text-muted py-4">Aucune écriture pour ces critères de filtre</td></tr>`;
+        || `<tr><td colspan="15" class="text-center text-muted py-4">${message}</td></tr>`;
 
       const container = document.getElementById('sageScrollContainer');
       if (container) {

@@ -188,60 +188,81 @@ class SuperAdminCompanyController extends Controller
     }
 
 
-    public function destroy(Company $company)
+    /**
+     * Ce que la suppression d'une entreprise va emporter.
+     *
+     * Sert a l'ecran de confirmation : on annonce avant, on n'explique pas
+     * apres. Les comptes utilisateurs n'y figurent pas — ils survivent.
+     *
+     * @return array<string, mixed>
+     */
+    public function apercuSuppression(Company $company)
     {
-        // Une comptabilite ne se jette pas avec sa fiche. La suppression
-        // emportait l'entreprise et ses utilisateurs, mais laissait les
-        // ecritures derriere : des dossiers entiers se retrouvaient sans fiche,
-        // invisibles dans l'application et impossibles a rouvrir, alors que
-        // leurs ecritures continuaient de peser dans les diagnostics.
-        $aSupprimer = Company::where('id', $company->id)
+        $ids = Company::where('id', $company->id)
             ->orWhere('parent_company_id', $company->id)
             ->pluck('id');
 
-        $nbEcritures = \App\Models\EcritureComptable::whereIn('company_id', $aSupprimer)->count();
+        return response()->json([
+            'entreprise' => $company->company_name,
+            'filiales' => max(0, $ids->count() - 1),
+            'ecritures' => \App\Models\EcritureComptable::whereIn('company_id', $ids)->count(),
+            'exercices' => \App\Models\ExerciceComptable::whereIn('company_id', $ids)->count(),
+            'journaux' => \App\Models\CodeJournal::whereIn('company_id', $ids)->count(),
+            'comptes' => \App\Models\PlanComptable::whereIn('company_id', $ids)->count(),
+            'utilisateurs' => User::whereIn('company_id', $ids)->count(),
+        ]);
+    }
 
-        if ($nbEcritures > 0) {
-            return back()->with('error', sprintf(
-                'Suppression impossible : « %s » porte %s ecriture(s) comptable(s). '
-                . 'Videz la comptabilite, ou desactivez l\'entreprise plutot que de la supprimer.',
-                $company->company_name, number_format($nbEcritures, 0, ',', ' ')
-            ));
-        }
-
+    public function destroy(Company $company)
+    {
         DB::beginTransaction();
         try {
-            // Tout ce qui part avec l'entreprise partage un même lot
-            // d'archive : l'écran des suppressions le montre comme une seule
-            // opération, et chaque ligne reste récupérable trente jours.
+            // Tout ce qui part avec l'entreprise partage un meme lot d'archive :
+            // l'ecran des suppressions le montre comme une seule operation, et
+            // chaque ligne reste recuperable trente jours.
             $lot = \App\Models\ArchivedRecord::nouveauLot();
 
-            // 1. Si c'est une mère, supprimer toutes les filles
-            if (!$company->parent_company_id) {
-                $children = Company::where('parent_company_id', $company->id)->get();
-                foreach($children as $child) {
-                    // Supprimer les utilisateurs de la fille
-                    \App\Services\SuppressionTracee::supprimer(
-                        User::where('company_id', $child->id), $lot);
-                    $child->delete();
-                }
-            }
+            $ids = Company::where('id', $company->id)
+                ->orWhere('parent_company_id', $company->id)
+                ->pluck('id');
 
-            // 2. Supprimer les utilisateurs de la compagnie elle-même
+            $nom = $company->company_name;
+
+            // Les COMPTES UTILISATEURS survivent a l'entreprise.
+            //
+            // La suppression les emportait : un collaborateur qui travaillait
+            // sur plusieurs dossiers perdait son acces a tous parce qu'un seul
+            // avait ete ferme. On coupe donc le rattachement — la personne
+            // reste, elle n'entre simplement plus dans ce dossier.
+            $liberes = User::whereIn('company_id', $ids)->update(['company_id' => null]);
+            DB::table('company_user')->whereIn('company_id', $ids)->delete();
+
+            // La comptabilite, elle, part avec la fiche : la laisser produisait
+            // des ecritures orphelines, sans entreprise pour les ouvrir.
+            $compte = \App\Models\EcritureComptable::whereIn('company_id', $ids)->count();
             \App\Services\SuppressionTracee::supprimer(
-                User::where('company_id', $company->id), $lot);
+                \App\Models\EcritureComptable::whereIn('company_id', $ids), $lot);
 
-            // 3. Supprimer la compagnie
+            \App\Models\ExerciceComptable::whereIn('company_id', $ids)->delete();
+            \App\Models\CodeJournal::whereIn('company_id', $ids)->delete();
+            \App\Models\PlanComptable::whereIn('company_id', $ids)->delete();
+
+            Company::whereIn('id', $ids)->where('id', '!=', $company->id)->delete();
             $company->delete();
 
             DB::commit();
-            return back()->with('success', "La compagnie {$company->company_name} et toutes ses dépendances ont été supprimées définitivement.");
+
+            return back()->with('success', sprintf(
+                '« %s » a ete supprimee avec sa comptabilite (%s ecriture(s)). '
+                . '%d compte(s) utilisateur ont ete conserves : ils n\'ont plus acces a ce dossier.',
+                $nom, number_format($compte, 0, ',', ' '), $liberes
+            ));
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Erreur lors de la suppression en cascade : ' . $e->getMessage());
+            return back()->with('error', 'Erreur lors de la suppression : ' . $e->getMessage());
         }
     }
-    
+
     // METHODE MANQUANTE: edit() - Nécessaire pour resource controller ou route existante
      public function edit($id)
     {

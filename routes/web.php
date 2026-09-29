@@ -903,6 +903,8 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
     Route::get('/superadmin/companies/{id}/edit', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'edit'])->name('superadmin.companies.edit');
     Route::put('/{company}/toggle', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'toggleStatus'])->name('toggle');
     Route::put('/companies/{company}/update', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'update'])->name('superadmin.companies.update');
+    // Ce que la suppression va emporter, pour l'annoncer avant de la faire.
+    Route::get('/companies/{company}/apercu-suppression', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'apercuSuppression'])->name('superadmin.companies.apercu_suppression');
     Route::delete('/companies/{company}', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'destroy'])->name('superadmin.companies.destroy');
 
     // Modification Habilitations (Super Admin)

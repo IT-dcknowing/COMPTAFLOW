@@ -254,7 +254,9 @@
                                                         data-bs-toggle="modal" data-bs-target="#editCompanyModal{{ $company->id }}">
                                                         <i class="fa-solid fa-pen-to-square"></i>
                                                     </button>
-                                                    <form action="{{ route('superadmin.companies.destroy', $company->id) }}" method="POST" class="inline" onsubmit="return confirm('Souhaitez-vous vraiment supprimer {{ $company->company_name }} ?');">
+                                                    <form action="{{ route('superadmin.companies.destroy', $company->id) }}" method="POST" class="inline form-suppression-entreprise"
+                                                            data-nom="{{ $company->company_name }}"
+                                                            data-apercu="{{ route('superadmin.companies.apercu_suppression', $company->id) }}">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="submit" class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
@@ -322,7 +324,9 @@
                                                             data-bs-toggle="modal" data-bs-target="#editCompanyModal{{ $subCompany->id }}">
                                                             <i class="fa-solid fa-pen-to-square text-[10px]"></i>
                                                         </button>
-                                                        <form action="{{ route('superadmin.companies.destroy', $subCompany->id) }}" method="POST" class="inline" onsubmit="return confirm('Souhaitez-vous vraiment supprimer {{ $subCompany->company_name }} ?');">
+                                                        <form action="{{ route('superadmin.companies.destroy', $subCompany->id) }}" method="POST" class="inline form-suppression-entreprise"
+                                                            data-nom="{{ $subCompany->company_name }}"
+                                                            data-apercu="{{ route('superadmin.companies.apercu_suppression', $subCompany->id) }}">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
@@ -557,5 +561,106 @@
             });
         }
     </script>
+
+{{-- Confirmation de suppression d'une entreprise.
+     On annonce ce qui va partir AVANT de le faire : la comptabilité s'en va
+     avec la fiche, les comptes utilisateurs restent. --}}
+<div class="modal fade" id="modaleSuppressionEntreprise" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border:0;border-radius:20px;padding:2rem;">
+            <div class="text-center mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center mb-3"
+                     style="width:56px;height:56px;border-radius:16px;background:#fee2e2;">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:#b91c1c;font-size:1.4rem;"></i>
+                </div>
+                <h1 class="h4 fw-bolder text-slate-900 mb-0">
+                    Supprimer <span style="color:#b91c1c;" id="suppNomEntreprise"></span>
+                </h1>
+            </div>
+
+            <div class="p-3 mb-3" style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;">
+                <p class="mb-2" style="font-size:.78rem;font-weight:800;color:#991b1b;">
+                    Ce qui sera supprimé, définitivement
+                </p>
+                <ul class="mb-0 ps-3" style="font-size:.78rem;color:#7f1d1d;line-height:1.6;" id="suppListePartante">
+                    <li>Chargement…</li>
+                </ul>
+            </div>
+
+            <div class="p-3 mb-4" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;">
+                <p class="mb-2" style="font-size:.78rem;font-weight:800;color:#166534;">
+                    Ce qui sera conservé
+                </p>
+                <ul class="mb-0 ps-3" style="font-size:.78rem;color:#14532d;line-height:1.6;">
+                    <li><strong id="suppNbUtilisateurs">0</strong> compte(s) utilisateur. Les personnes restent,
+                        elles n'ont simplement plus accès à ce dossier.</li>
+                    <li>Les écritures supprimées restent récupérables 30 jours depuis l'archive des suppressions.</li>
+                </ul>
+            </div>
+
+            <div class="d-grid gap-2" style="grid-template-columns:1fr 1fr;">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal"
+                        style="padding:.75rem;border-radius:12px;font-weight:700;color:#64748b;">Annuler</button>
+                <button type="button" id="suppConfirmer" class="btn"
+                        style="padding:.75rem;border-radius:12px;font-weight:700;background:#b91c1c;color:#fff;">
+                    Supprimer définitivement
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const fenetre = document.getElementById('modaleSuppressionEntreprise');
+    if (!fenetre || typeof bootstrap === 'undefined') return;
+
+    const boite = new bootstrap.Modal(fenetre);
+    const liste = document.getElementById('suppListePartante');
+    const nom = document.getElementById('suppNomEntreprise');
+    const nbUtilisateurs = document.getElementById('suppNbUtilisateurs');
+    const confirmer = document.getElementById('suppConfirmer');
+    let formulaire = null;
+
+    function compter(n, singulier, pluriel) {
+        return '<li><strong>' + new Intl.NumberFormat('fr-FR').format(n) + '</strong> '
+             + (n > 1 ? (pluriel || singulier + 's') : singulier) + '</li>';
+    }
+
+    document.querySelectorAll('.form-suppression-entreprise').forEach(function (f) {
+        f.addEventListener('submit', function (e) {
+            e.preventDefault();
+            formulaire = f;
+            nom.textContent = f.dataset.nom || '';
+            liste.innerHTML = '<li>Chargement…</li>';
+            nbUtilisateurs.textContent = '0';
+            boite.show();
+
+            fetch(f.dataset.apercu, { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) {
+                    if (!d) { liste.innerHTML = '<li>Décompte indisponible.</li>'; return; }
+                    let html = '';
+                    if (d.filiales > 0) html += compter(d.filiales, 'filiale');
+                    html += compter(d.ecritures, 'écriture comptable', 'écritures comptables');
+                    html += compter(d.exercices, 'exercice');
+                    html += compter(d.journaux, 'journal', 'journaux');
+                    html += compter(d.comptes, 'compte du plan comptable', 'comptes du plan comptable');
+                    liste.innerHTML = html;
+                    nbUtilisateurs.textContent = new Intl.NumberFormat('fr-FR').format(d.utilisateurs);
+                })
+                .catch(function () { liste.innerHTML = '<li>Décompte indisponible.</li>'; });
+        });
+    });
+
+    confirmer.addEventListener('click', function () {
+        if (!formulaire) return;
+        confirmer.disabled = true;
+        confirmer.textContent = 'Suppression…';
+        formulaire.submit();
+    });
+});
+</script>
+
 </body>
 </html>

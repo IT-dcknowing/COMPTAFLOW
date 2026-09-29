@@ -19,7 +19,12 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
 
         $this->hideSensitiveRequestDetails();
 
-        $isLocal = $this->app->environment('local');
+        // ATTENTION : cette application tourne en production avec APP_ENV=local.
+        // Se fier a l'environnement laisserait Telescope tout enregistrer sur
+        // le serveur — mots de passe compris — et ouvrirait /telescope a tout
+        // le monde. On exige donc un interrupteur explicite.
+        $isLocal = $this->app->environment('local')
+            && (bool) env('TELESCOPE_TOUT_ENREGISTRER', false);
 
         Telescope::filter(function (IncomingEntry $entry) use ($isLocal) {
             return $isLocal ||
@@ -36,7 +41,9 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
      */
     protected function hideSensitiveRequestDetails(): void
     {
-        if ($this->app->environment('local')) {
+        // Meme remarque : on ne masque PAS moins parce que l'environnement se
+        // dit local. Les jetons et mots de passe restent caches partout.
+        if ($this->app->environment('local') && (bool) env('TELESCOPE_TOUT_ENREGISTRER', false)) {
             return;
         }
 
@@ -57,9 +64,9 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
     protected function gate(): void
     {
         Gate::define('viewTelescope', function (User $user) {
-            return in_array($user->email, [
-                //
-            ]);
+            // Telescope montre chaque requete, chaque payload et chaque
+            // requete SQL du serveur. Seul un super administrateur y entre.
+            return method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin();
         });
     }
 }

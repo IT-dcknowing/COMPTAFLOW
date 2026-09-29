@@ -144,7 +144,10 @@
             const reponse = await fetch(adresse + '?' + params, { headers: { 'Accept': 'application/json' } });
             const json = await reponse.json();
             if (numero !== demande) return;           // une demande plus récente est partie entre-temps
-            if (!json.success) { cadre.classList.remove('visible'); return; }
+            if (!json.success) {
+                if (corps.innerHTML.trim() === '') cadre.classList.remove('visible');
+                return;
+            }
 
             // Le titre dit exactement ce qui a été calculé.
             document.getElementById('soldesJournalTitre').textContent =
@@ -177,7 +180,14 @@
             }
             corps.innerHTML = html;
         } catch (e) {
-            if (numero === demande) cadre.classList.remove('visible');
+            // Le cadre disparaissait au moindre accroc — session expirée,
+            // réseau lent, requête coupée — et donnait l'impression de ne pas
+            // tenir. Il garde maintenant ce qu'il montrait, en le disant.
+            if (numero === demande && corps.innerHTML.trim() === '') {
+                cadre.classList.remove('visible');
+            } else if (numero === demande) {
+                cadre.title = 'Chiffres momentanément indisponibles : ils datent du dernier calcul réussi.';
+            }
         } finally {
             if (numero === demande) cadre.classList.remove('chargement');
         }
