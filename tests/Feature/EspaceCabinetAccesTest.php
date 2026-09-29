@@ -42,6 +42,38 @@ class EspaceCabinetAccesTest extends TestCase
         return $this->actingAs($user)->get(route('accountant.space.switch', $company->id));
     }
 
+    /**
+     * La page elle-même doit s'afficher.
+     *
+     * Le refactor qui a unifié la règle d'accès avait supprimé une variable
+     * encore utilisée plus bas : « Undefined variable $cabinetGere », erreur
+     * 500 sur Mon Espace. Les tests d'alors n'ouvraient que switchCompany, pas
+     * la page. Celui-ci la charge.
+     */
+    public function test_la_page_mon_espace_saffiche(): void
+    {
+        $user = User::factory()->create();
+        $this->entreprise('Dossier Cree', ['user_id' => $user->id]);
+
+        $this->actingAs($user)->get(route('accountant.space'))->assertOk();
+    }
+
+    public function test_la_page_saffiche_pour_un_gerant_de_cabinet(): void
+    {
+        $user = User::factory()->create();
+        $cabinet = Cabinet::create(['nom' => 'Cabinet Gore', 'code' => 'CAB-' . uniqid(), 'user_id' => $user->id]);
+        $this->entreprise('Dossier Cabinet', ['cabinet_id' => $cabinet->id]);
+
+        $this->actingAs($user)->get(route('accountant.space'))->assertOk();
+    }
+
+    public function test_la_page_saffiche_pour_un_espace_vide(): void
+    {
+        $user = User::factory()->create(['company_id' => null]);
+
+        $this->actingAs($user)->get(route('accountant.space'))->assertOk();
+    }
+
     public function test_un_dossier_dont_je_suis_le_createur_souvre(): void
     {
         $user = User::factory()->create();

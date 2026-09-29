@@ -88,6 +88,10 @@ class AccountantSpaceController extends Controller
         $myCompanyIds = Company::where('user_id', $user->id)->pluck('id')->toArray();
         $allCompanyIds = $this->dossiersDeMonEspace($user);
 
+        // Le cabinet dont cet utilisateur est le gérant, s'il en tient un : la
+        // vue et l'encart d'informations s'en servent plus bas.
+        $cabinetGere = Cabinet::where('user_id', $user->id)->first();
+
         $companies = Company::with('admin')->whereIn('id', $allCompanyIds)->get();
 
         // Charger les KPIs pour chaque entreprise
