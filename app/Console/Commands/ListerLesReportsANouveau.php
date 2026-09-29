@@ -94,11 +94,14 @@ class ListerLesReportsANouveau extends Command
             ->pluck('intitule', 'id');
 
         $this->newLine();
-        $this->line('Colonnes : lignes reportées, total débit, total crédit, écart, drapeau.');
-        $this->line('Un report doit être équilibré et marqué. Sinon, voir plus bas.');
+        $this->line('Colonnes : origine, date, lignes, total débit, total crédit, état.');
+        $this->line('« clôture » : produit par la clôture de l\'exercice dans l\'application.');
+        $this->line('« saisi »   : entré à la main ou arrivé par import — son écart, s\'il y en a,');
+        $this->line('              ne vient pas du défaut de la clôture.');
 
         $dossiers = 0;
         $desequilibres = 0;
+        $ecartsSaisis = 0;
         $nonMarques = 0;
 
         foreach ($reports->groupBy('company_id') as $companyId => $duDossier) {
@@ -116,9 +119,17 @@ class ListerLesReportsANouveau extends Command
 
                 [$exerciceId, $numero] = explode('|', $cle, 2);
 
+                // La cloture signe ce qu'elle produit : numero « RAN-<annee> » ET
+                // reference « RAN-<exercice> ». Un report saisi a la main ou
+                // arrive par import n'a pas cette signature — et son ecart, s'il
+                // en a un, ne vient pas du defaut de la cloture.
+                $parLaCloture = str_starts_with($numero, 'RAN-')
+                    && $duLot->every(fn ($e) => str_starts_with((string) $e->reference_piece, 'RAN-'));
+
                 $aMontrer[] = [
                     'exercice' => $exercices[$exerciceId] ?? ('#' . $exerciceId),
                     'numero' => $numero,
+                    'cloture' => $parLaCloture,
                     'date' => $duLot->first()->date,
                     'lignes' => $duLot->count(),
                     'debit' => $debit,
@@ -127,7 +138,7 @@ class ListerLesReportsANouveau extends Command
                     'marque' => $marque,
                 ];
 
-                $desequilibres += abs($ecart) >= self::TOLERANCE ? 1 : 0;
+                $desequilibres += (abs($ecart) >= self::TOLERANCE && $parLaCloture) ? 1 : 0;
                 $nonMarques += $marque ? 0 : 1;
             }
 
@@ -141,6 +152,8 @@ class ListerLesReportsANouveau extends Command
                 mb_strimwidth($noms[$companyId] ?? '?', 0, 40, '…')));
 
             foreach ($aMontrer as $r) {
+                $ecartsSaisis += (abs($r['ecart']) >= self::TOLERANCE && !$r['cloture']) ? 1 : 0;
+
                 $etat = [];
                 if (abs($r['ecart']) >= self::TOLERANCE) {
                     $etat[] = 'ÉCART ' . number_format(abs($r['ecart']), 0, ',', ' ')
@@ -150,9 +163,10 @@ class ListerLesReportsANouveau extends Command
                     $etat[] = 'non marqué';
                 }
 
-                $texte = sprintf('      %-14s %-22s %s  %4d lignes   D %14s   C %14s%s',
+                $texte = sprintf('      %-14s %-22s %-9s %s  %4d lignes   D %14s   C %14s%s',
                     mb_strimwidth($r['exercice'], 0, 14, '…'),
                     $r['numero'],
+                    $r['cloture'] ? 'clôture' : 'saisi',
                     \Carbon\Carbon::parse($r['date'])->format('d/m/Y'),
                     $r['lignes'],
                     number_format($r['debit'], 0, ',', ' '),
@@ -174,10 +188,18 @@ class ListerLesReportsANouveau extends Command
 
         if ($desequilibres > 0) {
             $this->newLine();
-            $this->warn("$desequilibres report(s) ne sont pas équilibrés.");
-            $this->line("L'écart vaut le double du résultat de l'exercice clôturé : le bénéfice");
-            $this->line("partait au débit du compte de résultat au lieu du crédit. Ces reports-là");
-            $this->line('sont à reprendre à la main — la commande de marquage ne touche aucun montant.');
+            $this->warn("$desequilibres report(s) PRODUITS PAR LA CLÔTURE ne sont pas équilibrés.");
+            $this->line("Pour ceux-là, l'écart vaut le double du résultat de l'exercice clôturé : le");
+            $this->line("bénéfice partait au débit du compte de résultat au lieu du crédit.");
+            $this->line('Ils sont à reprendre à la main — aucune commande ne réécrit un montant.');
+        }
+
+        $autresEcarts = $ecartsSaisis;
+        if ($autresEcarts > 0) {
+            $this->newLine();
+            $this->line("$autresEcarts report(s) SAISIS OU IMPORTÉS ne sont pas équilibrés non plus,");
+            $this->line("mais pour une autre raison : la clôture ne les a pas produits. Ce sont des");
+            $this->line('écritures d\'ouverture incomplètes, à vérifier avec le bilan de clôture.');
         }
 
         $this->newLine();

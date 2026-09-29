@@ -20,6 +20,18 @@ trait HandlesTreasuryPosts
             return null;
         }
 
+        // Tous les comptes de classe 5 ne sont pas des caisses ni des banques.
+        // 58 est un compte de PASSAGE — les virements de fonds d'un compte a
+        // l'autre — et 59 porte des depreciations. Ni l'un ni l'autre ne se
+        // rapproche d'un releve : ils n'ont rien a faire dans la liste des
+        // postes de tresorerie, ou ils apparaissaient sous le nom
+        // « VIREMENT DE FONDS ».
+        foreach (['58', '59'] as $prefixe) {
+            if (str_starts_with($account->numero_de_compte, $prefixe)) {
+                return null;
+            }
+        }
+
         // 1. Chercher par plan_comptable_id exact
         $poste = CompteTresorerie::where('company_id', $companyId)
             ->where('plan_comptable_id', $planComptableId)

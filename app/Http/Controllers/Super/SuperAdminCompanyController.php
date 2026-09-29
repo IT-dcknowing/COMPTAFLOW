@@ -190,6 +190,25 @@ class SuperAdminCompanyController extends Controller
 
     public function destroy(Company $company)
     {
+        // Une comptabilite ne se jette pas avec sa fiche. La suppression
+        // emportait l'entreprise et ses utilisateurs, mais laissait les
+        // ecritures derriere : des dossiers entiers se retrouvaient sans fiche,
+        // invisibles dans l'application et impossibles a rouvrir, alors que
+        // leurs ecritures continuaient de peser dans les diagnostics.
+        $aSupprimer = Company::where('id', $company->id)
+            ->orWhere('parent_company_id', $company->id)
+            ->pluck('id');
+
+        $nbEcritures = \App\Models\EcritureComptable::whereIn('company_id', $aSupprimer)->count();
+
+        if ($nbEcritures > 0) {
+            return back()->with('error', sprintf(
+                'Suppression impossible : « %s » porte %s ecriture(s) comptable(s). '
+                . 'Videz la comptabilite, ou desactivez l\'entreprise plutot que de la supprimer.',
+                $company->company_name, number_format($nbEcritures, 0, ',', ' ')
+            ));
+        }
+
         DB::beginTransaction();
         try {
             // Tout ce qui part avec l'entreprise partage un même lot

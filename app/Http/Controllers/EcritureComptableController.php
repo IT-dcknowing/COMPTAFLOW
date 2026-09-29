@@ -1441,13 +1441,23 @@ class EcritureComptableController extends Controller
                 $debit = round((float) ($p->debit ?? 0), 2);
                 $credit = round((float) ($p->credit ?? 0), 2);
 
+                $nouveau = round($ancien + $debit - $credit, 2);
+
+                // Le compte regle sur le journal est suivi meme s'il ne bouge
+                // pas — mais une ligne entierement a zero n'apprend rien et
+                // laisse croire a un compte « qui a des montants sans
+                // ecritures ». On ne l'affiche pas.
+                if (abs($ancien) < 0.01 && abs($debit) < 0.01 && abs($credit) < 0.01) {
+                    continue;
+                }
+
                 $lignes[] = [
                     'numero' => $c->numero_de_compte,
                     'intitule' => trim((string) $c->intitule),
                     'ancien' => $ancien,
                     'debit' => $debit,
                     'credit' => $credit,
-                    'nouveau' => round($ancien + $debit - $credit, 2),
+                    'nouveau' => $nouveau,
                 ];
 
                 $totalAncien += $ancien;
