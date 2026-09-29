@@ -112,6 +112,17 @@ Route::get('/auth/google/{type}', [App\Http\Controllers\GoogleAuthController::cl
 // **********************************************
 // ROUTES DE L'ESPACE COMPTABLE (MIDDLEWARE 'auth' uniquement)
 // **********************************************
+// Jeton anti-rejeu frais, et etat de la session.
+//
+// Hors du groupe « auth » a dessein : deconnectee, la route repondrait par une
+// redirection vers la page de connexion, et la page appelante ne saurait pas
+// distinguer une session finie d'une coupure reseau. Elle repond donc toujours
+// en JSON, avec connecte a false le cas echeant.
+Route::get('/jeton-csrf', fn () => response()->json([
+    'token' => csrf_token(),
+    'connecte' => auth()->check(),
+]))->name('jeton.csrf');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/mon-espace', [App\Http\Controllers\AccountantSpaceController::class, 'index'])->name('accountant.space');
     Route::post('/mon-espace/company', [App\Http\Controllers\AccountantSpaceController::class, 'storeCompany'])->name('accountant.space.company.store');
@@ -324,14 +335,6 @@ Route::middleware(['auth', 'exercice.context'])->group(function () {
     Route::get('/ecritures/check-reference', [EcritureComptableController::class, 'checkReference'])->name('ecriture.check_reference');
     Route::get('/ecritures/soldes-journal', [EcritureComptableController::class, 'soldesJournal'])->name('ecriture.soldes_journal');
 
-    // Jeton anti-rejeu frais. Une page de saisie reste ouverte des heures ;
-    // passé la durée de vie de la session, l'enregistrement était refusé par un
-    // « CSRF token mismatch » et le travail en cours semblait perdu. La page
-    // redemande un jeton et rejoue sa requête une fois.
-    Route::get('/jeton-csrf', fn () => response()->json([
-        'token' => csrf_token(),
-        'connecte' => auth()->check(),
-    ]))->name('jeton.csrf');
     Route::delete('/ecritures/saisie/{n_saisie}', [EcritureComptableController::class, 'deleteBySaisie'])->name('ecriture.delete_saisie');
     Route::delete('/ecritures/delete-all', [EcritureComptableController::class, 'deleteAll'])->name('ecriture.delete_all');
 

@@ -43,13 +43,54 @@
         document.addEventListener(nom, function () { actif = true; }, { passive: true, capture: true });
     });
 
+    var deconnexionAnnoncee = false;
+
+    function annoncerDeconnexion() {
+        if (deconnexionAnnoncee) return;
+        deconnexionAnnoncee = true;
+
+        var texte = 'Votre session a pris fin. Reconnectez-vous pour continuer : '
+                  + 'ce qui est affiche a l'ecran n'est pas perdu, mais rien ne '
+                  + 'pourra etre enregistre tant que vous n'etes pas reconnecte.';
+
+        if (window.Swal) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Vous etes deconnecte',
+                text: texte,
+                confirmButtonText: 'Se reconnecter',
+                showCancelButton: true,
+                cancelButtonText: 'Rester sur la page',
+                allowOutsideClick: false,
+            }).then(function (choix) {
+                if (choix.isConfirmed) window.location.href = '/login';
+            });
+            return;
+        }
+
+        var bandeau = document.createElement('div');
+        bandeau.setAttribute('role', 'alert');
+        bandeau.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:30000;'
+            + 'background:#b91c1c;color:#fff;padding:0.7rem 1rem;text-align:center;'
+            + 'font-size:0.85rem;font-weight:700';
+        bandeau.textContent = texte;
+        document.body.appendChild(bandeau);
+    }
+
     setInterval(function () {
         if (!actif || document.hidden) return;
         actif = false;
         fetch('/jeton-csrf', { headers: { 'Accept': 'application/json' } })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (j) {
-                if (!j || !j.token) return;
+                if (!j) return;
+
+                // La route repond meme deconnecte : c'est ainsi qu'on distingue
+                // une session finie d'une coupure reseau.
+                if (j.connecte === false) { annoncerDeconnexion(); return; }
+
+                if (!j.token) return;
+                deconnexionAnnoncee = false;
                 var balise = document.querySelector('meta[name="csrf-token"]');
                 if (balise) balise.setAttribute('content', j.token);
             })

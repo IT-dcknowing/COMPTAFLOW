@@ -95,6 +95,26 @@
     }
 
     /* Floating action bar */
+    /* ─── Listes déroulantes de la barre du bas ───
+       La barre est collée au bas de l'écran : une liste qui s'ouvre vers le
+       bas sort de la fenêtre et devient impossible à cliquer. On la rattache
+       à la barre et on l'épingle AU-DESSUS, plutôt que de laisser Select2
+       calculer une place qui n'existe pas. */
+    #reimputActionBar > .select2-container--open {
+        position: absolute !important;
+        top: auto !important;
+        bottom: calc(100% + 6px) !important;
+        z-index: 1060;
+    }
+    #reimputActionBar > .select2-container--open .select2-dropdown {
+        position: static !important;
+        border-radius: 10px;
+        box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.18);
+    }
+    #reimputActionBar > .select2-container--open .select2-results__options {
+        max-height: 260px;
+    }
+
     .reimput-action-bar {
         position: fixed;
         bottom: 0; left: 0; right: 0;
@@ -532,6 +552,7 @@ document.addEventListener('DOMContentLoaded', function () {
             theme: 'bootstrap4',
             width: '100%',
             language: 'fr',
+            dropdownParent: $('#reimputActionBar'),
             placeholder: '-- Chercher le compte cible (n° ou libellé) --',
             allowClear: true,
             minimumInputLength: 1,
