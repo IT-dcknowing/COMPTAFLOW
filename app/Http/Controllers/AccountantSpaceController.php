@@ -61,10 +61,13 @@ class AccountantSpaceController extends Controller
             $ids = array_merge($ids, Company::where('cabinet_id', $cabinetGere->id)->pluck('id')->toArray());
         }
 
-        // Cabinet d'appartenance, pour un collaborateur.
-        if ($user->cabinet_id) {
-            $ids = array_merge($ids, Company::where('cabinet_id', $user->cabinet_id)->pluck('id')->toArray());
-        }
+        // Un collaborateur du cabinet ne voit QUE les dossiers qu'on lui a
+        // affectes, pas tout le portefeuille : c'est la regle retenue. Seul le
+        // gerant voit l'ensemble, par la branche ci-dessus.
+        //
+        // (users.cabinet_id n'existe d'ailleurs pas : l'appartenance passe par
+        // la table cabinet_user. Le test qui lisait cette colonne ne filtrait
+        // donc rien.)
 
         // Rattachement historique porte par users.company_id : un utilisateur cree
         // depuis la gestion des utilisateurs n'a pas de ligne dans company_user.
@@ -78,6 +81,27 @@ class AccountantSpaceController extends Controller
         }
 
         return array_values(array_unique(array_map('intval', array_filter($ids))));
+    }
+
+    /**
+     * Cette personne peut-elle supprimer ce dossier ?
+     *
+     * Un dossier ouvert sous un cabinet appartient AU CABINET, pas a la
+     * personne qui l'a saisi. Un collaborateur qui part — ou qu'on supprime —
+     * ne doit pas emporter les dossiers avec lui : ils restent dans l'espace
+     * du gerant. Seul le gerant du cabinet peut donc les supprimer.
+     *
+     * Hors cabinet, la regle reste celle d'avant : le createur, et lui seul.
+     */
+    private function peutSupprimerLeDossier($user, Company $company): bool
+    {
+        if ($company->cabinet_id) {
+            return Cabinet::where('id', $company->cabinet_id)
+                ->where('user_id', $user->id)
+                ->exists();
+        }
+
+        return (int) $company->user_id === (int) $user->id;
     }
 
     public function index()
@@ -99,6 +123,8 @@ class AccountantSpaceController extends Controller
             // Comparaison typée : selon le driver PDO, user_id peut remonter en chaîne
             $isOwner = (int) $comp->user_id === (int) $user->id
                 || ($user->role === 'admin' && (int) $user->company_id === (int) $comp->id);
+
+            $peutSupprimer = $this->peutSupprimerLeDossier($user, $comp);
 
             // Calcul des KPIs
             $entriesCount = DB::table('ecriture_comptables')->where('company_id', $comp->id)->count();
@@ -170,6 +196,7 @@ class AccountantSpaceController extends Controller
             return [
                 'model' => $comp,
                 'is_owner' => $isOwner,
+                'peut_supprimer' => $peutSupprimer,
                 'assigned_status' => $isOwner ? 'created' : 'assigned',
                 'assigned_by_name' => $isOwner ? null : ($comp->admin?->name . ' ' . $comp->admin?->last_name),
                 'entries_count' => $entriesCount,
@@ -902,10 +929,13 @@ class AccountantSpaceController extends Controller
                 ->with('error', 'Entreprise introuvable.');
         }
 
-        // Seul le propriétaire (celui qui l'a créée) peut la supprimer
-        if ((int) $company->user_id !== (int) $user->id) {
-            return redirect()->route('accountant.space', ['page' => 'companies'])
-                ->with('error', "Seule la personne qui a créé « {$company->company_name} » peut la supprimer.");
+        if (!$this->peutSupprimerLeDossier($user, $company)) {
+            $message = $company->cabinet_id
+                ? "« {$company->company_name} » appartient au cabinet : seul son gérant peut la supprimer. "
+                    . "Elle reste dans l'espace du cabinet même si vous quittez le dossier."
+                : "Seule la personne qui a créé « {$company->company_name} » peut la supprimer.";
+
+            return redirect()->route('accountant.space', ['page' => 'companies'])->with('error', $message);
         }
 
         // Condition bloquante : présence d'écritures

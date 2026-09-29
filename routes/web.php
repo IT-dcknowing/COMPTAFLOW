@@ -897,6 +897,14 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
     // Gestion des Entités (Ancien Dashboard)
     Route::get('/entities', [SuperAdminDashboardController::class, 'entities'])->name('superadmin.entities');
 
+    // Archive des suppressions, tous dossiers confondus.
+    //
+    // L'ecran d'entreprise ne montre que le dossier ouvert : les archives d'un
+    // dossier SUPPRIME n'etaient donc joignables par personne, alors qu'on les
+    // annonce recuperables trente jours.
+    Route::get('/superadmin/archives', [\App\Http\Controllers\Super\SuperAdminArchiveController::class, 'index'])->name('superadmin.archives');
+    Route::get('/superadmin/archives/{id}', [\App\Http\Controllers\Super\SuperAdminArchiveController::class, 'show'])->name('superadmin.archives.show');
+
     // Gestion des Entreprises
     Route::get('/superadmin/companies/create', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'create'])->name('superadmin.companies.create');
     Route::post('/superadmin/companies', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'store'])->name('superadmin.companies.store');

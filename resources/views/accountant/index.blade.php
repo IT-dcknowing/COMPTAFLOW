@@ -681,8 +681,9 @@ body {
                                         <i class="fas fa-arrow-right"></i> Accéder
                                     </a>
 
-                                    {{-- Suppression reservee au createur, et impossible si la comptabilite contient des ecritures --}}
-                                    @if((int) $comp->user_id === (int) auth()->id())
+                                    {{-- Suppression : le gérant pour un dossier de cabinet, le créateur sinon.
+                                         Impossible si la comptabilité contient des écritures. --}}
+                                    @if($data['peut_supprimer'] ?? false)
                                         @php $bloquee = ($data['entries_count'] ?? 0) > 0; @endphp
                                         <button type="button"
                                                 class="btn-work"

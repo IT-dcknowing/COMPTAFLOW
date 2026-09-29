@@ -1548,11 +1548,25 @@ const saisieGrille = (() => {
               e.compte_tiers, e.compte_tiers_intitule].filter(Boolean).join(' ')).includes(fCompte)) return false;
           return true;
         });
-        const autreJournal = memeFiltresAilleurs.filter(e => journalId && e.code_journal_id != journalId).length;
+        const ailleurs = memeFiltresAilleurs.filter(e => journalId && e.code_journal_id != journalId);
         const autreMois = memeFiltresAilleurs.filter(e => moisVal && partieDeDate(e.date, 1) != moisVal).length;
 
+        // Nommer les journaux : « 12 dans un autre journal » oblige a les
+        // essayer un par un ; « 12 dans CAI1, BQ02 » dit ou aller.
+        const parJournal = {};
+        ailleurs.forEach(e => {
+          const nom = e.code_journal || ('journal ' + e.code_journal_id);
+          parJournal[nom] = (parJournal[nom] || 0) + 1;
+        });
+        const nomsJournaux = Object.entries(parJournal)
+          .sort((a, b) => b[1] - a[1])
+          .map(([nom, n]) => nom + ' (' + n + ')');
+
         const pistes = [];
-        if (autreJournal) pistes.push(autreJournal + ' dans un autre journal');
+        if (nomsJournaux.length) {
+          pistes.push(ailleurs.length + ' dans ' + (nomsJournaux.length > 1 ? 'les journaux ' : 'le journal ')
+            + nomsJournaux.join(', '));
+        }
         if (autreMois) pistes.push(autreMois + ' sur un autre mois');
         if (pistes.length) {
           message += ' — mais ' + pistes.join(', ') + '.';
