@@ -141,7 +141,7 @@
                             'corps' => '#corpsSwitch',
                             'nom' => 'entreprises',
                             'filtres' => [
-                                ['cle' => 'compagnie', 'libelle' => 'Entreprise', 'type' => 'texte'],
+                                ['cle' => 'compagnie', 'libelle' => 'Entreprise', 'type' => 'texte', 'serveur' => 'search'],
                                 ['cle' => 'type', 'libelle' => 'Type', 'type' => 'liste'],
                                 ['cle' => 'statut', 'libelle' => 'Statut', 'type' => 'liste'],
                             ],

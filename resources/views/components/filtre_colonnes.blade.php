@@ -10,8 +10,14 @@
 
     Variables :
       $corps   — sélecteur du <tbody> filtré
-      $filtres — liste de ['cle', 'libelle', 'type' => 'texte'|'liste', 'mode' => 'debut'|'contient']
+      $filtres — liste de ['cle', 'libelle', 'type' => 'texte'|'liste', 'mode' => 'debut'|'contient',
+                           'serveur' => '<nom du paramètre>']
       $nom     — ce que comptent les lignes (« comptes », « tiers »…)
+
+    Un filtre marqué « serveur » ne filtre pas l'écran : il recharge la page avec
+    son paramètre. C'est indispensable sur un tableau paginé, où l'écran ne porte
+    qu'une page : chercher « DC » ne devait plus répondre « 0 / 20 » parce que le
+    dossier se trouve page 2.
 --}}
 @php
     $idFiltre = 'filtre_' . substr(md5($corps), 0, 8);
@@ -66,6 +72,48 @@
     }
     #{{ $idFiltre }} .filtre-effacer:hover { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
     .filtre-aucun td { text-align: center; color: #94a3b8; font-weight: 600; padding: 2rem !important; }
+
+    /* ─── Liste deroulante avec recherche ─── */
+    #{{ $idFiltre }} .liste-cherchable { position: relative; }
+    #{{ $idFiltre }} .liste-bouton {
+        text-align: left;
+        width: 100%;
+        background-color: #fff;
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    #{{ $idFiltre }} .liste-volet {
+        position: absolute;
+        z-index: 1200;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        min-width: 220px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+        padding: 0.5rem;
+    }
+    #{{ $idFiltre }} .liste-volet[hidden] { display: none; }
+    #{{ $idFiltre }} .liste-recherche { height: 32px; font-size: 0.8rem; margin-bottom: 0.4rem; }
+    #{{ $idFiltre }} .liste-options { max-height: 220px; overflow-y: auto; }
+    #{{ $idFiltre }} .liste-option {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        border-radius: 8px;
+        padding: 0.35rem 0.55rem;
+        font-size: 0.82rem;
+        color: #334155;
+    }
+    #{{ $idFiltre }} .liste-option:hover { background: #eff6ff; }
+    #{{ $idFiltre }} .liste-option.choisie { background: #2563eb; color: #fff; font-weight: 700; }
+    #{{ $idFiltre }} .liste-vide { padding: 0.5rem; font-size: 0.78rem; color: #94a3b8; text-align: center; }
 </style>
 
 <div id="{{ $idFiltre }}">
@@ -73,15 +121,28 @@
         <div>
             <label for="{{ $idFiltre }}_{{ $filtre['cle'] }}">{{ $filtre['libelle'] }}</label>
             @if(($filtre['type'] ?? 'texte') === 'liste')
-                {{-- « no-search » : la mise en forme Select2 de l'application ne doit pas
-                     remplacer cette liste, sinon le choix n'arrive jamais au filtre. --}}
-                <select id="{{ $idFiltre }}_{{ $filtre['cle'] }}" class="form-select no-search" data-filtre="{{ $filtre['cle'] }}" data-type="liste">
-                    <option value="">Tous</option>
-                </select>
+                {{-- Liste avec sa propre recherche : au-dela de quelques dizaines de
+                     valeurs, derouler et chercher a l'oeil ne tient plus.
+                     « no-search » : la mise en forme Select2 de l'application ne doit
+                     pas remplacer cette liste, sinon le choix n'arrive jamais au filtre. --}}
+                <div class="liste-cherchable" data-pour="{{ $idFiltre }}_{{ $filtre['cle'] }}">
+                    <button type="button" class="form-select liste-bouton" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="liste-valeur">Tous</span>
+                    </button>
+                    <div class="liste-volet" role="listbox" hidden>
+                        <input type="text" class="form-control liste-recherche" autocomplete="off" placeholder="Rechercher…">
+                        <div class="liste-options"></div>
+                    </div>
+                    <select id="{{ $idFiltre }}_{{ $filtre['cle'] }}" class="no-search liste-source" data-filtre="{{ $filtre['cle'] }}" data-type="liste" hidden>
+                        <option value="">Tous</option>
+                    </select>
+                </div>
             @else
                 <input type="text" id="{{ $idFiltre }}_{{ $filtre['cle'] }}" class="form-control" autocomplete="off"
                        data-filtre="{{ $filtre['cle'] }}" data-type="texte" data-mode="{{ $filtre['mode'] ?? 'contient' }}"
-                       placeholder="{{ ($filtre['mode'] ?? 'contient') === 'debut' ? 'Commence par…' : 'Contient…' }}">
+                       @if(!empty($filtre['serveur'])) data-serveur="{{ $filtre['serveur'] }}"
+                           value="{{ request($filtre['serveur']) }}" @endif
+                       placeholder="{{ !empty($filtre['serveur']) ? 'Chercher partout…' : ((($filtre['mode'] ?? 'contient') === 'debut') ? 'Commence par…' : 'Contient…') }}">
             @endif
         </div>
     @endforeach
@@ -128,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function filtrer() {
         const utiles = [];
-        champs.forEach(function (c) {
+        champs.filter(c => !c.dataset.serveur).forEach(function (c) {
             const valeur = normaliser(c.value);
             c.classList.toggle('filtre-actif', valeur !== '');
             if (valeur !== '') utiles.push({ cle: c.dataset.filtre, type: c.dataset.type, mode: c.dataset.mode, valeur: valeur });
@@ -169,16 +230,122 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Un champ « serveur » cherche dans tout le tableau, pas seulement dans la
+    // page affichée : il recharge avec son paramètre. On attend la fin de la
+    // frappe pour ne pas recharger à chaque lettre.
+    const champsServeur = champs.filter(c => c.dataset.serveur);
+
+    function rechercherAuServeur() {
+        const url = new URL(window.location.href);
+        champsServeur.forEach(function (c) {
+            const valeur = c.value.trim();
+            if (valeur) { url.searchParams.set(c.dataset.serveur, valeur); }
+            else { url.searchParams.delete(c.dataset.serveur); }
+        });
+        url.searchParams.delete('page');   // une nouvelle recherche repart de la première page
+        window.location.href = url.toString();
+    }
+
+    let minuterieServeur = null;
+    champsServeur.forEach(function (c) {
+        c.classList.toggle('filtre-actif', c.value.trim() !== '');
+        c.addEventListener('input', function () {
+            clearTimeout(minuterieServeur);
+            minuterieServeur = setTimeout(rechercherAuServeur, 450);
+        });
+        c.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { clearTimeout(minuterieServeur); rechercherAuServeur(); }
+        });
+    });
+
     // Filtrage immédiat, à chaque frappe comme à chaque choix dans une liste.
-    champs.forEach(function (c) {
+    champs.filter(c => !c.dataset.serveur).forEach(function (c) {
         c.addEventListener(c.tagName === 'SELECT' ? 'change' : 'input', filtrer);
+    });
+
+    // ── Listes déroulantes : chercher dans la liste elle-même ──
+    barre.querySelectorAll('.liste-cherchable').forEach(function (bloc) {
+        const source = bloc.querySelector('.liste-source');
+        const bouton = bloc.querySelector('.liste-bouton');
+        const etiquette = bloc.querySelector('.liste-valeur');
+        const volet = bloc.querySelector('.liste-volet');
+        const recherche = bloc.querySelector('.liste-recherche');
+        const options = bloc.querySelector('.liste-options');
+
+        function dessiner() {
+            const cherche = normaliser(recherche.value);
+            const trouvees = Array.from(source.options)
+                .filter(o => !cherche || normaliser(o.text).includes(cherche));
+
+            options.innerHTML = '';
+            if (!trouvees.length) {
+                options.innerHTML = '<div class="liste-vide">Aucune valeur ne correspond.</div>';
+                return;
+            }
+
+            trouvees.forEach(function (o) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'liste-option' + (o.value === source.value ? ' choisie' : '');
+                b.textContent = o.text;
+                b.addEventListener('click', function () {
+                    source.value = o.value;
+                    etiquette.textContent = o.text;
+                    bouton.classList.toggle('filtre-actif', o.value !== '');
+                    fermer();
+                    filtrer();
+                });
+                options.appendChild(b);
+            });
+        }
+
+        function ouvrir() {
+            volet.hidden = false;
+            bouton.setAttribute('aria-expanded', 'true');
+            recherche.value = '';
+            dessiner();
+            recherche.focus();
+        }
+
+        function fermer() {
+            volet.hidden = true;
+            bouton.setAttribute('aria-expanded', 'false');
+        }
+
+        bouton.addEventListener('click', function (e) {
+            e.stopPropagation();
+            volet.hidden ? ouvrir() : fermer();
+        });
+        recherche.addEventListener('input', dessiner);
+        recherche.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { fermer(); bouton.focus(); }
+            if (e.key === 'Enter') { e.preventDefault(); options.querySelector('.liste-option')?.click(); }
+        });
+        volet.addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('click', fermer);
+
+        // Le bouton « Effacer » remet la liste a « Tous ».
+        source.addEventListener('change', function () {
+            const choisie = source.options[source.selectedIndex];
+            etiquette.textContent = choisie ? choisie.text : 'Tous';
+            bouton.classList.toggle('filtre-actif', source.value !== '');
+        });
     });
 
     document.getElementById(@json($idFiltre) + '__effacer').addEventListener('click', function () {
         champs.forEach(function (c) {
-            if (c.tagName === 'SELECT') { c.selectedIndex = 0; } else { c.value = ''; }
+            if (c.tagName === 'SELECT') {
+                c.selectedIndex = 0;
+                c.dispatchEvent(new Event('change'));
+            } else {
+                c.value = '';
+            }
         });
         filtrer();
+        if (champsServeur.some(c => new URL(window.location.href).searchParams.has(c.dataset.serveur))) {
+            rechercherAuServeur();
+            return;
+        }
         champs[0]?.focus();
     });
 

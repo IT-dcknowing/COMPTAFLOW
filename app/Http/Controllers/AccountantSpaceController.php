@@ -37,32 +37,56 @@ class AccountantSpaceController extends Controller
         return null;
     }
 
+    /**
+     * Les dossiers de l'espace d'un utilisateur.
+     *
+     * Une seule regle, pour la liste comme pour l'ouverture : un dossier
+     * visible dans l'espace doit pouvoir s'ouvrir. Les deux etaient ecrites
+     * separement, et un dossier cree avant la fonction cabinet — donc sans
+     * cabinet_id — pouvait s'afficher dans la liste puis refuser l'acces.
+     *
+     * @return array<int, int>
+     */
+    private function dossiersDeMonEspace($user): array
+    {
+        $ids = Company::where('user_id', $user->id)->pluck('id')->toArray();
+
+        $ids = array_merge($ids, DB::table('company_user')
+            ->where('user_id', $user->id)->pluck('company_id')->toArray());
+
+        // Le gerant voit tout ce que porte son cabinet, y compris les dossiers
+        // qu'un collaborateur a ouverts de son cote : ils reviennent au cabinet.
+        $cabinetGere = Cabinet::where('user_id', $user->id)->first();
+        if ($cabinetGere) {
+            $ids = array_merge($ids, Company::where('cabinet_id', $cabinetGere->id)->pluck('id')->toArray());
+        }
+
+        // Cabinet d'appartenance, pour un collaborateur.
+        if ($user->cabinet_id) {
+            $ids = array_merge($ids, Company::where('cabinet_id', $user->cabinet_id)->pluck('id')->toArray());
+        }
+
+        // Rattachement historique porte par users.company_id : un utilisateur cree
+        // depuis la gestion des utilisateurs n'a pas de ligne dans company_user.
+        // Sans cette prise en compte, son espace restait desesperement vide.
+        if ($user->company_id) {
+            $ids[] = (int) $user->company_id;
+
+            // Et ses filiales, rattachees par parent_company_id.
+            $ids = array_merge($ids, Company::where('parent_company_id', $user->company_id)
+                ->pluck('id')->toArray());
+        }
+
+        return array_values(array_unique(array_map('intval', array_filter($ids))));
+    }
+
     public function index()
     {
         $user = Auth::user();
 
         // 1. Récupérer toutes les entreprises gérées ou associées
         $myCompanyIds = Company::where('user_id', $user->id)->pluck('id')->toArray();
-        $assignedCompanyIds = DB::table('company_user')->where('user_id', $user->id)->pluck('company_id')->toArray();
-
-        // Le gérant voit tout ce que porte son cabinet, y compris les dossiers
-        // qu'un collaborateur a ouverts de son côté : ils reviennent au cabinet.
-        $cabinetGere = Cabinet::where('user_id', $user->id)->first();
-        if ($cabinetGere) {
-            $assignedCompanyIds = array_merge(
-                $assignedCompanyIds,
-                Company::where('cabinet_id', $cabinetGere->id)->pluck('id')->toArray()
-            );
-        }
-
-        // Rattachement historique porté par users.company_id : un utilisateur créé
-        // depuis la gestion des utilisateurs n'a pas de ligne dans company_user.
-        // Sans cette prise en compte, son espace restait désespérément vide.
-        if ($user->company_id && !in_array($user->company_id, $assignedCompanyIds)) {
-            $assignedCompanyIds[] = $user->company_id;
-        }
-
-        $allCompanyIds = array_values(array_unique(array_merge($myCompanyIds, $assignedCompanyIds)));
+        $allCompanyIds = $this->dossiersDeMonEspace($user);
 
         $companies = Company::with('admin')->whereIn('id', $allCompanyIds)->get();
 
@@ -815,34 +839,21 @@ class AccountantSpaceController extends Controller
             return redirect()->route('accountant.space')->with('error', 'Entreprise introuvable.');
         }
 
-        // Sécurité : Vérifier que l'utilisateur a accès à cette entreprise dans son espace
-        $hasAccess = false;
+        // Securite : le dossier doit appartenir a l'espace de l'utilisateur.
+        // Exactement la meme regle que la liste : ce qui s'affiche s'ouvre.
+        $estSuperAdmin = in_array($user->role, ['superadmin', 'super_admin'], true)
+            || (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin());
 
-        if ($user->role === 'superadmin' || $user->role === 'super_admin' || (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin())) {
-            $hasAccess = true;
-        } elseif ((int) $company->user_id === (int) $user->id) {
-            $hasAccess = true;
-        } elseif ((int) $user->company_id === (int) $id) {
-            $hasAccess = true;
-        } elseif (DB::table('company_user')->where('company_id', $id)->where('user_id', $user->id)->exists()) {
-            $hasAccess = true;
-        } elseif ($company->parent_company_id && (int) $company->parent_company_id === (int) $user->company_id) {
-            $hasAccess = true;
-        } else {
-            $cabinetGere = Cabinet::where('user_id', $user->id)->first();
-            if ($cabinetGere && (int) $company->cabinet_id === (int) $cabinetGere->id) {
-                $hasAccess = true;
-            } elseif ($user->cabinet_id && (int) $company->cabinet_id === (int) $user->cabinet_id) {
-                $hasAccess = true;
-            }
-        }
+        $hasAccess = $estSuperAdmin || in_array((int) $id, $this->dossiersDeMonEspace($user), true);
 
         if (!$hasAccess) {
             return redirect()->route('accountant.space')->with('error', 'Accès non autorisé à cette entreprise.');
         }
 
-        // Stocker la compagnie en session
-        session(['current_company_id' => $id]);
+        // Stocker la compagnie en session, en entier : le parametre de route
+        // arrive en chaine, et tout le reste de l'application compare cette
+        // valeur avec des identifiants entiers.
+        session(['current_company_id' => (int) $id]);
 
         // On memorise d'ou vient le switch : « Quitter le mode switch » doit
         // ramener a Mon Espace, et non a la passerelle administrative.
@@ -1089,23 +1100,8 @@ class AccountantSpaceController extends Controller
     {
         $user = Auth::user();
 
-        // Récupérer toutes les entreprises de l'espace courant
-        $myCompanyIds = Company::where('user_id', $user->id)->pluck('id')->toArray();
-        $assignedCompanyIds = DB::table('company_user')->where('user_id', $user->id)->pluck('company_id')->toArray();
-
-        $cabinetGere = Cabinet::where('user_id', $user->id)->first();
-        if ($cabinetGere) {
-            $assignedCompanyIds = array_merge(
-                $assignedCompanyIds,
-                Company::where('cabinet_id', $cabinetGere->id)->pluck('id')->toArray()
-            );
-        }
-
-        if ($user->company_id && !in_array($user->company_id, $assignedCompanyIds)) {
-            $assignedCompanyIds[] = $user->company_id;
-        }
-
-        $allCompanyIds = array_values(array_unique(array_merge($myCompanyIds, $assignedCompanyIds)));
+        // Les entreprises de cet espace, et elles seules.
+        $allCompanyIds = $this->dossiersDeMonEspace($user);
 
         // Récupérer uniquement les entreprises de cet espace sans code validé
         $companies = Company::whereIn('id', $allCompanyIds)
