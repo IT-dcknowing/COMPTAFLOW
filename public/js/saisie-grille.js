@@ -255,6 +255,12 @@ const saisieGrille = (() => {
       if (!isClasse5) posteSelect.value = '';
     }
     if (plusPosteBtn) plusPosteBtn.disabled = !isClasse5;
+
+    // Le bandeau dépend du compte choisi : une ligne sur un compte de résultat
+    // (classe 13) n'a pas à être équilibrée. Sans ce rappel, l'ordre de saisie
+    // décidait du verdict — montant puis compte laissait « Écart » à l'écran,
+    // et il fallait recharger la page pour s'en sortir.
+    calculerTotaux();
   }
 
   // ---------- Exclusion Mutuelle Débit / Crédit ----------
