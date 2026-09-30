@@ -926,6 +926,9 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
     Route::delete('/superadmin/affectations/comptabilite', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'retirerDUneComptabilite'])->name('superadmin.affectations.comptabilite.retirer');
     Route::post('/superadmin/affectations/cabinet', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'affecterAUnCabinet'])->name('superadmin.affectations.cabinet');
     Route::delete('/superadmin/affectations/cabinet', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'retirerDUnCabinet'])->name('superadmin.affectations.cabinet.retirer');
+    Route::post('/superadmin/affectations/personne', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'creerUnePersonne'])->name('superadmin.affectations.personne');
+    Route::post('/superadmin/affectations/adresse', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'changerLAdresse'])->name('superadmin.affectations.adresse');
+    Route::post('/superadmin/affectations/cabinet/dossiers', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'affecterDesDossiersDuCabinet'])->name('superadmin.affectations.cabinet.dossiers');
 
     Route::get('/superadmin/corbeille', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'corbeille'])->name('superadmin.corbeille');
     Route::post('/superadmin/corbeille/{id}/restaurer', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'restaurer'])->name('superadmin.corbeille.restaurer');

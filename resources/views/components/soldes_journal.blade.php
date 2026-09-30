@@ -30,12 +30,17 @@
         border-radius: 10px;
         font-size: 0.74rem;
         line-height: 1.25;
-        overflow: hidden;
-        max-width: 640px;
+        /* Sept colonnes depuis qu'on separe « ce journal » des « autres
+           journaux » : a 640 px la derniere — le nouveau solde — sortait du
+           cadre et se faisait couper. On laisse la place, et on autorise le
+           defilement lateral plutot que de rogner. */
+        overflow-x: auto;
+        overflow-y: hidden;
+        max-width: min(860px, 46vw);
     }
     #soldesJournal.visible { display: block; }
     #soldesJournal table { border-collapse: collapse; width: 100%; margin: 0; }
-    #soldesJournal th, #soldesJournal td { padding: 0.16rem 0.55rem; white-space: nowrap; }
+    #soldesJournal th, #soldesJournal td { padding: 0.16rem 0.4rem; white-space: nowrap; }
     #soldesJournal thead th {
         font-size: 0.6rem;
         font-weight: 800;
@@ -61,7 +66,7 @@
         font-variant-numeric: tabular-nums;
         font-weight: 700;
         color: #0f172a;
-        min-width: 86px;
+        min-width: 74px;
     }
     #soldesJournal tbody td + td { border-left: 1px solid #cbd5e1; }
     #soldesJournal tbody td .sens { font-weight: 600; color: #64748b; margin-left: 0.18rem; }
@@ -75,6 +80,10 @@
     }
     #soldesJournal thead th.entete-ailleurs, #soldesJournal tbody td[data-colonne="ailleurs"] { background: #f8fafc; }
     #soldesJournal tbody td[data-colonne="ailleurs"] { color: #64748b; font-weight: 600; }
+    #soldesJournal thead th:last-child, #soldesJournal tbody td[data-colonne="nouveau"] {
+        border-left: 2px solid #94a3b8;
+        background: #e0f2fe;
+    }
     #soldesJournal tbody tr.total { background: #e0f2fe; }
     #soldesJournal tbody tr.total th, #soldesJournal tbody tr.total td { font-weight: 800; }
     #soldesJournal tbody tr.total td[data-colonne="nouveau"] { color: #0c4a6e; }

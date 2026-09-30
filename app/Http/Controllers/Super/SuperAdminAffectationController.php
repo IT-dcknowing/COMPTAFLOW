@@ -51,9 +51,28 @@ class SuperAdminAffectationController extends Controller
         $entrepriseChoisie = $request->integer('company_id') ?: null;
         $cabinetChoisi = $request->integer('cabinet_id') ?: null;
 
+        // Les personnes deja connues : on les propose plutot que de faire
+        // retaper une adresse, et de creer un doublon a la moindre faute.
+        $personnes = User::whereNotNull('email_adresse')
+            ->orderBy('name')
+            ->get(['id', 'name', 'last_name', 'email_adresse'])
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'email' => $u->email_adresse,
+                'prenom' => (string) $u->name,
+                'famille' => (string) $u->last_name,
+            ])->values();
+
+        // Les dossiers que porte chaque cabinet : choisir un cabinet doit
+        // montrer ce qu'il gere, et permettre d'en donner l'acces d'un clic.
+        $dossiersParCabinet = Company::whereNotNull('cabinet_id')
+            ->orderBy('company_name')
+            ->get(['id', 'company_name', 'cabinet_id'])
+            ->groupBy('cabinet_id');
+
         return view('superadmin.affectations', compact(
             'entreprises', 'cabinets', 'parEntreprise', 'parCabinet',
-            'entrepriseChoisie', 'cabinetChoisi'
+            'entrepriseChoisie', 'cabinetChoisi', 'personnes', 'dossiersParCabinet'
         ));
     }
 
@@ -187,6 +206,113 @@ class SuperAdminAffectationController extends Controller
 
         return back()->with('success',
             'La personne ne fait plus partie du cabinet. Les dossiers qu\'elle avait ouverts y restent.');
+    }
+
+    /**
+     * Cree une personne, et rien d'autre.
+     *
+     * Creer un compte ne donne acces a aucune comptabilite : les acces se
+     * donnent ensuite, dossier par dossier. C'est pour cela qu'aucune
+     * habilitation n'est demandee ici.
+     */
+    public function creerUnePersonne(Request $request)
+    {
+        $donnees = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'email_adresse' => ['required', 'email', 'max:191', Rule::unique('users', 'email_adresse')],
+            'password' => ['required', 'string', 'min:8'],
+        ], [
+            'email_adresse.unique' => 'Cette adresse est deja utilisee : choisissez-la dans la liste.',
+            'password.min' => 'Le mot de passe doit faire au moins 8 caracteres.',
+        ]);
+
+        $user = User::create([
+            'name' => $donnees['name'],
+            'last_name' => $donnees['last_name'],
+            'email_adresse' => $donnees['email_adresse'],
+            'password' => Hash::make($donnees['password']),
+            'role' => 'comptable',
+            'is_active' => true,
+        ]);
+
+        return back()->with('success', sprintf(
+            "%s %s (%s) a ete cree. Il n'a encore acces a aucune comptabilite : "
+            . "donnez-lui les dossiers un par un ci-dessus.",
+            $user->name, $user->last_name, $user->email_adresse
+        ));
+    }
+
+    /**
+     * Remplace l'adresse d'une personne.
+     */
+    public function changerLAdresse(Request $request)
+    {
+        $donnees = $request->validate([
+            'user_id' => ['required', Rule::exists('users', 'id')],
+            'nouvelle_adresse' => ['required', 'email', 'max:191'],
+        ]);
+
+        $user = User::findOrFail($donnees['user_id']);
+
+        $prise = User::where('email_adresse', $donnees['nouvelle_adresse'])
+            ->where('id', '!=', $user->id)->exists();
+
+        if ($prise) {
+            return back()->with('error', "Cette adresse est deja celle d'un autre compte.");
+        }
+
+        $ancienne = $user->email_adresse;
+        $user->forceFill(['email_adresse' => $donnees['nouvelle_adresse']])->save();
+
+        return back()->with('success', sprintf(
+            "L'adresse de %s est passee de %s a %s. Ses acces ne changent pas.",
+            trim($user->name . ' ' . $user->last_name), $ancienne, $user->email_adresse
+        ));
+    }
+
+    /**
+     * Donne a une personne l'acces a plusieurs dossiers d'un cabinet.
+     *
+     * Le role y est toujours administrateur : il s'agit de confier la tenue
+     * du dossier, pas d'y ouvrir une fenetre.
+     */
+    public function affecterDesDossiersDuCabinet(Request $request)
+    {
+        $donnees = $request->validate([
+            'cabinet_id' => ['required', Rule::exists('cabinets', 'id')],
+            'user_id' => ['required', Rule::exists('users', 'id')],
+            'dossiers' => ['required', 'array', 'min:1'],
+            'dossiers.*' => [Rule::exists('companies', 'id')],
+        ], [
+            'dossiers.required' => 'Choisissez au moins un dossier.',
+        ]);
+
+        // On ne donne que des dossiers du cabinet annonce : un identifiant
+        // glisse dans le formulaire ne doit pas ouvrir un dossier etranger.
+        $duCabinet = Company::where('cabinet_id', $donnees['cabinet_id'])
+            ->whereIn('id', $donnees['dossiers'])->pluck('id');
+
+        $deja = DB::table('company_user')->where('user_id', $donnees['user_id'])
+            ->whereIn('company_id', $duCabinet)->pluck('company_id');
+
+        $aPoser = $duCabinet->diff($deja);
+
+        foreach ($aPoser as $companyId) {
+            DB::table('company_user')->insert([
+                'company_id' => $companyId,
+                'user_id' => $donnees['user_id'],
+                'role' => 'admin',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return back()->with('success', sprintf(
+            '%d dossier(s) confie(s) en administrateur.%s',
+            $aPoser->count(),
+            $deja->count() ? sprintf(' %d etai(en)t deja accorde(s).', $deja->count()) : ''
+        ));
     }
 
     /**
