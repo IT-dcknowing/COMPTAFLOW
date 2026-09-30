@@ -591,6 +591,10 @@ class AccountantSpaceController extends Controller
 
         return [
             'est_gerant'     => $estGerant,
+            // Le nom du cabinet d'appartenance : l'ecran s'en sert pour dire
+            // pourquoi un espace est vide, plutot que de laisser croire a une
+            // panne. Appartenir a un cabinet ne donne acces a rien.
+            'cabinet'        => optional($this->cabinetDe($user))->nom,
             'cabinets'       => $cabinets,
             'societes'       => $listeSocietes,
             'collaborateurs' => array_values($parPersonne),

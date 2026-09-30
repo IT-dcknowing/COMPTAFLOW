@@ -702,10 +702,31 @@ body {
                             </div>
                         </div>
                         @empty
+                        {{-- Un espace vide sans explication fait croire a une panne. On dit
+                             pourquoi il l'est : appartenir a un cabinet ne donne acces a
+                             aucune comptabilite, il faut qu'on vous en confie. --}}
                         <div class="dark-card text-center" style="grid-column:1/-1;padding:3rem;">
                             <i class="fas fa-building" style="font-size:2.5rem;color:var(--text-muted);display:block;margin-bottom:1rem;"></i>
-                            <div style="font-weight:700;color:var(--text-primary);margin-bottom:0.5rem;">Aucune société</div>
-                            <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1.5rem;">Créez votre première entreprise pour commencer.</div>
+                            <div style="font-weight:700;color:var(--text-primary);margin-bottom:0.5rem;">Aucune comptabilité ne vous est confiée</div>
+
+                            @if($informations['est_gerant'] ?? false)
+                                <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1.5rem;">
+                                    Vous gérez le cabinet, mais aucun dossier ne lui est encore rattaché.
+                                    Créez la première entreprise pour commencer.
+                                </div>
+                            @elseif(!empty($informations['cabinet']))
+                                <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1.5rem;line-height:1.6;">
+                                    Vous appartenez au cabinet <strong>{{ $informations['cabinet'] }}</strong>.
+                                    <br>Appartenir à un cabinet ne donne accès à aucune comptabilité :
+                                    le responsable doit vous confier les dossiers un par un.
+                                    <br><span style="font-size:0.76rem;">Demandez-lui de vous les affecter — ce n'est pas une panne.</span>
+                                </div>
+                            @else
+                                <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1.5rem;">
+                                    Créez votre première entreprise pour commencer.
+                                </div>
+                            @endif
+
                             <button class="btn-work" onclick="document.getElementById('modal-new-company').classList.add('show')" style="flex:0;margin:0 auto;">
                                 <i class="fas fa-plus"></i> Créer une société
                             </button>

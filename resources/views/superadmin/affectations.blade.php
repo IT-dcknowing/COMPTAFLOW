@@ -65,7 +65,7 @@
 
                         {{-- ─── Créer une personne ─── --}}
                         <div class="col-12">
-                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;">
                                 <div class="p-3" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
                                     <h2 class="h6 fw-bolder mb-1" style="color:#334155;">
                                         <i class="fa-solid fa-user-plus me-2"></i>Créer un compte
@@ -114,7 +114,7 @@
 
                         {{-- ─── Comptabilités ─── --}}
                         <div class="col-lg-6">
-                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;height:100%;">
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;height:100%;">
                                 <div class="p-3" style="background:#eff6ff;border-bottom:1px solid #dbeafe;">
                                     <h2 class="h6 fw-bolder mb-1" style="color:#1e40af;">
                                         <i class="fa-solid fa-book me-2"></i>Accès à une comptabilité
@@ -159,13 +159,10 @@
                                         </div>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">Rôle sur ce dossier</label>
-                                        <select name="role" class="form-select form-select-sm no-search" required style="border-radius:10px;">
-                                            <option value="comptable">Comptable — saisie et états</option>
-                                            <option value="admin">Administrateur — configuration comprise</option>
-                                        </select>
-                                    </div>
+                                    {{-- Confier un dossier, c'est en confier la tenue : le role est
+                                         toujours administrateur. Un acces partiel se regle ensuite par
+                                         les habilitations, dossier ouvert. --}}
+                                    <input type="hidden" name="role" value="admin">
 
                                     <button class="btn btn-primary w-100" style="border-radius:10px;font-weight:700;">
                                         <i class="fa-solid fa-key me-1"></i>Donner l'accès
@@ -208,7 +205,7 @@
 
                         {{-- ─── Cabinets ─── --}}
                         <div class="col-lg-6">
-                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;height:100%;">
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;height:100%;">
                                 <div class="p-3" style="background:#f0fdf4;border-bottom:1px solid #bbf7d0;">
                                     <h2 class="h6 fw-bolder mb-1" style="color:#166534;">
                                         <i class="fa-solid fa-building-user me-2"></i>Appartenance à un cabinet
@@ -325,7 +322,7 @@
 
                         {{-- ─── Changer une adresse ─── --}}
                         <div class="col-12">
-                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;">
                                 <div class="p-3" style="background:#fffbeb;border-bottom:1px solid #fde68a;">
                                     <h2 class="h6 fw-bolder mb-1" style="color:#854d0e;">
                                         <i class="fa-solid fa-at me-2"></i>Changer l'adresse d'une personne
@@ -442,8 +439,17 @@
             liste.hidden = false;
         }
 
-        champ.addEventListener('focus', proposer);
-        champ.addEventListener('input', function () { proposer(); juger(); });
+        // Sur le dernier bloc de la page, il n'y a pas la place en dessous :
+        // le panneau s'ouvrait hors de l'ecran et restait invisible.
+        function placer() {
+            const r = champ.getBoundingClientRect();
+            const enBas = window.innerHeight - r.bottom < 240;
+            liste.style.top = enBas ? 'auto' : 'calc(100% + 3px)';
+            liste.style.bottom = enBas ? 'calc(100% + 3px)' : 'auto';
+        }
+
+        champ.addEventListener('focus', function () { placer(); proposer(); });
+        champ.addEventListener('input', function () { placer(); proposer(); juger(); });
         champ.addEventListener('blur', function () { setTimeout(() => { liste.hidden = true; }, 150); });
         juger();
     });
