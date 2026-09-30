@@ -178,11 +178,29 @@ class SuperAdminAffectationController extends Controller
             'updated_at' => now(),
         ]);
 
+        // Les dossiers que cette personne tenait déjà rejoignent le cabinet.
+        //
+        // Sans cela, ils resteraient un portefeuille personnel : elle garde
+        // ses accès, mais le jour où elle part, le cabinet n'aurait aucun
+        // titre sur eux. On ne touche qu'aux dossiers SANS cabinet — un
+        // dossier déjà rangé ailleurs ne se déplace pas par un rattachement.
+        $siens = Company::whereNull('cabinet_id')
+            ->where(fn ($q) => $q->where('user_id', $user->id)
+                ->orWhereIn('id', DB::table('company_user')->where('user_id', $user->id)->pluck('company_id')))
+            ->pluck('id');
+
+        if ($siens->isNotEmpty()) {
+            Company::whereIn('id', $siens)->update(['cabinet_id' => $cabinet->id]);
+        }
+
         return back()->with('success', sprintf(
-            '%s rattaché au cabinet « %s ».%s Les dossiers qu\'il ouvrira resteront au cabinet, '
-            . 'même s\'il le quitte. Ses accès aux comptabilités se donnent dossier par dossier.',
+            '%s rattaché au cabinet « %s ».%s%s Ses accès aux comptabilités se donnent dossier par dossier.',
             $user->email_adresse, $cabinet->nom,
-            $cree ? ' Compte créé, avec un mot de passe provisoire à changer.' : ''
+            $cree ? ' Compte créé, avec un mot de passe provisoire à changer.' : '',
+            $siens->isNotEmpty()
+                ? sprintf(" %d comptabilité(s) qu'il tenait déjà rejoignent le cabinet — il les garde,"
+                    . " et elles y resteront même s'il part.", $siens->count())
+                : " Les dossiers qu'il ouvrira resteront au cabinet, même s'il le quitte."
         ));
     }
 

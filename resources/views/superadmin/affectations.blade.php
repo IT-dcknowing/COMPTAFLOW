@@ -272,7 +272,9 @@
                                     </p>
                                     <div class="dossiers-cabinet mb-2" id="listeDossiers" hidden></div>
 
-                                    <div class="mb-2 champ-adresse" data-adresse id="adresseDossiers" hidden>
+                                    <div class="mb-2 champ-adresse" data-adresse id="adresseDossiers" hidden
+                                         data-message-trouve="Compte trouvé"
+                                         data-message-absent="Aucun compte ne porte cette adresse : créez-le d'abord.">
                                         <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">À qui les confier</label>
                                         <input type="email" autocomplete="off" class="form-control form-control-sm"
                                                style="border-radius:10px;" placeholder="Chercher une adresse…" data-champ>
@@ -334,7 +336,9 @@
                                 <form method="POST" action="{{ route('superadmin.affectations.adresse') }}" class="p-3">
                                     @csrf
                                     <div class="row g-2 align-items-start">
-                                        <div class="col-md-5 champ-adresse" data-adresse>
+                                        <div class="col-md-5 champ-adresse" data-adresse
+                                             data-message-trouve="Compte trouvé"
+                                             data-message-absent="Aucun compte ne porte cette adresse : rien à remplacer.">
                                             <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">Adresse actuelle</label>
                                             <input type="email" autocomplete="off" required class="form-control form-control-sm"
                                                    style="border-radius:10px;" placeholder="Chercher l'adresse à remplacer…" data-champ>

@@ -30,10 +30,63 @@ use Illuminate\Support\Facades\DB;
 class RattacherLesDossiersAuCabinet extends Command
 {
     protected $signature = 'cabinets:rattacher-dossiers
-                            {--cabinet= : Rattacher aussi les dossiers orphelins à ce cabinet}
+                            {--cabinet= : Rattacher aussi les dossiers orphelins à ce cabinet (identifiant ou nom)}
+                            {--forcer : Déplacer aussi les dossiers déjà rattachés ailleurs}
+                            {--lister : Afficher les cabinets connus, et s\'arrêter là}
                             {--appliquer : Enregistre les rattachements (sans cette option, simple simulation)}';
 
     protected $description = "Rattache chaque comptabilité au cabinet de la personne qui l'a créée";
+
+    private function listerLesCabinets(): void
+    {
+        $this->line('Les cabinets connus, avec ce qu\'ils portent :');
+        $this->newLine();
+
+        $dossiers = Company::whereNotNull('cabinet_id')
+            ->selectRaw('cabinet_id, COUNT(*) as n')->groupBy('cabinet_id')->pluck('n', 'cabinet_id');
+
+        foreach (Cabinet::orderBy('nom')->get(['id', 'nom', 'user_id']) as $c) {
+            $gerant = User::find($c->user_id);
+
+            $this->line(sprintf('    %-5s %-38s %4d dossier(s)   gérant : %s',
+                $c->id,
+                mb_strimwidth($c->nom, 0, 38, '…'),
+                $dossiers[$c->id] ?? 0,
+                $gerant ? trim($gerant->name . ' ' . $gerant->last_name) : 'aucun'));
+        }
+    }
+
+    /**
+     * Un cabinet désigné par son identifiant ou par son nom.
+     *
+     * Un identifiant d'ENTREPRISE ressemble à un identifiant de cabinet : on
+     * le dit, plutôt que de rattacher au hasard.
+     */
+    private function trouverLeCabinet(string $designation): ?Cabinet
+    {
+        $cabinet = ctype_digit($designation)
+            ? Cabinet::find($designation)
+            : Cabinet::where('nom', 'like', '%' . $designation . '%')->first();
+
+        if ($cabinet) {
+            return $cabinet;
+        }
+
+        if (ctype_digit($designation) && $entreprise = Company::find($designation)) {
+            $this->error(sprintf(
+                'Aucun cabinet n\'a l\'identifiant %s — mais c\'est celui de l\'ENTREPRISE « %s ».',
+                $designation, $entreprise->company_name
+            ));
+            $this->line('Les cabinets ont leurs propres identifiants. Voici les vôtres :');
+        } else {
+            $this->error('Aucun cabinet ne correspond à « ' . $designation . ' ».');
+        }
+
+        $this->newLine();
+        $this->listerLesCabinets();
+
+        return null;
+    }
 
     public function handle(): int
     {
@@ -41,16 +94,17 @@ class RattacherLesDossiersAuCabinet extends Command
 
         DB::connection()->disableQueryLog();
 
+        if ($this->option('lister')) {
+            $this->listerLesCabinets();
+            return self::SUCCESS;
+        }
+
         $cabinetParDefaut = null;
 
         if ($this->option('cabinet')) {
-            $cabinetParDefaut = Cabinet::find($this->option('cabinet'));
+            $cabinetParDefaut = $this->trouverLeCabinet((string) $this->option('cabinet'));
 
             if (!$cabinetParDefaut) {
-                $this->error('Ce cabinet n\'existe pas. Les cabinets connus :');
-                foreach (Cabinet::orderBy('nom')->get(['id', 'nom']) as $c) {
-                    $this->line(sprintf('    %-4s %s', $c->id, $c->nom));
-                }
                 return self::FAILURE;
             }
         }
@@ -66,21 +120,37 @@ class RattacherLesDossiersAuCabinet extends Command
 
         $nomsCabinets = Cabinet::pluck('nom', 'id');
 
-        $sansRattachement = Company::whereNull('cabinet_id')
+        $sansRattachement = Company::query()
+            ->when(!$this->option('forcer'), fn ($q) => $q->whereNull('cabinet_id'))
             ->orderBy('company_name')
-            ->get(['id', 'company_name', 'user_id']);
+            ->get(['id', 'company_name', 'user_id', 'cabinet_id']);
 
         if ($sansRattachement->isEmpty()) {
             $this->info('Toutes les comptabilités sont déjà rattachées à un cabinet.');
             return self::SUCCESS;
         }
 
-        $this->line($sansRattachement->count() . ' comptabilité(s) sans cabinet.');
+        $this->line($sansRattachement->count() . ' comptabilité(s) à examiner'
+            . ($this->option('forcer') ? ' (dossiers déjà rattachés compris).' : ' sans cabinet.'));
 
         $parCabinet = [];
         $orphelins = [];
 
         foreach ($sansRattachement as $company) {
+            // --forcer veut dire : tout ranger sous le cabinet demandé, quel
+            // que soit le créateur et le rattachement actuel.
+            if ($this->option('forcer') && $cabinetParDefaut) {
+                if ((int) $company->cabinet_id === (int) $cabinetParDefaut->id) {
+                    continue;
+                }
+
+                $parCabinet[$cabinetParDefaut->id][] = [
+                    'dossier' => $company,
+                    'motif' => $company->cabinet_id ? 'déplacé sur demande' : 'rattachement demandé',
+                ];
+                continue;
+            }
+
             $cabinetId = $gere[$company->user_id] ?? $membre[$company->user_id] ?? null;
             $motif = isset($gere[$company->user_id]) ? 'son créateur gère ce cabinet' : 'son créateur en est membre';
 
