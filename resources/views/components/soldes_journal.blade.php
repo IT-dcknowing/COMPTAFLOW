@@ -170,9 +170,9 @@
                 json.libelle_ancien || 'Solde précédent';
             cadre.title = 'Période du ' + json.periode[0] + ' au ' + json.periode[1]
                 + (json.tous_journaux
-                    ? ' — le solde d'un compte se lit sur tous les journaux, sinon il ne se recoupe '
-                      + 'plus avec la balance. Les colonnes disent ce qui vient de ce journal et ce qui '
-                      + 'vient des autres.'
+                    ? " — le solde d'un compte se lit sur tous les journaux, sinon il ne se recoupe "
+                      + "plus avec la balance. Les colonnes disent ce qui vient de ce journal et ce qui "
+                      + "vient des autres."
                     : ' — totaux de ce journal.');
 
             const comptes = json.comptes || [];

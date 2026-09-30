@@ -49,14 +49,14 @@
         if (deconnexionAnnoncee) return;
         deconnexionAnnoncee = true;
 
-        var texte = 'Votre session a pris fin. Reconnectez-vous pour continuer : '
-                  + 'ce qui est affiche a l'ecran n'est pas perdu, mais rien ne '
-                  + 'pourra etre enregistre tant que vous n'etes pas reconnecte.';
+        var texte = "Votre session a pris fin. Reconnectez-vous pour continuer : "
+                  + "ce qui est à l'écran n'est pas perdu, mais rien ne pourra être "
+                  + "enregistré tant que vous n'êtes pas reconnecté.";
 
         if (window.Swal) {
             Swal.fire({
                 icon: 'warning',
-                title: 'Vous etes deconnecte',
+                title: "Vous êtes déconnecté",
                 text: texte,
                 confirmButtonText: 'Se reconnecter',
                 showCancelButton: true,
