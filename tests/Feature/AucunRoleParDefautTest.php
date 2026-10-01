@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -155,6 +156,93 @@ class AucunRoleParDefautTest extends TestCase
         $this->artisan('comptes:role-comptable')->assertSuccessful();
 
         $this->assertSame('comptable', $ancien->fresh()->role);
+    }
+
+    public function test_un_compte_cree_par_adresse_peut_se_connecter(): void
+    {
+        // Le vrai barrage : le mot de passe etait aleatoire et jamais affiche.
+        // Personne ne le connaissait, la connexion repondait « identifiants
+        // incorrects », et changer le role n'y changeait rien.
+        $dossier = Company::create([
+            'company_name' => 'Client B', 'activity' => 'Test', 'juridique_form' => 'SARL',
+        ]);
+
+        $this->actingAs($this->superAdmin)
+            ->post(route('superadmin.affectations.comptabilite'), [
+                'company_id' => $dossier->id,
+                'email_adresse' => 'brou@dc-knowing.com',
+                'role' => 'admin',
+            ])->assertRedirect();
+
+        auth()->logout();
+
+        $this->post(route('login.post'), [
+            'email_adresse' => 'brou@dc-knowing.com',
+            'password' => \App\Http\Controllers\Super\SuperAdminAffectationController::MOT_DE_PASSE_PROVISOIRE,
+        ])->assertRedirect(route('accountant.space'));
+
+        $this->assertAuthenticated();
+    }
+
+    public function test_donner_un_mot_de_passe_rouvre_la_connexion(): void
+    {
+        $bloque = User::factory()->create([
+            'email_adresse' => 'bloque@dc-knowing.com',
+            'password' => bcrypt(Str::random(32)),
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($this->superAdmin)
+            ->post(route('superadmin.affectations.mot_de_passe'), [
+                'user_id' => $bloque->id,
+                'password' => 'motdepasse2026',
+            ])->assertRedirect();
+
+        auth()->logout();
+
+        // Le compte etait aussi desactive : un mot de passe neuf sur un compte
+        // ferme n'aurait rien ouvert.
+        $this->post(route('login.post'), [
+            'email_adresse' => 'bloque@dc-knowing.com',
+            'password' => 'motdepasse2026',
+        ])->assertRedirect(route('accountant.space'));
+
+        $this->assertAuthenticatedAs($bloque->fresh());
+    }
+
+    public function test_le_diagnostic_nomme_le_mot_de_passe_pose_doffice(): void
+    {
+        User::factory()->create([
+            'email_adresse' => 'pose@dc-knowing.com',
+            'password' => bcrypt(\App\Http\Controllers\Super\SuperAdminAffectationController::MOT_DE_PASSE_PROVISOIRE),
+        ]);
+
+        $this->artisan('comptes:diagnostic', ['--email' => 'pose@dc-knowing.com'])
+            ->expectsOutputToContain('pose d')
+            ->assertSuccessful();
+    }
+
+    public function test_le_diagnostic_dit_quand_le_compte_est_desactive(): void
+    {
+        User::factory()->create([
+            'email_adresse' => 'ferme@dc-knowing.com',
+            'is_active' => false,
+        ]);
+
+        $this->artisan('comptes:diagnostic', ['--email' => 'ferme@dc-knowing.com'])
+            ->expectsOutputToContain('DESACTIVE')
+            ->assertFailed();
+    }
+
+    public function test_une_personne_sans_comptabilite_est_dite_collaborateur(): void
+    {
+        // « Aucun rôle » se lisait comme un compte vide. Personne n'est rien :
+        // il appartient à la maison, et l'accès aux dossiers ne lui est pas
+        // donné d'office.
+        $nouveau = User::factory()->create(['role' => null]);
+
+        $this->assertSame('Collaborateur',
+            \App\Services\Rattachements::libelleDuRole($nouveau));
     }
 
     public function test_modifier_un_super_administrateur_ne_le_degrade_pas(): void

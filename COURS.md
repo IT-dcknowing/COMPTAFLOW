@@ -656,7 +656,33 @@ Trois valeurs subsistent, et une seule compte vraiment :
 |---|---|
 | `super_admin` | La gouvernance de l'application. |
 | `admin` | Un compte qui administre tout ce qu'il touche, sans affectation. |
-| *(vide)* | Aucun rôle. Ce que la personne peut faire se lit sur le dossier. |
+| *(vide)* | Ce que la personne peut faire se lit sur le dossier. |
+
+À l'écran, la colonne vide ne s'affiche jamais « aucun rôle » : personne n'est
+rien. On y lit **Administrateur de ses comptabilités** quand la personne en tient
+une, **Collaborateur** sinon — elle appartient à la maison, l'accès aux dossiers
+ne lui est pas donné d'office, et elle sera administratrice du premier dossier
+qu'elle ouvrira.
+
+### Un compte qui ne peut pas se connecter
+
+L'écran de connexion ne répond qu'« identifiants incorrects », à dessein : il ne
+dit pas à un inconnu quelles adresses existent. Mais cela masquait un piège.
+
+Un compte créé **par simple adresse** depuis la page de liaison recevait un mot
+de passe aléatoire que *personne* ne connaissait. La connexion lui était donc
+refusée pour toujours, et ni le rôle, ni les accès, ni le cabinet n'y changeaient
+quoi que ce soit — on cherchait la panne au mauvais endroit.
+
+Désormais le mot de passe posé s'annonce (`Comptaflow2026`, à changer à la
+première connexion), et **Affectations › Donner un mot de passe** en définit un
+pour n'importe qui — en réactivant le compte au passage, car un mot de passe neuf
+sur un compte fermé n'ouvre rien.
+
+Côté serveur, `comptes:diagnostic --email=…` dit ce qui barre vraiment la
+connexion : adresse inconnue, compte désactivé, compte bloqué, entreprise
+bloquée, ou mot de passe. Et `--sans-mot-de-passe-connu` liste les comptes qui
+portent encore celui posé d'office.
 
 « comptable » n'est plus attribué nulle part. Les comptes qui le portent encore
 se vident avec `comptes:role-comptable`, qui pose d'abord les liaisons
@@ -759,6 +785,10 @@ php artisan saisies:restaurer --source=<base> --company=<id> --appliquer
 
 # Retirer le rôle « comptable », sans retirer un seul accès
 php artisan comptes:role-comptable --appliquer
+
+# Pourquoi cette personne n'arrive-t-elle pas à se connecter ?
+php artisan comptes:diagnostic --email="adresse"
+php artisan comptes:diagnostic --sans-mot-de-passe-connu
 
 # Désigner qui tient un cabinet (l'ancien devient « admin du cabinet »)
 php artisan cabinets:gerant --cabinet="DC-KNOWING" --email="adresse" --appliquer

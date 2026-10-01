@@ -220,7 +220,11 @@ class Rattachements
             return 'Sur habilitations';
         }
 
-        return 'Aucun rôle';
+        // Personne n'est « rien ». Quelqu'un sans comptabilité est un
+        // collaborateur : il appartient à la maison, et l'accès aux dossiers ne
+        // lui est pas donné d'office. Il deviendra administrateur du premier
+        // dossier qu'il ouvrira.
+        return 'Collaborateur';
     }
 
     /**

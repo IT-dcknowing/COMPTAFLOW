@@ -933,6 +933,9 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
     Route::delete('/superadmin/affectations/cabinet', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'retirerDUnCabinet'])->name('superadmin.affectations.cabinet.retirer');
     Route::post('/superadmin/affectations/personne', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'creerUnePersonne'])->name('superadmin.affectations.personne');
     Route::post('/superadmin/affectations/adresse', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'changerLAdresse'])->name('superadmin.affectations.adresse');
+    // Un compte cree par simple adresse n'avait aucun mot de passe connu :
+    // la connexion lui etait refusee sans que rien ne dise pourquoi.
+    Route::post('/superadmin/affectations/mot-de-passe', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'definirLeMotDePasse'])->name('superadmin.affectations.mot_de_passe');
     Route::post('/superadmin/affectations/cabinet/dossiers', [\App\Http\Controllers\Super\SuperAdminAffectationController::class, 'affecterDesDossiersDuCabinet'])->name('superadmin.affectations.cabinet.dossiers');
 
     Route::get('/superadmin/corbeille', [\App\Http\Controllers\Super\SuperAdminCompanyController::class, 'corbeille'])->name('superadmin.corbeille');

@@ -28,6 +28,17 @@ use Illuminate\Validation\Rule;
  */
 class SuperAdminAffectationController extends Controller
 {
+    /**
+     * Le mot de passe pose sur un compte cree depuis cette page.
+     *
+     * Il etait aleatoire et jamais affiche : la personne se voyait refuser la
+     * connexion sans qu'aucun ecran ne dise pourquoi, et changer son role n'y
+     * changeait rien. Un mot de passe qui s'annonce vaut mieux qu'un secret
+     * que personne ne detient — il se change a la premiere connexion, et la
+     * page permet d'en definir un autre tout de suite.
+     */
+    public const MOT_DE_PASSE_PROVISOIRE = 'Comptaflow2026';
+
     public function index(Request $request)
     {
         $entreprises = Company::orderBy('company_name')->get(['id', 'company_name', 'cabinet_id']);
@@ -140,7 +151,8 @@ class SuperAdminAffectationController extends Controller
             '',
             $company->company_name,
             $donnees['role'] === 'admin' ? 'administrateur du dossier' : 'acces limite',
-            $cree ? ' Un mot de passe provisoire lui a été attribué : il devra le changer.' : ''
+            $cree ? ' Mot de passe provisoire : ' . self::MOT_DE_PASSE_PROVISOIRE
+                . ' — à changer à la première connexion.' : ''
         ));
     }
 
@@ -289,6 +301,37 @@ class SuperAdminAffectationController extends Controller
     }
 
     /**
+     * Donne un mot de passe a une personne.
+     *
+     * Un compte cree par simple adresse n'en avait aucun de connu : la
+     * connexion lui etait refusee, et l'ecran de connexion repondait seulement
+     * « identifiants incorrects ». C'est ici qu'on lui en donne un.
+     */
+    public function definirLeMotDePasse(Request $request)
+    {
+        $donnees = $request->validate([
+            'user_id' => ['required', Rule::exists('users', 'id')],
+            'password' => ['required', 'string', 'min:8'],
+        ], [
+            'password.min' => 'Le mot de passe doit faire au moins 8 caracteres.',
+        ]);
+
+        $user = User::findOrFail($donnees['user_id']);
+
+        // Un compte desactive ne se connecte pas davantage avec un mot de passe
+        // neuf : on le reactive dans le meme geste, sinon le probleme survit.
+        $user->forceFill([
+            'password' => Hash::make($donnees['password']),
+            'is_active' => true,
+        ])->save();
+
+        return back()->with('success', sprintf(
+            'Mot de passe defini pour %s (%s). Le compte est actif : la personne peut se connecter.',
+            trim($user->name . ' ' . $user->last_name), $user->email_adresse
+        ));
+    }
+
+    /**
      * Remplace l'adresse d'une personne.
      */
     public function changerLAdresse(Request $request)
@@ -373,15 +416,16 @@ class SuperAdminAffectationController extends Controller
             return [$user, false];
         }
 
-        // Un mot de passe provisoire, jamais affiché : la personne passe par
-        // « mot de passe oublié ». Le montrer à l'écran le ferait circuler.
+        // Un mot de passe aleatoire que personne ne connait : la personne ne
+        // pouvait donc pas se connecter du tout, et rien ne le disait. On en
+        // pose un qui s'annonce, a changer a la premiere connexion.
         // Les champs facultatifs peuvent manquer : la validation ne rend que
         // ce qui a ete envoye.
         $user = User::create([
             'name' => ($donnees['name'] ?? null) ?: Str::before($donnees['email_adresse'], '@'),
             'last_name' => ($donnees['last_name'] ?? null) ?: '',
             'email_adresse' => $donnees['email_adresse'],
-            'password' => Hash::make(Str::random(32)),
+            'password' => Hash::make(self::MOT_DE_PASSE_PROVISOIRE),
             // Le role demande sur le formulaire porte sur la COMPTABILITE, pas
             // sur le compte : le recopier ici donnait un titre global a
             // quelqu'un qu'on venait seulement de rattacher a un dossier.

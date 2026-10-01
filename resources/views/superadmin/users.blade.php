@@ -107,7 +107,7 @@
                         <div class="glass-card p-4 border-l-4 border-l-purple-600">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Sans rôle</p>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Collaborateurs</p>
                                     <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $totalComptables }}</h3>
                                 </div>
                                 <div class="p-3 bg-purple-50 text-purple-600 rounded-2xl">
@@ -156,7 +156,7 @@
                                         <option value="">Tous les rôles</option>
                                         <option value="admin"       {{ request('role') === 'admin'       ? 'selected' : '' }}>Admin</option>
                                         <option value="super_admin" {{ request('role') === 'super_admin' ? 'selected' : '' }}>Super Admin</option>
-                                        <option value="aucun"       {{ request('role') === 'aucun'       ? 'selected' : '' }}>Aucun rôle</option>
+                                        <option value="aucun"       {{ request('role') === 'aucun'       ? 'selected' : '' }}>Collaborateur</option>
                                     </select>
                                 </div>
 
@@ -282,7 +282,7 @@
                                                 @else
                                                     {{-- Aucun rôle enregistré : on dit ce que la personne tient
                                                          réellement, au lieu de lui coller un titre. --}}
-                                                    <span class="badge bg-secondary">{{ $titres[$user->id] ?? 'Aucun rôle' }}</span>
+                                                    <span class="badge bg-secondary">{{ $titres[$user->id] ?? 'Collaborateur' }}</span>
                                                 @endif
                                             </td>
                                             <td>

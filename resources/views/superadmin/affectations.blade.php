@@ -385,6 +385,51 @@
                             </div>
                         </div>
 
+
+                        {{-- ─── Donner un mot de passe ─── --}}
+                        <div class="col-12">
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;">
+                                <div class="p-3" style="background:#fef2f2;border-bottom:1px solid #fecaca;">
+                                    <h2 class="h6 fw-bolder mb-1" style="color:#991b1b;">
+                                        <i class="fa-solid fa-key me-2"></i>Donner un mot de passe
+                                    </h2>
+                                    <p class="mb-0" style="font-size:.74rem;color:#7f1d1d;">
+                                        Un compte créé par simple adresse reçoit le mot de passe provisoire
+                                        <strong>{{ \App\Http\Controllers\Super\SuperAdminAffectationController::MOT_DE_PASSE_PROVISOIRE }}</strong>.
+                                        Les comptes créés <em>avant</em> cette page en avaient un que personne ne
+                                        connaissait : la connexion leur était refusée, et l'écran répondait seulement
+                                        « identifiants incorrects ». C'est ici qu'on leur en donne un.
+                                    </p>
+                                </div>
+                                <form method="POST" action="{{ route('superadmin.affectations.mot_de_passe') }}" class="p-3">
+                                    @csrf
+                                    <div class="row g-2 align-items-start">
+                                        <div class="col-md-5 champ-adresse" data-adresse
+                                             data-message-trouve="Compte trouvé"
+                                             data-message-absent="Aucun compte ne porte cette adresse.">
+                                            <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">Adresse de la personne</label>
+                                            <input type="email" autocomplete="off" required class="form-control form-control-sm"
+                                                   style="border-radius:10px;" placeholder="Chercher l'adresse…" data-champ>
+                                            <div class="propositions" hidden data-liste></div>
+                                            <div class="verdict" data-verdict></div>
+                                            <input type="hidden" name="user_id" data-user-id>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">Nouveau mot de passe</label>
+                                            <input type="text" name="password" required minlength="8" class="form-control form-control-sm"
+                                                   style="border-radius:10px;" placeholder="8 caractères au minimum">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="d-block text-uppercase mb-1" style="font-size:.62rem;font-weight:800;color:#64748b;">&nbsp;</label>
+                                            <button class="btn btn-danger btn-sm w-100" style="border-radius:10px;font-weight:700;">
+                                                Définir
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
                     </div>
 
                 </div>

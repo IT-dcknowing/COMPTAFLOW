@@ -116,19 +116,23 @@ class LesPagesDisentLaMemeChoseTest extends TestCase
             ->assertDontSee('etranger@ailleurs.ci', false);
     }
 
-    public function test_un_compte_sans_role_est_dit_sans_role(): void
+    public function test_un_compte_sans_comptabilite_est_dit_collaborateur(): void
     {
+        // « Aucun rôle » se lisait comme un compte vide, voire cassé. Personne
+        // n'est rien : il appartient à la maison, et l'accès aux dossiers ne
+        // lui est pas donné d'office. Il sera administrateur du premier
+        // dossier qu'il ouvrira.
         $nouveau = User::factory()->create([
             'role' => null, 'email_adresse' => 'nouveau@societe.ci',
         ]);
 
-        $this->assertSame('Aucun rôle', Rattachements::libelleDuRole($nouveau));
+        $this->assertSame('Collaborateur', Rattachements::libelleDuRole($nouveau));
 
         $this->actingAs($this->superAdmin)
             ->get(route('superadmin.users', ['role' => 'aucun']))
             ->assertOk()
             ->assertSee('nouveau@societe.ci', false)
-            ->assertSee('Aucun rôle', false);
+            ->assertSee('Collaborateur', false);
     }
 
     public function test_celui_qui_tient_un_dossier_est_dit_administrateur(): void
