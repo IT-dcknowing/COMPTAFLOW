@@ -454,7 +454,12 @@ body {
 <div class="layout-container">
     @include('components.sidebar')
     <div class="layout-page">
-        @include('components.header', ['page_title' => 'Mon Espace'])
+        {{-- Le titre nomme la maison : un espace de cabinet n'est pas un espace
+             personnel, et le gérant doit le voir au premier coup d'œil. --}}
+        @include('components.header', ['page_title' => !empty($informations['cabinet'])
+            ? 'Espace Cabinet <span style="color:#818cf8;font-weight:800;">'
+                . e($informations['cabinet']) . '</span>'
+            : 'Mon Espace'])
 
         <div class="content-wrapper p-0">
         <div class="espace-wrapper">
@@ -828,6 +833,13 @@ body {
                                                                 <span style="font-size:0.75rem;font-weight:700;color:var(--text-primary);">{{ Str::limit($company['name'], 18) }}</span>
                                                                             </div>
                                                         @endforeach
+                                                    @elseif($collab->du_cabinet ?? false)
+                                                        {{-- Membre du cabinet sans dossier confie : il doit figurer ici,
+                                                             avec son adresse, sinon on ne peut meme pas lui en confier un. --}}
+                                                        <span style="color:#60a5fa;font-size:0.76rem;font-weight:700;">
+                                                            <i class="fas fa-building-user"></i> Membre du cabinet
+                                                        </span>
+                                                        <div style="color:var(--text-muted);font-size:0.7rem;">aucun dossier confié</div>
                                                     @else
                                                         <span style="color:var(--text-muted);font-size:0.8rem;">Aucune entreprise</span>
                                                     @endif
@@ -865,7 +877,9 @@ body {
                                                 </td>
                                             </tr>
                                             @empty
-                                            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Aucun collaborateur</td></tr>
+                                            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">
+                                                Aucun collaborateur — ni dans vos dossiers, ni dans votre cabinet.
+                                            </td></tr>
                                             @endforelse
                                         </tbody>
                                     </table>

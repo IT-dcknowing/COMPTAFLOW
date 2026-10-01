@@ -221,6 +221,25 @@ class AccountantSpaceController extends Controller
             ->toArray();
         $legacyCollaboratorIds = User::whereIn('company_id', $allCompanyIds)->pluck('id')->toArray();
         $assignedCollaboratorIds = array_unique(array_merge($assignedCollaboratorIds, $legacyCollaboratorIds));
+
+        // Les membres du cabinet comptent, meme sans dossier confie.
+        //
+        // La liste ne retenait que les personnes rattachees a une comptabilite :
+        // quelqu'un qu'on vient de faire entrer dans la maison n'y figurait pas,
+        // et l'ecran annoncait « Aucun collaborateur » alors que le compteur des
+        // affectations, lui, le comptait. On ne pouvait meme pas lire son
+        // adresse pour lui confier un dossier.
+        $cabinetDeLEspace = $this->cabinetDe($user);
+
+        if ($cabinetDeLEspace) {
+            $assignedCollaboratorIds = array_merge(
+                $assignedCollaboratorIds,
+                DB::table('cabinet_user')->where('cabinet_id', $cabinetDeLEspace->id)
+                    ->pluck('user_id')->toArray()
+            );
+            $assignedCollaboratorIds = array_unique($assignedCollaboratorIds);
+        }
+
         $assignedCollaboratorIds = array_values(array_diff($assignedCollaboratorIds, [$user->id]));
         $collaborators = User::with(['companies', 'creator:id,name,last_name'])
             ->whereIn('id', $assignedCollaboratorIds)
@@ -255,6 +274,14 @@ class AccountantSpaceController extends Controller
         };
 
         $collaborators->each($attacherSocietesLiees);
+
+        $membresDuCabinet = $cabinetDeLEspace
+            ? DB::table('cabinet_user')->where('cabinet_id', $cabinetDeLEspace->id)->pluck('user_id')->flip()
+            : collect();
+
+        $collaborators->each(function ($collab) use ($membresDuCabinet) {
+            $collab->du_cabinet = $membresDuCabinet->has($collab->id);
+        });
 
         // 3. Collaborateurs assignables ou créés par moi (liste déroulante)
         $createdCollaboratorIds = User::where('created_by_id', $user->id)->pluck('id')->toArray();
