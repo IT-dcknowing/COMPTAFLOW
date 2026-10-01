@@ -448,7 +448,7 @@
                 @endif
                 
                 <span class="mx-2 opacity-50">|</span>
-                <span class="fw-bold">{{ strtoupper(($isSuperAdminSwitch && auth()->user()->isSuperAdmin()) ? 'Administrateur' : (auth()->user()->role === 'comptable' ? 'Comptable' : (auth()->user()->role === 'super_admin' ? 'Super Admin' : auth()->user()->role))) }}</span>
+                <span class="fw-bold">{{ strtoupper(($isSuperAdminSwitch && auth()->user()->isSuperAdmin()) ? 'Administrateur' : auth()->user()->titreSurLaComptabiliteCourante()) }}</span>
 
                 @php 
                     $switchedId = session('current_company_id') ?? session('switched_company_id');

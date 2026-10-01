@@ -137,8 +137,12 @@ class ComptaAccountController extends Controller
 
             // Une entreprise n'est jamais vide : son createur en est le premier
             // responsable et recoit l'ensemble des habilitations.
+            // Le role sur le dossier est toujours administrateur : celui qui
+            // cree la comptabilite la tient. Le recopier depuis le role du
+            // COMPTE n'avait pas de sens — un compte sans role en aurait herite
+            // un vide, et un comptable un titre qui ne dit rien du dossier.
             $company->associatedUsers()->syncWithoutDetaching([
-                $userId => ['role' => Auth::user()->role ?? 'admin'],
+                $userId => ['role' => 'admin'],
             ]);
             app(\App\Http\Controllers\AccountantSpaceController::class)
                 ->accorderToutesLesHabilitationsA(Auth::user());

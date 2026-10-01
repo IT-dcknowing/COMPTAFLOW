@@ -119,17 +119,13 @@ class SuperAdminSwitchController extends Controller
         // Connexion réelle en tant qu'utilisateur cible
         Auth::loginUsingId($userId);
         
-        // Rediriger selon le rôle
-        if ($user->role === 'admin') {
-            return redirect()->route('admin.dashboard')
-                ->with('success', "Vous êtes maintenant connecté en tant que : {$user->name}");
-        } elseif ($user->role === 'comptable') {
-            return redirect()->route('compta.dashboard')
-                ->with('success', "Vous êtes maintenant connecté en tant que : {$user->name}");
-        } else {
-            return redirect()->route('app.dashboard')
-                ->with('success', "Vous êtes maintenant connecté en tant que : {$user->name}");
-        }
+        // On suit ce que la personne TIENT, non ce que son rôle annonce : un
+        // compte sans rôle administre pourtant la comptabilité qu'il a ouverte,
+        // et l'envoyer ailleurs donnait un écran vide.
+        return redirect()->route($user->gereLaComptabiliteCourante()
+            ? 'admin.dashboard'
+            : 'app.dashboard')
+            ->with('success', "Vous êtes maintenant connecté en tant que : {$user->name}");
     }
 
     /**

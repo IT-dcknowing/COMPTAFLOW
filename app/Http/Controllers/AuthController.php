@@ -46,18 +46,18 @@ class AuthController extends Controller
         Auth::login($user);
         $user->update(['is_online' => 1]);
 
-        if ($user->role === 'super_admin') {
+        if ($user->isSuperAdmin()) {
             return redirect()->route('superadmin.dashboard');
         }
 
         // Chacun repart de son espace, offre comprise : il y retrouve ses
         // comptabilités. Le Pack Entreprise n'en tient qu'une, mais elle s'y
         // affiche comme les autres.
-        if ($user->role === 'admin' || $user->role === 'comptable') {
-            return redirect()->route('accountant.space');
-        }
-
-        return redirect('/unauthorized');
+        //
+        // Un compte sans rôle y va aussi : il n'a encore aucun dossier, et
+        // c'est là qu'il en ouvre un — il en sera l'administrateur. L'envoyer
+        // sur « non autorisé » l'enfermait dehors.
+        return redirect()->route('accountant.space');
     }
 
     public function loginCompany(Request $request)
@@ -103,15 +103,17 @@ class AuthController extends Controller
         // Définir la compagnie active en session
         session(['current_company_id' => $company->id]);
 
-        if ($user->role === 'super_admin') {
+        if ($user->isSuperAdmin()) {
             return redirect()->route('superadmin.dashboard');
-        } elseif ($user->role === 'admin') {
-            return redirect()->route('admin.dashboard');
-        } elseif ($user->role === 'comptable') {
-            return redirect()->route('comptable.comptdashboard');
         }
 
-        return redirect('/unauthorized');
+        // La comptabilité est ouverte : c'est elle qui dit où aller. Celui qui
+        // la tient — créateur ou affecté en administrateur — va au tableau de
+        // bord d'administration, les autres au leur. Le rôle du compte ne
+        // décide plus seul : un créateur sans rôle tient pourtant son dossier.
+        return redirect()->route($user->gereLaComptabiliteCourante()
+            ? 'admin.dashboard'
+            : 'comptable.comptdashboard');
     }
 
 

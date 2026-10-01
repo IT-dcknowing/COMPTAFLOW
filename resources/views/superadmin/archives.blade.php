@@ -21,6 +21,10 @@
             Tout ce qui a été supprimé dans l'application, tous dossiers confondus, gardé
             {{ $stats['retention'] }} jours. Les dossiers eux-mêmes supprimés figurent ici : c'est le seul
             endroit où leurs archives restent joignables.
+            <br>
+            <strong>Pour récupérer</strong> : le bouton <i class="fa-solid fa-rotate-left"></i> remet la ligne
+            en place sous son identifiant d'origine, et propose de remettre tout le lot si la suppression était
+            groupée. Ce qui a été supprimé <em>avant</em> la mise en place de l'archive n'y figure pas.
         </p>
     </div>
 
@@ -31,8 +35,9 @@
             ['Opérations', $stats['lots'], 'fa-layer-group', '#0f766e'],
             ['Expirent sous 7 jours', $stats['expire_7j'], 'fa-hourglass-half', '#b45309'],
             ['Dossiers supprimés', $stats['orphelines'], 'fa-building-circle-xmark', '#b91c1c'],
+            ['Remises en place', $stats['remises'], 'fa-rotate-left', '#15803d'],
         ] as [$titre, $valeur, $icone, $couleur])
-        <div class="col-6 col-lg-3">
+        <div class="col-6 col-lg">
             <div class="p-3" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;">
                 <div class="d-flex align-items-center gap-2 mb-1">
                     <i class="fa-solid {{ $icone }}" style="color:{{ $couleur }};"></i>
@@ -108,6 +113,9 @@
                         <td class="px-4 py-3" style="font-size:.82rem;">
                             @if(isset($vivantes[$a->company_id]))
                                 {{ $vivantes[$a->company_id] }}
+                            @elseif(isset($enCorbeille[$a->company_id]))
+                                {{ $enCorbeille[$a->company_id] }}
+                                <span class="d-block" style="color:#b45309;font-weight:700;font-size:.7rem;">en corbeille</span>
                             @else
                                 <span style="color:#b91c1c;font-weight:700;">Dossier supprimé</span>
                                 <span class="text-muted">(#{{ $a->company_id }})</span>
@@ -126,6 +134,20 @@
                             {{ optional($a->expires_at)->format('d/m/Y') }}
                         </td>
                         <td class="px-4 py-3 text-end">
+                            @if($a->restored_at)
+                                <span style="color:#15803d;font-size:.72rem;font-weight:700;" title="Remise en place le {{ $a->restored_at->format('d/m/Y H:i') }}">
+                                    <i class="fa-solid fa-rotate-left me-1"></i>remise en place
+                                </span>
+                            @else
+                            <button type="button" class="btn btn-sm btn-light remettre-archive"
+                                    data-apercu="{{ route('superadmin.archives.apercu_restauration', $a->id) }}"
+                                    data-libelle="{{ $a->label }}"
+                                    data-action="{{ route('superadmin.archives.restaurer', $a->id) }}"
+                                    data-lot="{{ $a->batch_id }}"
+                                    style="border-radius:8px;" title="Remettre en place">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                            @endif
                             <button type="button" class="btn btn-sm btn-light voir-archive"
                                     data-url="{{ route('superadmin.archives.show', $a->id) }}"
                                     style="border-radius:8px;">
@@ -137,6 +159,19 @@
                     <tr>
                         <td colspan="7" class="text-center py-5 text-muted" style="font-size:.85rem;">
                             Aucune suppression conservée pour ces critères.
+                            @if($stats['total'] > 0)
+                                <div class="mt-2">
+                                    L'archive contient pourtant {{ number_format($stats['total'], 0, ',', ' ') }} ligne(s) :
+                                    ce sont les filtres qui les écartent.
+                                    <a href="{{ route('superadmin.archives') }}" class="fw-bold">Les voir toutes</a>.
+                                </div>
+                            @else
+                                <div class="mt-2">
+                                    Rien n'a été supprimé depuis {{ $stats['retention'] }} jours — ou tout a déjà
+                                    été purgé. Ce qui a été supprimé AVANT la mise en place de l'archive n'y figure
+                                    pas : il n'en reste aucune trace à remettre.
+                                </div>
+                            @endif
                         </td>
                     </tr>
                     @endforelse
@@ -168,6 +203,95 @@
         </div>
     </div>
 </div>
+
+{{-- Remettre en place : on annonce ce qui va revenir avant de l'écrire --}}
+<div class="modal fade" id="modaleRemise" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border:0;border-radius:18px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bolder">Remettre en place</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="fw-bold mb-2" id="remiseLibelle" style="font-size:.9rem;color:#0f172a;"></div>
+                <div id="remiseRaison" class="p-3 mb-3" style="background:#f8fafc;border-radius:12px;font-size:.8rem;color:#334155;"></div>
+
+                <div id="remiseLot" class="d-none p-3 mb-3" style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;font-size:.8rem;color:#92400e;">
+                    Cette ligne fait partie d'une suppression groupée de
+                    <strong id="remiseLotNombre">0</strong> ligne(s) encore absente(s).
+                    Les remettre ensemble rend la suppression telle qu'elle était.
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 d-flex gap-2">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius:10px;">Annuler</button>
+
+                <form method="POST" id="remiseLotFormulaire" action="{{ route('superadmin.archives.restaurer_lot') }}" class="d-none">
+                    @csrf
+                    <input type="hidden" name="batch_id" id="remiseLotId">
+                    <button class="btn btn-warning" style="border-radius:10px;font-weight:700;">
+                        <i class="fa-solid fa-layer-group me-1"></i>Remettre tout le lot
+                    </button>
+                </form>
+
+                <form method="POST" id="remiseFormulaire">
+                    @csrf
+                    <button class="btn btn-primary" id="remiseValider" style="border-radius:10px;font-weight:700;">
+                        <i class="fa-solid fa-rotate-left me-1"></i>Remettre cette ligne
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const cadre = document.getElementById('modaleRemise');
+    if (!cadre || typeof bootstrap === 'undefined') return;
+
+    const boite = new bootstrap.Modal(cadre);
+    const libelle = document.getElementById('remiseLibelle');
+    const raison = document.getElementById('remiseRaison');
+    const bloc = document.getElementById('remiseLot');
+    const nombre = document.getElementById('remiseLotNombre');
+    const formulaire = document.getElementById('remiseFormulaire');
+    const valider = document.getElementById('remiseValider');
+    const lotFormulaire = document.getElementById('remiseLotFormulaire');
+    const lotId = document.getElementById('remiseLotId');
+
+    document.querySelectorAll('.remettre-archive').forEach(function (b) {
+        b.addEventListener('click', function () {
+            libelle.textContent = b.dataset.libelle || "";
+            raison.textContent = "Vérification…";
+            bloc.classList.add("d-none");
+            lotFormulaire.classList.add("d-none");
+            valider.disabled = true;
+            formulaire.action = b.dataset.action;
+            boite.show();
+
+            fetch(b.dataset.apercu, { headers: { "Accept": "application/json" } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) {
+                    if (!d) {
+                        raison.textContent = "Impossible de vérifier : réessayez.";
+                        return;
+                    }
+
+                    raison.textContent = d.raison || "";
+                    valider.disabled = !d.possible;
+
+                    if (d.lot && d.lignes_du_lot > 1) {
+                        nombre.textContent = d.lignes_du_lot;
+                        bloc.classList.remove("d-none");
+                        lotId.value = d.lot;
+                        lotFormulaire.classList.remove("d-none");
+                    }
+                })
+                .catch(function () { raison.textContent = "Impossible de vérifier : réessayez."; });
+        });
+    });
+});
+</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

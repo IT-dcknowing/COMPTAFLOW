@@ -233,8 +233,10 @@
                                                                 <div class="d-flex justify-content-between align-items-center p-2 border rounded">
                                                                     <div>
                                                                         <strong>{{ $user->name }}</strong>
-                                                                        <span class="badge bg-{{ $user->role === 'admin' ? 'success' : ($user->role === 'comptable' ? 'primary' : 'secondary') }} ms-2">
-                                                                            {{ ucfirst($user->role) }}
+                                                                        {{-- Ce qu'on constate, pas un titre de remplissage : un compte
+                                                                             sans rôle administre pourtant les dossiers qu'il a ouverts. --}}
+                                                                        <span class="badge bg-{{ $user->role === 'admin' ? 'success' : ($user->role === 'super_admin' ? 'danger' : 'secondary') }} ms-2">
+                                                                            {{ \App\Services\Rattachements::libelleDuRole($user) }}
                                                                         </span>
                                                                         @if($company->user_id === $user->id)
                                                                             <span class="badge bg-label-warning ms-1" title="A créé cette entreprise">Responsable</span>

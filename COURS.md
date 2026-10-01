@@ -22,6 +22,7 @@ Il se lit dans l'ordre. Chaque notion est illustrée par un exemple chiffré.
 7. [Le numéro de saisie](#7-le-numéro-de-saisie)
 8. [Les liasses fiscales](#8-les-liasses-fiscales)
 9. [État des lieux : fait, à faire](#9-état-des-lieux--fait-à-faire)
+10. [Qui a le droit de quoi](#10-qui-a-le-droit-de-quoi)
 
 ---
 
@@ -640,6 +641,86 @@ Trois vérifications simples, qui valent tous les tests :
 
 ---
 
+## 10. Qui a le droit de quoi
+
+### Le rôle du compte ne dit plus rien
+
+La colonne `users.role` exigeait une valeur. Faute de mieux, on y écrivait
+« comptable ». Une personne qu'on venait de créer, rattachée à aucune
+comptabilité, s'affichait donc partout comme comptable — alors qu'elle ne
+pouvait rien faire. Le titre annonçait des droits que le compte n'avait pas.
+
+Trois valeurs subsistent, et une seule compte vraiment :
+
+| `users.role` | Ce que cela veut dire |
+|---|---|
+| `super_admin` | La gouvernance de l'application. |
+| `admin` | Un compte qui administre tout ce qu'il touche, sans affectation. |
+| *(vide)* | Aucun rôle. Ce que la personne peut faire se lit sur le dossier. |
+
+« comptable » n'est plus attribué nulle part. Les comptes qui le portent encore
+se vident avec `comptes:role-comptable`, qui pose d'abord les liaisons
+manquantes : **aucun accès ne se perd**.
+
+### Ce qui donne vraiment les droits
+
+Sur une comptabilité, trois rattachements existent, et les trois comptent :
+
+1. **`companies.user_id`** — celui qui a CRÉÉ le dossier. Il est le premier :
+   c'est lui l'utilisateur de la comptabilité, et son administrateur. Aucune
+   ligne de liaison n'est nécessaire pour l'établir.
+2. **`company_user`** — les personnes à qui on a confié le dossier, avec le rôle
+   qu'on leur a donné dessus. `role = 'admin'` ouvre tout ; sinon seules les
+   habilitations cochées valent, **et pour ce dossier seulement**.
+3. **`users.company_id`** — le rattachement historique, posé par la gestion des
+   utilisateurs avant que la table pivot n'existe.
+
+Le cabinet s'y ajoute : son **gérant** (`cabinets.user_id`) répond de tout le
+portefeuille et le voit entièrement. Un membre du cabinet, lui, ne voit que ses
+propres dossiers — ceux qu'il a ouverts, ceux qu'on lui a confiés.
+
+Dans `cabinet_user`, le titre `admin` et le titre `collaborateur` ne diffèrent
+que par le mot affiché : **aucun droit ne s'y attache**. C'est voulu — le titre
+décrit la place de la personne dans l'organisation, pas ce que l'application
+lui ouvre. « Admin du cabinet » dit : un employé qui gère des comptabilités
+comme les autres, et qui n'est pas le gérant.
+
+### Les quatre écrans qui en parlent
+
+Ils lisaient chacun une table différente, et se contredisaient :
+
+| Écran | Ce qu'il lisait | Ce qu'il disait de travers |
+|---|---|---|
+| Gestion des utilisateurs | `users.company_id` seul | « N/A » à qui venait d'ouvrir un dossier |
+| Gestion des entités | `users.company_id` seul | « 0 utilisateur » sur un dossier tenu |
+| Affectations | `company_user` seul | le créateur n'y figurait pas |
+| Mon espace | les trois | rien — c'est lui qui avait raison |
+
+La règle est maintenant écrite une seule fois, dans
+`app/Services/Rattachements.php`, et les quatre la lisent.
+
+### Récupérer ce qui a été supprimé
+
+Toute suppression est archivée trente jours, avec son contenu complet
+(`archived_records`). L'écran du super administrateur la montre, tous dossiers
+confondus — y compris ceux des comptabilités disparues, seul endroit où leurs
+archives restent joignables.
+
+Le bouton **remettre en place** réécrit la ligne sous son identifiant d'origine ;
+sans cela, tout ce qui la désignait pointerait dans le vide. Il refuse, en
+disant pourquoi, si la ligne est déjà là, si sa comptabilité n'existe plus, ou
+si son contenu ne suffit plus à ce que la table exige aujourd'hui. Une
+entreprise encore en corbeille se **relève** au lieu de se réécrire : ses
+écritures ne sont jamais parties avec elle.
+
+Une suppression groupée se remet d'un geste, telle qu'elle a eu lieu. Pour un
+gros volume, `archives:restaurer` fait le même travail depuis le serveur.
+
+**Ce qui a été supprimé avant la mise en place de l'archive n'y figure pas** : il
+n'en reste aucune trace à remettre. C'est la limite, et il faut la connaître.
+
+---
+
 ## Annexe — où se trouve quoi dans le code
 
 | Sujet | Fichier |
@@ -657,6 +738,9 @@ Trois vérifications simples, qui valent tous les tests :
 | Pages des liasses | `resources/views/reporting/liasse/pages/` |
 | Correspondance codes DGI | `database/seeders/LiasseMappingSeeder.php` |
 | Postes de trésorerie | `app/Traits/HandlesTreasuryPosts.php` |
+| Qui est rattaché à quoi | `app/Services/Rattachements.php` |
+| Remise en place d'une archive | `app/Services/RestaurationDArchive.php` |
+| Archive des suppressions | `app/Models/ArchivedRecord.php`, `app/Traits/LogsActivity.php` |
 
 ### Commandes utiles
 
@@ -672,6 +756,22 @@ php artisan tresorerie:rattacher-postes --appliquer
 
 # Restaurer des écritures depuis une sauvegarde
 php artisan saisies:restaurer --source=<base> --company=<id> --appliquer
+
+# Retirer le rôle « comptable », sans retirer un seul accès
+php artisan comptes:role-comptable --appliquer
+
+# Désigner qui tient un cabinet (l'ancien devient « admin du cabinet »)
+php artisan cabinets:gerant --cabinet="DC-KNOWING" --email="adresse" --appliquer
+
+# Donner son titre à un membre du cabinet (admin, collaborateur)
+php artisan cabinets:role --cabinet="DC-KNOWING" --email="adresse" --role=admin --appliquer
+
+# Confronter les rattachements des quatre écrans, et réparer ce qui a divergé
+php artisan cabinets:verifier --appliquer
+
+# Remettre en place une suppression depuis l'archive des trente jours
+php artisan archives:restaurer --lot=<identifiant> --appliquer
+php artisan archives:restaurer --dossier=<id> --appliquer
 ```
 
 Toutes ces commandes tournent **en simulation** tant que `--appliquer` n'est pas

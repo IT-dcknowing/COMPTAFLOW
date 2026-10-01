@@ -114,9 +114,38 @@ class User extends Authenticatable
         return in_array($companyId, $supervised);
     }
 
-    // verifier si l'utilisateur est comptable
+    /**
+     * N'administre pas : ses droits se lisent sur ses habilitations.
+     *
+     * Le role « comptable » n'est plus attribue — un compte peut n'avoir aucun
+     * role. Ce qui distingue quelqu'un, ce n'est plus son titre mais ce qu'on
+     * lui a confie : celui qui ouvre une comptabilite en est l'administrateur,
+     * celui a qui on en confie une n'a que les cases cochees.
+     */
     public function isComptable(): bool{
-        return $this->role ==="comptable";
+        return !in_array($this->role, ['admin', 'super_admin'], true);
+    }
+
+    /** Ce compte porte-t-il un role enregistre ? */
+    public function aUnRole(): bool
+    {
+        return in_array($this->role, ['admin', 'super_admin'], true);
+    }
+
+    /**
+     * Ce que cette personne est sur la comptabilite ouverte.
+     *
+     * C'est ce titre qu'on affiche dans l'en-tete et la barre laterale : il
+     * change d'un dossier a l'autre, et c'est normal. Le createur d'une
+     * comptabilite en est l'administrateur meme si son compte n'a aucun role.
+     */
+    public function titreSurLaComptabiliteCourante(): string
+    {
+        if ($this->isSuperAdmin()) {
+            return 'Super Admin';
+        }
+
+        return $this->gereLaComptabiliteCourante() ? 'Administrateur' : 'Collaborateur';
     }
 
 

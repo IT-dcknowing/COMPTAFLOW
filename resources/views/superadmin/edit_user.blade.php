@@ -112,11 +112,15 @@
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label for="role" class="form-label fw-semibold">Rôle Système <span class="text-danger">*</span></label>
-                                            <select class="form-select @error('role') is-invalid @enderror" id="role" name="role" required>
-                                                <option value="user" {{ old('role', $user->role) == 'user' ? 'selected' : '' }}>Utilisateur Simple</option>
-                                                <option value="comptable" {{ old('role', $user->role) == 'comptable' ? 'selected' : '' }}>Sur habilitations (à cocher ci-dessous)</option>
+                                            <label for="role" class="form-label fw-semibold">Rôle Système</label>
+                                            <select class="form-select @error('role') is-invalid @enderror" id="role" name="role">
+                                                @if($user->role === 'super_admin')
+                                                    {{-- On n'offre pas de dégrader un super administrateur par mégarde. --}}
+                                                    <option value="" selected>Super administrateur (inchangé)</option>
+                                                @else
+                                                <option value="" {{ old('role', $user->role) == 'admin' ? '' : 'selected' }}>Aucun rôle — sur habilitations (à cocher ci-dessous)</option>
                                                 <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>Administrateur Client</option>
+                                                @endif
                                             </select>
                                             @error('role') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                         </div>

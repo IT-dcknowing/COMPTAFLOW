@@ -348,16 +348,17 @@
                         @if($isSwitched && auth()->user()->isSuperAdmin())
                             Administrateur
                         @else
-                            {{ auth()->user()->role === 'comptable' ? 'Comptable' : (auth()->user()->role === 'super_admin' ? 'Super Admin' : auth()->user()->role) }}
+                            {{-- Ce qu'on est SUR CE DOSSIER : le créateur l'administre, même sans rôle enregistré. --}}
+                            {{ auth()->user()->titreSurLaComptabiliteCourante() }}
                         @endif
                     </div>
                 @else
                     @php
                         $roleLabel = match(auth()->user()->role) {
                             'admin'       => 'Gérant',
-                            'comptable'   => 'Comptable',
                             'super_admin' => '',   // Ne jamais afficher "Super Admin" ici
-                            default       => auth()->user()->role,
+                            // Aucun rôle enregistré : on n'invente pas de titre.
+                            default       => '',
                         };
                     @endphp
                     @if($roleLabel)
@@ -461,8 +462,11 @@
                 <div class="menu-section-header">Pilotage</div>
                 
                 @php
+                    // Celui qui TIENT la comptabilité ouverte va au tableau de
+                    // bord d'administration : le créateur du dossier en fait
+                    // partie, même si son compte ne porte aucun rôle.
                     $dashboardRoute = route('admin.dashboard');
-                    if (auth()->user()->isComptable()) {
+                    if (!auth()->user()->gereLaComptabiliteCourante()) {
                         $dashboardRoute = route('comptable.comptdashboard');
                     } elseif ($isComptaAccountActive) {
                         $dashboardRoute = route('compta.dashboard');

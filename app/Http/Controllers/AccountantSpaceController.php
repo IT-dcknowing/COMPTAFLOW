@@ -49,38 +49,9 @@ class AccountantSpaceController extends Controller
      */
     private function dossiersDeMonEspace($user): array
     {
-        $ids = Company::where('user_id', $user->id)->pluck('id')->toArray();
-
-        $ids = array_merge($ids, DB::table('company_user')
-            ->where('user_id', $user->id)->pluck('company_id')->toArray());
-
-        // Le gerant voit tout ce que porte son cabinet, y compris les dossiers
-        // qu'un collaborateur a ouverts de son cote : ils reviennent au cabinet.
-        $cabinetGere = Cabinet::where('user_id', $user->id)->first();
-        if ($cabinetGere) {
-            $ids = array_merge($ids, Company::where('cabinet_id', $cabinetGere->id)->pluck('id')->toArray());
-        }
-
-        // Un collaborateur du cabinet ne voit QUE les dossiers qu'on lui a
-        // affectes, pas tout le portefeuille : c'est la regle retenue. Seul le
-        // gerant voit l'ensemble, par la branche ci-dessus.
-        //
-        // (users.cabinet_id n'existe d'ailleurs pas : l'appartenance passe par
-        // la table cabinet_user. Le test qui lisait cette colonne ne filtrait
-        // donc rien.)
-
-        // Rattachement historique porte par users.company_id : un utilisateur cree
-        // depuis la gestion des utilisateurs n'a pas de ligne dans company_user.
-        // Sans cette prise en compte, son espace restait desesperement vide.
-        if ($user->company_id) {
-            $ids[] = (int) $user->company_id;
-
-            // Et ses filiales, rattachees par parent_company_id.
-            $ids = array_merge($ids, Company::where('parent_company_id', $user->company_id)
-                ->pluck('id')->toArray());
-        }
-
-        return array_values(array_unique(array_map('intval', array_filter($ids))));
+        // La regle est ecrite une seule fois, dans le service : les ecrans du
+        // super admin la lisent aussi, pour qu'ils disent tous la meme chose.
+        return \App\Services\Rattachements::comptabilitesDe($user);
     }
 
     /**
@@ -484,7 +455,10 @@ class AccountantSpaceController extends Controller
             'last_name' => $request->last_name,
             'email_adresse' => $request->email_adresse,
             'password' => Hash::make($request->password),
-            'role' => 'comptable',
+            // Aucun role : ce qu'un collaborateur peut faire se lit sur ses
+            // habilitations et sur les dossiers qu'on lui confie, pas sur un
+            // titre pose a la creation.
+            'role' => null,
             'habilitations' => $habilitations,
             'pack' => Auth::user()->pack ?? 'cabinet',
             'is_active' => true,

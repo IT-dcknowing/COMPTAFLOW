@@ -52,12 +52,10 @@ class GoogleAuthController extends Controller
                 'is_online' => 1,
             ]);
         } else {
-            $role = match ($type) {
-                'cabinet'    => 'comptable',
-                'comptable'  => 'comptable',
-                'entreprise' => 'admin',
-                default      => 'comptable',
-            };
+            // Le Pack Entreprise ouvre sa comptabilite unique dans la foulee :
+            // il en est l'administrateur. Les autres n'ont encore aucun dossier,
+            // donc aucun role : ils le deviendront en ouvrant le leur.
+            $role = $type === 'entreprise' ? 'admin' : null;
 
             $user = User::create([
                 'name'          => $name,

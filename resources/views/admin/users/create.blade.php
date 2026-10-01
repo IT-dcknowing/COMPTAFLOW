@@ -81,9 +81,9 @@
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label for="role" class="form-label fw-semibold">Rôle Plateforme <span class="text-danger">*</span></label>
-                                            <select class="form-select @error('role') is-invalid @enderror" id="role" name="role" required>
-                                                <option value="comptable" {{ old('role') == 'comptable' ? 'selected' : '' }}>Sur habilitations (à cocher ci-dessous)</option>
+                                            <label for="role" class="form-label fw-semibold">Rôle Plateforme</label>
+                                            <select class="form-select @error('role') is-invalid @enderror" id="role" name="role">
+                                                <option value="" {{ old('role') == '' ? 'selected' : '' }}>Aucun rôle — sur habilitations (à cocher ci-dessous)</option>
                                                 <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Accès total (gérant)</option>
                                             </select>
                                             <small class="text-muted">Un accès total dispense de cocher : sinon, les habilitations ci-dessous font foi.</small>
@@ -215,7 +215,7 @@
                     }
 
                     // 3. Accountant Restrictions
-                    if (role === 'comptable' && !accountantPermissions.includes(key)) {
+                    if (role !== 'admin' && !accountantPermissions.includes(key)) {
                         isRestricted = true;
                         forceUnchecked = true;
                     }
@@ -231,7 +231,7 @@
                         hasAllowedPermission = true;
                         
                         // Auto-check for accountants if not manually changed
-                        if (role === 'comptable' && accountantPermissions.includes(key) && !cb.dataset.manuallyChanged) {
+                        if (role !== 'admin' && accountantPermissions.includes(key) && !cb.dataset.manuallyChanged) {
                             cb.checked = true;
                         }
                     }

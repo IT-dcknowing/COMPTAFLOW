@@ -277,7 +277,7 @@
                         }
 
                         // RÈGLE F : Restrictions Comptable
-                        if (userRole === 'comptable') {
+                        if (userRole !== 'admin' && userRole !== 'super_admin') {
                             if (!accountantPermissions.includes(permissionKey)) {
                                 isRestricted = true;
                                 forceUnchecked = true;

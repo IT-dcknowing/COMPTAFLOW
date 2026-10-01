@@ -175,8 +175,8 @@
                                             </div>
                                             <div class="d-flex align-items-center">
                                                 <div class="w-3 h-3 rounded-circle bg-purple-500 me-2"></div>
-                                                <span class="text-sm font-bold text-slate-600">Comptables</span>
-                                                <span class="ms-auto font-black text-slate-800">{{ $usersByRole->where('role', 'comptable')->first()->count ?? 0 }}</span>
+                                                <span class="text-sm font-bold text-slate-600">Sans rôle</span>
+                                                <span class="ms-auto font-black text-slate-800">{{ $usersByRole->whereNotIn('role', ['admin', 'super_admin'])->sum('count') }}</span>
                                             </div>
                                         </div>
                                     </div>

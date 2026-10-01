@@ -29,12 +29,23 @@ class SuperAdminUserController extends Controller
 
         // Filtre : rôle
         if ($request->filled('role')) {
-            $query->where('role', $request->role);
+            // « aucun » n'est pas une valeur en base : c'est l'absence de rôle.
+            $request->role === 'aucun'
+                ? $query->whereNull('role')
+                : $query->where('role', $request->role);
         }
 
-        // Filtre : entreprise
+        // Filtre : entreprise. On cherche les personnes vraiment rattachees au
+        // dossier — son createur compris — et non les seules lignes qui portent
+        // l'ancien users.company_id.
         if ($request->filled('company_id')) {
-            $query->where('company_id', $request->company_id);
+            $dossier = Company::find($request->integer('company_id'));
+
+            $rattachees = $dossier
+                ? \App\Services\Rattachements::personnesDe($dossier)->pluck('id')->all()
+                : [];
+
+            $query->whereIn('id', $rattachees ?: [0]);
         }
 
         // Filtre : statut
@@ -43,16 +54,34 @@ class SuperAdminUserController extends Controller
         }
 
         $users = $query->paginate(20)->appends($request->query());
+
+        // Ce a quoi chaque personne est rattachee, lu comme le lit son espace :
+        // le dossier qu'elle a cree, ceux qu'on lui a confies, et l'ancien
+        // rattachement par users.company_id. La colonne ne lisait que ce
+        // dernier, et annoncait donc « N/A » a quelqu'un qui venait d'ouvrir
+        // une comptabilite.
+        $rattachements = [];
+        $titres = [];
+
+        foreach ($users as $u) {
+            $rattachements[$u->id] = \App\Services\Rattachements::nomsDesComptabilitesDe($u);
+            $titres[$u->id] = \App\Services\Rattachements::libelleDuRole($u);
+        }
+
         $companies = Company::orderBy('company_name')->get();
 
         // Totaux globaux pour les KPIs (hors pagination)
         $totalUsers     = User::count();
         $totalAdmins    = User::where('role', 'admin')->count();
-        $totalComptables = User::where('role', 'comptable')->count();
+
+        // Le rôle « comptable » n'est plus attribué : ce qu'on compte ici, ce
+        // sont les comptes sans rôle — ceux dont les droits se lisent sur les
+        // habilitations et sur les dossiers qu'on leur a confiés.
+        $totalComptables = User::whereNull('role')->orWhere('role', 'comptable')->count();
         $totalActive    = User::where('is_active', 1)->count();
 
         return view('superadmin.users', compact(
-            'users', 'companies',
+            'users', 'companies', 'rattachements', 'titres',
             'totalUsers', 'totalAdmins', 'totalComptables', 'totalActive'
         ));
     }
@@ -105,7 +134,7 @@ class SuperAdminUserController extends Controller
             'email_adresse' => 'required|email|max:191|unique:users,email_adresse',
             'password' => 'required|string|min:5',
             'company_id' => 'required|exists:companies,id',
-            'role' => 'required|in:admin,comptable,user',
+            'role' => 'nullable|in:admin',
             'is_active' => 'required|boolean',
             'pack_id' => 'nullable|exists:pack,id',
             'habilitations' => 'nullable|array',
@@ -117,7 +146,7 @@ class SuperAdminUserController extends Controller
             'email_adresse' => $validated['email_adresse'],
             'password' => Hash::make($validated['password']),
             'company_id' => $validated['company_id'],
-            'role' => $validated['role'],
+            'role' => $validated['role'] ?? null,
             'is_active' => $validated['is_active'],
             'pack_id' => $validated['pack_id'],
             'habilitations' => $validated['habilitations'] ?? [],
@@ -187,7 +216,7 @@ class SuperAdminUserController extends Controller
             'email_adresse' => 'required|email|max:191|unique:users,email_adresse,' . $id,
             'password'      => 'nullable|string|min:5',
             'company_id'    => 'required|exists:companies,id',
-            'role'          => 'required|in:admin,comptable,user',
+            'role'          => 'nullable|in:admin',
             'is_active'     => 'required|boolean',
             'pack_id'       => 'nullable|exists:pack,id',
             'habilitations' => 'nullable|array',
@@ -198,6 +227,15 @@ class SuperAdminUserController extends Controller
         } else {
             unset($validated['password']);
         }
+
+        // Sans case « administrateur » cochée, le compte n'a aucun rôle : ses
+        // droits se lisent sur ses habilitations et sur ses dossiers.
+        //
+        // Un super administrateur, lui, garde son rôle : le formulaire ne
+        // propose pas cette valeur, et l'enregistrer le dégraderait au passage.
+        $validated['role'] = $user->role === 'super_admin'
+            ? 'super_admin'
+            : ($validated['role'] ?? null);
 
         $user->update($validated);
 

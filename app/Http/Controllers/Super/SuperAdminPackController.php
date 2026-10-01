@@ -139,7 +139,8 @@ class SuperAdminPackController extends Controller
             // que soit l'offre. On promeut celui qui en a créé une et qui ne
             // l'était pas encore ; on ne rétrograde jamais personne, et un
             // collaborateur simplement rattaché n'est pas concerné.
-            if ($user->role === 'comptable' && Company::where('user_id', $user->id)->exists()) {
+            if (!in_array($user->role, ['admin', 'super_admin'], true)
+                && Company::where('user_id', $user->id)->exists()) {
                 $user->role = 'admin';
             }
 

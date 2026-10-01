@@ -161,12 +161,12 @@ Route::middleware(['auth'])->group(function () {
             return redirect()->route('accountant.space');
         }
 
-        if ($user->isAdmin()) {
-            return redirect()->route('admin.dashboard');
-        } elseif ($user->isComptable()) {
-            return redirect()->route('comptable.comptdashboard');
-        }
-        return redirect('/unauthorized');
+        // Celui qui tient la comptabilité ouverte va au tableau de bord
+        // d'administration : le créateur du dossier en fait partie, même si son
+        // compte ne porte aucun rôle. Les autres vont au leur.
+        return redirect()->route($user->gereLaComptabiliteCourante()
+            ? 'admin.dashboard'
+            : 'comptable.comptdashboard');
     })->name('app.dashboard');
 
 // **********************************************
@@ -903,6 +903,11 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
     // dossier SUPPRIME n'etaient donc joignables par personne, alors qu'on les
     // annonce recuperables trente jours.
     Route::get('/superadmin/archives', [\App\Http\Controllers\Super\SuperAdminArchiveController::class, 'index'])->name('superadmin.archives');
+    // Remettre en place : on annoncait la donnee recuperable, il faut donc
+    // pouvoir la recuperer. L'apercu dit d'abord si c'est possible, et pourquoi.
+    Route::get('/superadmin/archives/{id}/apercu-restauration', [\App\Http\Controllers\Super\SuperAdminArchiveController::class, 'apercuRestauration'])->name('superadmin.archives.apercu_restauration');
+    Route::post('/superadmin/archives/{id}/restaurer', [\App\Http\Controllers\Super\SuperAdminArchiveController::class, 'restaurer'])->name('superadmin.archives.restaurer');
+    Route::post('/superadmin/archives/lot/restaurer', [\App\Http\Controllers\Super\SuperAdminArchiveController::class, 'restaurerLeLot'])->name('superadmin.archives.restaurer_lot');
     Route::get('/superadmin/archives/{id}', [\App\Http\Controllers\Super\SuperAdminArchiveController::class, 'show'])->name('superadmin.archives.show');
 
     // Gestion des Entreprises

@@ -41,9 +41,31 @@ class SuperAdminAffectationController extends Controller
             ->get()
             ->groupBy('company_id');
 
+        // Le createur d'une comptabilite en est le premier utilisateur, sans
+        // qu'aucune ligne de liaison ne l'y pose : la page l'ignorait, et un
+        // dossier qu'on venait d'ouvrir semblait rattache a personne.
+        $createurs = Company::whereNotNull('user_id')
+            ->join('users', 'companies.user_id', '=', 'users.id')
+            ->select('companies.id as company_id', 'users.id', 'users.name',
+                     'users.last_name', 'users.email_adresse')
+            ->get();
+
+        foreach ($createurs as $createur) {
+            $liste = $parEntreprise->get($createur->company_id, collect());
+
+            if ($liste->contains(fn ($m) => (int) $m->id === (int) $createur->id)) {
+                continue;
+            }
+
+            $createur->role = 'createur';
+            $parEntreprise[$createur->company_id] = $liste->prepend($createur);
+        }
+
+        // Le role dans le cabinet se lit a l'ecran : sans lui, on ne savait pas
+        // qui tient la maison et qui y travaille.
         $parCabinet = DB::table('cabinet_user')
             ->join('users', 'cabinet_user.user_id', '=', 'users.id')
-            ->select('cabinet_user.cabinet_id', 'users.id', 'users.name',
+            ->select('cabinet_user.cabinet_id', 'cabinet_user.role', 'users.id', 'users.name',
                      'users.last_name', 'users.email_adresse')
             ->get()
             ->groupBy('cabinet_id');
@@ -117,7 +139,7 @@ class SuperAdminAffectationController extends Controller
             $cree ? '(compte créé)' : '',
             '',
             $company->company_name,
-            $donnees['role'] === 'admin' ? 'administrateur' : 'comptable',
+            $donnees['role'] === 'admin' ? 'administrateur du dossier' : 'acces limite',
             $cree ? ' Un mot de passe provisoire lui a été attribué : il devra le changer.' : ''
         ));
     }
@@ -159,7 +181,7 @@ class SuperAdminAffectationController extends Controller
         ]);
 
         $cabinet = Cabinet::findOrFail($donnees['cabinet_id']);
-        [$user, $cree] = $this->trouverOuCreer($donnees + ['role' => 'comptable']);
+        [$user, $cree] = $this->trouverOuCreer($donnees);
 
         $dejaLa = DB::table('cabinet_user')
             ->where('cabinet_id', $cabinet->id)->where('user_id', $user->id)->exists();
@@ -250,12 +272,17 @@ class SuperAdminAffectationController extends Controller
             'last_name' => $donnees['last_name'],
             'email_adresse' => $donnees['email_adresse'],
             'password' => Hash::make($donnees['password']),
-            'role' => 'comptable',
+            // Aucun role : la personne n'est liee a aucune comptabilite, elle
+            // ne peut donc rien faire, et le dire est plus juste que de lui
+            // coller un titre. Des qu'elle ouvre un dossier, elle en est
+            // l'administratrice.
+            'role' => null,
             'is_active' => true,
         ]);
 
         return back()->with('success', sprintf(
-            "%s %s (%s) a ete cree. Il n'a encore acces a aucune comptabilite : "
+            "%s %s (%s) a ete cree, sans aucun role ni habilitation. "
+            . "Il n'a encore acces a aucune comptabilite : "
             . "donnez-lui les dossiers un par un ci-dessus.",
             $user->name, $user->last_name, $user->email_adresse
         ));
@@ -355,7 +382,10 @@ class SuperAdminAffectationController extends Controller
             'last_name' => ($donnees['last_name'] ?? null) ?: '',
             'email_adresse' => $donnees['email_adresse'],
             'password' => Hash::make(Str::random(32)),
-            'role' => $donnees['role'] ?? 'comptable',
+            // Le role demande sur le formulaire porte sur la COMPTABILITE, pas
+            // sur le compte : le recopier ici donnait un titre global a
+            // quelqu'un qu'on venait seulement de rattacher a un dossier.
+            'role' => null,
             'is_active' => true,
         ]);
 

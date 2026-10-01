@@ -81,10 +81,9 @@
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label for="role" class="form-label fw-semibold">Rôle Plateforme <span class="text-danger">*</span></label>
-                                            <select class="form-select @error('role') is-invalid @enderror" id="role" name="role" required>
-                                                <option value="comptable" {{ old('role', 'comptable') == 'comptable' ? 'selected' : '' }}>Sur habilitations (à cocher ci-dessous)</option>
-                                                <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>Utilisateur Standard</option>
+                                            <label for="role" class="form-label fw-semibold">Rôle Plateforme</label>
+                                            <select class="form-select @error('role') is-invalid @enderror" id="role" name="role">
+                                                <option value="" {{ old('role') == '' ? 'selected' : '' }}>Aucun rôle — sur habilitations (à cocher ci-dessous)</option>
                                                 <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Administrateur Entreprise</option>
                                             </select>
                                             @error('role') <div class="invalid-feedback">{{ $message }}</div> @enderror

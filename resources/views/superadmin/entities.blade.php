@@ -239,7 +239,7 @@
                                                 @endif
                                             </td>
                                             <td class="px-8 py-5 text-center">
-                                                <span class="px-2.5 py-1 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-md">{{ $company->users->count() }}</span>
+                                                <span class="px-2.5 py-1 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-md" title="{{ ($personnes[$company->id] ?? collect())->map(fn ($p) => trim($p->name . ' ' . $p->last_name) . ' - ' . $p->email_adresse)->implode(PHP_EOL) }}">{{ ($personnes[$company->id] ?? collect())->count() }}</span>
                                             </td>
                                             <td class="px-8 py-5 text-right">
                                                 <div class="flex justify-end gap-2">
@@ -309,7 +309,7 @@
                                                     @endif
                                                 </td>
                                                 <td class="px-8 py-4 text-center">
-                                                    <span class="px-2 py-0.5 bg-white text-slate-500 text-[10px] font-bold rounded border border-slate-200">{{ $subCompany->users->count() }}</span>
+                                                    <span class="px-2 py-0.5 bg-white text-slate-500 text-[10px] font-bold rounded border border-slate-200" title="{{ ($personnes[$subCompany->id] ?? collect())->map(fn ($p) => trim($p->name . ' ' . $p->last_name) . ' - ' . $p->email_adresse)->implode(PHP_EOL) }}">{{ ($personnes[$subCompany->id] ?? collect())->count() }}</span>
                                                 </td>
                                                 <td class="px-8 py-4 text-right">
                                                     <div class="flex justify-end gap-1">

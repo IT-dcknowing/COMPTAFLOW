@@ -37,7 +37,7 @@ class UserController extends Controller
 
 
 
-    private function processHabilitations(string $role, array $input, ?int $companyId = null): array
+    private function processHabilitations(?string $role, array $input, ?int $companyId = null): array
     {
         $groupedPermissions = config('accounting_permissions.permissions', []);
         $finalHabilitations = [];
@@ -110,7 +110,10 @@ class UserController extends Controller
 
         // Statistiques de l'équipe pour les graphiques
         $teamStats = User::whereIn('company_id', $managedCompanyIds)
-                        ->where('role', 'comptable')
+                        // L'équipe, c'est-à-dire tout le monde sauf les
+                        // administrateurs : un collaborateur n'a plus de rôle,
+                        // la colonne est vide pour lui.
+                        ->where(fn ($q) => $q->whereNull('role')->orWhere('role', 'comptable'))
                         ->withCount(['ecritures' => function($query) {
                             $query->whereMonth('created_at', now()->month);
                         }])
@@ -185,7 +188,9 @@ public function stat_online()
 
         // 4. Filtrer les collections pour les Admins et les Comptables
         $adminUsers =$filteredUsers->where('role', 'admin');
-        $comptableUsers = $filteredUsers->where('role', 'comptable');
+        $comptableUsers = $filteredUsers->filter(
+            fn ($u) => !in_array($u->role, ['admin', 'super_admin'], true)
+        );
 
         // 5. Récupérer les habilitations de l'utilisateur connecté
         $habilitations = $user->habilitations ?? [];
@@ -263,7 +268,7 @@ public function stat_online()
         'last_name' => 'required|string|max:255',
         'email_adresse' => 'required|email|unique:users,email_adresse',
         'password' => 'required|string|min:8',
-        'role' => 'required|in:admin,comptable',
+        'role' => 'nullable|in:admin',
         'is_active' => 'required|boolean',
         'company_id' => 'required|in:'. implode(',', $allowedCompanyIds),
         'habilitations' => 'nullable|array',
@@ -299,6 +304,7 @@ public function stat_online()
     $validated['password'] = Hash::make($validated['password']);
 
     // Traitement des habilitations
+    $validated['role'] = $validated['role'] ?? null;
     $validated['habilitations'] = $this->processHabilitations(
         $validated['role'],
         $request->input('habilitations', []),
@@ -529,7 +535,7 @@ User::create($validated);
             'name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email_adresse' => 'required|email|unique:users,email_adresse,' . $id,
-            'role' => 'required|in:admin,comptable',
+            'role' => 'nullable|in:admin',
             'habilitations' => 'nullable|array',
             'habilitations.*' => 'string', // Accept any string value
         ]);
@@ -538,6 +544,13 @@ User::create($validated);
         // On passe la company de la CIBLE : les règles dépendantes du contexte
         // (Fusion réservée aux sous-entreprises) étaient auparavant évaluées sans
         // company_id, donc systématiquement désactivées.
+        // Sans case « administrateur », le compte n'a aucun rôle. Un super
+        // administrateur garde le sien : le formulaire ne propose pas cette
+        // valeur, et l'enregistrer le dégraderait au passage.
+        $validated['role'] = $user->role === 'super_admin'
+            ? 'super_admin'
+            : ($validated['role'] ?? null);
+
         $validated['habilitations'] = $this->processHabilitations(
             $validated['role'],
             $request->input('habilitations', []),
@@ -576,9 +589,12 @@ User::create($validated);
     {
         $user = Auth::user();
 
-        // Règle NB3: Un comptable ne peut pas switcher de dossier comptable
-        if ($user->role === 'comptable') {
-            return redirect()->back()->with('error', 'Accès refusé : un comptable ne peut pas changer de dossier.');
+        // Règle NB3 : seul celui qui répond d'une comptabilité en change. Le
+        // rôle enregistré ne suffit plus à le dire — un compte sans rôle peut
+        // très bien avoir ouvert le dossier, et c'est alors le sien. La
+        // vérification de hiérarchie ci-dessous garde le dernier mot.
+        if (!$user->isAdmin() && !Company::where('user_id', $user->id)->exists()) {
+            return redirect()->back()->with('error', 'Accès refusé : vous ne pouvez pas changer de dossier comptable.');
         }
 
         // 1. Sécurité: Trouver l'ID de la compagnie mère de l'Admin
@@ -731,7 +747,7 @@ public function impersonate(User $user)
             'activity_labels' => $activityLabels,
         ];
 
-        if ($user->role === 'comptable') {
+        if (!in_array($user->role, ['admin', 'super_admin'], true)) {
              $stats['habilitations_count'] = count(array_filter($user->habilitations ?? []));
         }
 

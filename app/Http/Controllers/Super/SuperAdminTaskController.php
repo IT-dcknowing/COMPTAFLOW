@@ -34,7 +34,7 @@ class SuperAdminTaskController extends Controller
         $tasks = $query->orderBy('created_at', 'desc')->paginate(20);
         
         // Données pour les filtres
-        $users = User::where('role', '!=', 'comptable')->get();
+        $users = User::whereIn('role', ['admin', 'super_admin'])->get();
         $companies = Company::all();
         
         return view('superadmin.tasks', compact('tasks', 'users', 'companies'));
@@ -45,7 +45,7 @@ class SuperAdminTaskController extends Controller
      */
     public function create()
     {
-        $users = User::where('role', '!=', 'comptable')->get();
+        $users = User::whereIn('role', ['admin', 'super_admin'])->get();
         $companies = Company::all();
         
         return view('superadmin.create_task', compact('users', 'companies'));
@@ -95,7 +95,7 @@ class SuperAdminTaskController extends Controller
     public function edit($id)
     {
         $task = AdminTask::findOrFail($id);
-        $users = User::where('role', '!=', 'comptable')->get();
+        $users = User::whereIn('role', ['admin', 'super_admin'])->get();
         $companies = Company::all();
         
         return view('superadmin.edit_task', compact('task', 'users', 'companies'));

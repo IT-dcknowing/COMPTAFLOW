@@ -180,11 +180,24 @@
                                             <div class="mb-2 p-2" style="background:#f8fafc;border-radius:10px;">
                                                 <div class="fw-bold" style="font-size:.78rem;color:#334155;">{{ $e->company_name }}</div>
                                                 @foreach($membres as $m)
+                                                @php
+                                                    $estCreateur = ($m->role ?? null) === 'createur';
+                                                    $titre = $estCreateur
+                                                        ? 'créateur — administrateur'
+                                                        : (($m->role ?? null) === 'admin' ? 'administrateur' : 'accès limité');
+                                                @endphp
                                                 <div class="d-flex align-items-center justify-content-between mt-1">
                                                     <span style="font-size:.74rem;color:#64748b;">
                                                         {{ trim($m->name . ' ' . $m->last_name) ?: $m->email_adresse }}
-                                                        <span class="px-1" style="background:#e2e8f0;border-radius:4px;font-size:.62rem;">{{ $m->role ?: 'comptable' }}</span>
+                                                        <span class="px-1" style="background:{{ $estCreateur ? '#dbeafe' : '#e2e8f0' }};border-radius:4px;font-size:.62rem;">{{ $titre }}</span>
                                                     </span>
+                                                    @if($estCreateur)
+                                                        {{-- On ne retire pas quelqu'un du dossier qu'il a ouvert : il
+                                                             n'y a aucune ligne de liaison à défaire. --}}
+                                                        <span style="color:#94a3b8;font-size:.62rem;" title="Le créateur du dossier ne s'en retire pas">
+                                                            <i class="fa-solid fa-lock"></i>
+                                                        </span>
+                                                    @else
                                                     <form method="POST" action="{{ route('superadmin.affectations.comptabilite.retirer') }}">
                                                         @csrf @method('DELETE')
                                                         <input type="hidden" name="company_id" value="{{ $e->id }}">
@@ -193,6 +206,7 @@
                                                             <i class="fa-solid fa-xmark"></i>
                                                         </button>
                                                     </form>
+                                                    @endif
                                                 </div>
                                                 @endforeach
                                             </div>
@@ -300,9 +314,19 @@
                                             <div class="mb-2 p-2" style="background:#f8fafc;border-radius:10px;">
                                                 <div class="fw-bold" style="font-size:.78rem;color:#334155;">{{ $c->nom }}</div>
                                                 @foreach($membres as $m)
+                                                @php
+                                                    $estGerant = ($m->role ?? null) === 'gerant';
+                                                    $titreCabinet = match ($m->role ?? null) {
+                                                        'gerant' => 'gérant',
+                                                        'admin' => 'admin du cabinet',
+                                                        default => 'collaborateur',
+                                                    };
+                                                @endphp
                                                 <div class="d-flex align-items-center justify-content-between mt-1">
                                                     <span style="font-size:.74rem;color:#64748b;">
                                                         {{ trim($m->name . ' ' . $m->last_name) ?: $m->email_adresse }}
+                                                        <span class="px-1" style="background:{{ $estGerant ? '#dcfce7' : '#e2e8f0' }};border-radius:4px;font-size:.62rem;">{{ $titreCabinet }}</span>
+                                                        <span class="d-block" style="font-size:.66rem;color:#94a3b8;">{{ $m->email_adresse }}</span>
                                                     </span>
                                                     <form method="POST" action="{{ route('superadmin.affectations.cabinet.retirer') }}">
                                                         @csrf @method('DELETE')

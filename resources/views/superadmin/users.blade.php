@@ -107,14 +107,14 @@
                         <div class="glass-card p-4 border-l-4 border-l-purple-600">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Comptables</p>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Sans rôle</p>
                                     <h3 class="text-2xl font-black text-slate-800 mb-0">{{ $totalComptables }}</h3>
                                 </div>
                                 <div class="p-3 bg-purple-50 text-purple-600 rounded-2xl">
                                     <i class="fa-solid fa-calculator text-lg"></i>
                                 </div>
                             </div>
-                            <p class="text-[10px] text-purple-600 mt-3 font-bold uppercase mb-0">Opérateurs saisie</p>
+                            <p class="text-[10px] text-purple-600 mt-3 font-bold uppercase mb-0">Droits par habilitations</p>
                         </div>
 
                         <div class="glass-card p-4 border-l-4 border-l-warning">
@@ -155,8 +155,8 @@
                                     <select name="role" id="filter_role" class="form-select form-select-sm" onchange="this.form.submit()">
                                         <option value="">Tous les rôles</option>
                                         <option value="admin"       {{ request('role') === 'admin'       ? 'selected' : '' }}>Admin</option>
-                                        <option value="comptable"   {{ request('role') === 'comptable'   ? 'selected' : '' }}>Comptable</option>
-                                        <option value="user"        {{ request('role') === 'user'        ? 'selected' : '' }}>Utilisateur</option>
+                                        <option value="super_admin" {{ request('role') === 'super_admin' ? 'selected' : '' }}>Super Admin</option>
+                                        <option value="aucun"       {{ request('role') === 'aucun'       ? 'selected' : '' }}>Aucun rôle</option>
                                     </select>
                                 </div>
 
@@ -235,7 +235,7 @@
                                     <tr>
                                         <th class="fw-semibold">Nom</th>
                                         <th class="fw-semibold">Email</th>
-                                        <th class="fw-semibold">Entreprise</th>
+                                        <th class="fw-semibold">Comptabilités</th>
                                         <th class="fw-semibold">Rôle</th>
                                         <th class="fw-semibold">Statut</th>
                                         <th class="fw-semibold">Créé le</th>
@@ -255,8 +255,18 @@
                                             </td>
                                             <td class="text-muted small">{{ $user->email_adresse }}</td>
                                             <td>
+                                                @php $sesDossiers = $rattachements[$user->id] ?? collect(); @endphp
                                                 <div>
-                                                    <div class="fw-medium text-slate-700">{{ $user->company->company_name ?? 'N/A' }}</div>
+                                                    @forelse($sesDossiers->take(3) as $nomDossier)
+                                                        <div class="fw-medium text-slate-700">{{ $nomDossier }}</div>
+                                                    @empty
+                                                        <span class="text-slate-400 small">Aucune comptabilité</span>
+                                                    @endforelse
+                                                    @if($sesDossiers->count() > 3)
+                                                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-1">
+                                                            + {{ $sesDossiers->count() - 3 }} autre(s)
+                                                        </div>
+                                                    @endif
                                                     @if($user->company && $user->company->parent)
                                                         <div class="text-[10px] font-bold text-blue-500 uppercase tracking-tighter mt-1">
                                                             <i class="fa-solid fa-link me-1"></i>Filiale de {{ $user->company->parent->company_name }}
@@ -265,14 +275,14 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                @if($user->role === 'admin')
-                                                    <span class="badge bg-success">Admin</span>
-                                                @elseif($user->role === 'comptable')
-                                                    <span class="badge bg-primary">Comptable</span>
-                                                @elseif($user->role === 'super_admin')
+                                                @if($user->role === 'super_admin')
                                                     <span class="badge bg-danger">Super Admin</span>
+                                                @elseif($user->role === 'admin')
+                                                    <span class="badge bg-success">Admin</span>
                                                 @else
-                                                    <span class="badge bg-secondary">Utilisateur</span>
+                                                    {{-- Aucun rôle enregistré : on dit ce que la personne tient
+                                                         réellement, au lieu de lui coller un titre. --}}
+                                                    <span class="badge bg-secondary">{{ $titres[$user->id] ?? 'Aucun rôle' }}</span>
                                                 @endif
                                             </td>
                                             <td>

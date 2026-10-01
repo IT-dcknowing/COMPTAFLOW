@@ -20,13 +20,14 @@ class ArchivedRecord extends Model
     protected $fillable = [
         'company_id', 'user_id', 'model_type', 'model_id',
         'label', 'data', 'batch_id', 'batch_size', 'ip_address',
-        'deleted_at', 'expires_at',
+        'deleted_at', 'expires_at', 'restored_at',
     ];
 
     protected $casts = [
         'data'       => 'json',
         'deleted_at' => 'datetime',
         'expires_at' => 'datetime',
+        'restored_at' => 'datetime',
     ];
 
     public function user()
@@ -42,7 +43,19 @@ class ArchivedRecord extends Model
     /** Archives encore dans la fenêtre de conservation. */
     public function scopeEnConservation($query)
     {
-        return $query->where('expires_at', '>', now());
+        // Une archive sans echeance n'etait ni purgee (`expires_at <=
+        // maintenant` est faux pour un vide) ni affichee (`expires_at >
+        // maintenant` l'est aussi) : elle restait en base, invisible, et
+        // l'ecran pouvait paraitre vide alors qu'il y avait tout. On la compte
+        // desormais parmi les conservees : mieux vaut la montrer que la perdre.
+        return $query->where(fn ($q) => $q->where('expires_at', '>', now())
+            ->orWhereNull('expires_at'));
+    }
+
+    /** Archives deja remises en place. */
+    public function scopeRemises($query)
+    {
+        return $query->whereNotNull('restored_at');
     }
 
     /**

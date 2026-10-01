@@ -85,10 +85,24 @@ class SuperAdminDashboardController extends Controller
         // KPIs pour le haut de page
         $totalCompanies = Company::count();
         $totalAdmins = User::where('role', 'admin')->count();
-        $totalUsers = User::where('role', 'user')->count();
+
+        // Le role « user » n'existe pas en base : ce compteur affichait donc
+        // toujours zero. On compte desormais les comptes sans role, dont les
+        // droits se lisent sur leurs habilitations.
+        $totalUsers = User::whereNull('role')->count();
         $activeCompanies = Company::where('is_active', true)->count();
         $companies = Company::all();
 
-        return view('superadmin.entities', compact('rootCompanies', 'totalCompanies', 'totalAdmins', 'totalUsers', 'activeCompanies', 'companies'));
+        // Les personnes de chaque dossier, createur compris : la colonne
+        // comptait `users.company_id` et annoncait zero pour une comptabilite
+        // qu'on venait pourtant d'ouvrir. Celui qui cree le dossier en est
+        // l'utilisateur, et le premier.
+        $tousLesDossiers = $rootCompanies->flatMap(fn ($m) => collect([$m])->merge($m->children));
+        $personnes = \App\Services\Rattachements::personnesDePlusieurs($tousLesDossiers);
+
+        return view('superadmin.entities', compact(
+            'rootCompanies', 'totalCompanies', 'totalAdmins', 'totalUsers',
+            'activeCompanies', 'companies', 'personnes'
+        ));
     }
 }

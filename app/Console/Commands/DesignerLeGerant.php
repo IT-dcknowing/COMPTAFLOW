@@ -77,8 +77,9 @@ class DesignerLeGerant extends Command
             . ' — ' . $personne->email_adresse);
 
         $this->newLine();
-        $this->line('Le gérant voit tout le portefeuille du cabinet ; l\'ancien gardera');
-        $this->line('les dossiers qu\'on lui a confiés nommément, et ceux-là seulement.');
+        $this->line('Le gérant voit tout le portefeuille du cabinet ; l\'ancien devient');
+        $this->line('« admin du cabinet » et garde les dossiers qu\'il a ouverts ou qu\'on');
+        $this->line('lui a confiés nommément, et ceux-là seulement.');
 
         if (!$this->option('appliquer')) {
             $this->newLine();
@@ -96,12 +97,16 @@ class DesignerLeGerant extends Command
                 ['role' => 'gerant', 'updated_at' => now(), 'created_at' => now()]
             );
 
-            // L'ancien reste membre, mais n'est plus gérant.
+            // L'ancien reste membre, et devient « admin du cabinet » : un
+            // employé qui gère des comptabilités comme les autres. Le dire
+            // « collaborateur » laissait croire qu'on lui avait retiré quelque
+            // chose, alors qu'il garde ses dossiers — seul le portefeuille
+            // complet, réservé au gérant, lui échappe.
             DB::table('cabinet_user')
                 ->where('cabinet_id', $cabinet->id)
                 ->where('user_id', '!=', $personne->id)
                 ->where('role', 'gerant')
-                ->update(['role' => 'collaborateur', 'updated_at' => now()]);
+                ->update(['role' => 'admin', 'updated_at' => now()]);
         });
 
         $this->newLine();
