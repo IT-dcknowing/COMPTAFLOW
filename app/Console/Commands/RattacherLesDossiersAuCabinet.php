@@ -64,12 +64,31 @@ class RattacherLesDossiersAuCabinet extends Command
      */
     private function trouverLeCabinet(string $designation): ?Cabinet
     {
-        $cabinet = ctype_digit($designation)
-            ? Cabinet::find($designation)
-            : Cabinet::where('nom', 'like', '%' . $designation . '%')->first();
+        if (ctype_digit($designation)) {
+            if ($cabinet = Cabinet::find($designation)) {
+                return $cabinet;
+            }
+        } else {
+            // Le nom exact d'abord. « DC-KNOWING » cherché au hasard
+            // ramènerait aussi « Cabinet IT dc knowing » : ranger tous les
+            // dossiers d'une maison sous une autre ne se rattrape pas.
+            if ($exact = Cabinet::where('nom', $designation)->first()) {
+                return $exact;
+            }
 
-        if ($cabinet) {
-            return $cabinet;
+            $approchants = Cabinet::where('nom', 'like', '%' . $designation . '%')->get(['id', 'nom']);
+
+            if ($approchants->count() === 1) {
+                return Cabinet::find($approchants->first()->id);
+            }
+
+            if ($approchants->count() > 1) {
+                $this->error('Plusieurs cabinets portent « ' . $designation . " ». Désignez-en un par son identifiant :");
+                foreach ($approchants as $a) {
+                    $this->line(sprintf('    %-5s %s', $a->id, $a->nom));
+                }
+                return null;
+            }
         }
 
         if (ctype_digit($designation) && $entreprise = Company::find($designation)) {
