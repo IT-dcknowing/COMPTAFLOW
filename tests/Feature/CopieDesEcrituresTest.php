@@ -279,6 +279,44 @@ class CopieDesEcrituresTest extends TestCase
             "Un report à nouveau ne s'offre même pas à la copie.");
     }
 
+    public function test_le_numero_se_prend_comme_pour_une_ecriture_saisie_a_la_main(): void
+    {
+        // Rien de particulier aux copies : le prochain numero disponible du
+        // jour ou l'on saisit, exactement comme la saisie manuelle. Le dater du
+        // mois d'arrivee aurait fabrique une seconde convention.
+        [$charge] = $this->loyerDeJanvier();
+
+        $attendu = 'ECR-' . now()->format('dmy') . '-';
+
+        CopieDesEcritures::copier($this->company->id, [$charge->id], $this->achats->id,
+            ['2026-07'], $this->user->id, $this->user);
+
+        $copie = EcritureComptable::where('company_id', $this->company->id)
+            ->where('date', '2026-07-05')->firstOrFail();
+
+        $this->assertStringStartsWith($attendu, (string) $copie->n_saisie,
+            'Le numero porte la date de SAISIE, pas la date comptable.');
+        $this->assertStringStartsWith('CPT-', (string) $copie->n_saisie_user);
+    }
+
+    public function test_deux_copies_successives_ne_partagent_jamais_un_numero(): void
+    {
+        [$charge, $fournisseur] = $this->loyerDeJanvier();
+
+        CopieDesEcritures::copier($this->company->id, [$charge->id, $fournisseur->id],
+            $this->achats->id, ['2026-08'], $this->user->id, $this->user);
+
+        CopieDesEcritures::copier($this->company->id, [$charge->id, $fournisseur->id],
+            $this->achats->id, ['2026-09'], $this->user->id, $this->user);
+
+        $numeros = EcritureComptable::where('company_id', $this->company->id)
+            ->whereIn('date', ['2026-08-05', '2026-09-05'])
+            ->pluck('n_saisie')->unique();
+
+        $this->assertCount(2, $numeros,
+            'Chaque copie prend le prochain numero disponible, et aucun ne se repete.');
+    }
+
     public function test_lapercu_annonce_sans_rien_ecrire(): void
     {
         [$charge, $fournisseur] = $this->loyerDeJanvier();

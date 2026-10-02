@@ -785,6 +785,12 @@ Donc : une pièce d'origine donne **une pièce nouvelle par mois de destination*
 Les lignes cochées d'une même pièce restent ensemble — c'est ce qui permet à la
 copie de rester équilibrée.
 
+Le numéro neuf n'a rien de particulier aux copies : c'est **le prochain
+disponible**, pris exactement comme pour une écriture saisie à la main
+(`NumerotationSaisie`). Il porte la date de **saisie**, pas la date comptable —
+le dater du mois d'arrivée aurait fabriqué une seconde convention pour les seules
+copies.
+
 ### Deux refus, jamais contournés
 
 - **Un mois hors de tout exercice, ou dans un exercice clos.** L'écriture y serait

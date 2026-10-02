@@ -248,12 +248,15 @@ class CopieDesEcritures
                 foreach ($pieces as $duLot) {
                     // La pièce de destination porte un numéro neuf, partagé par
                     // toutes ses lignes : c'est lui qui en fait une opération.
-                    // Il est daté du premier jour recopié, comme toute pièce.
-                    $dateRepere = self::dateCible($duLot->first()->date, $mois);
-
-                    $nSaisie = NumerotationSaisie::global($companyId, $exercice->id, $dateRepere);
+                    //
+                    // Il se prend exactement comme celui d'une écriture saisie
+                    // à la main : le prochain disponible du jour où l'on copie.
+                    // Le numéro porte la date de SAISIE, jamais la date
+                    // comptable — la dater du mois d'arrivée aurait fabriqué une
+                    // seconde convention pour les seules copies.
+                    $nSaisie = NumerotationSaisie::global($companyId, $exercice->id);
                     $nSaisieUser = $utilisateur
-                        ? NumerotationSaisie::utilisateur($companyId, $utilisateur, $dateRepere)
+                        ? NumerotationSaisie::utilisateur($companyId, $utilisateur)
                         : $nSaisie;
 
                     $posees = 0;
