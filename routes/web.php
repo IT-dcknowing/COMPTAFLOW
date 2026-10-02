@@ -344,6 +344,11 @@ Route::middleware(['auth', 'exercice.context'])->group(function () {
         Route::get('/bulk-edit', [App\Http\Controllers\AdjustmentController::class, 'bulkEdit'])->name('bulk_edit');
         Route::post('/bulk-update', [App\Http\Controllers\AdjustmentController::class, 'bulkUpdate'])->name('bulk_update');
         Route::get('/search-references', [App\Http\Controllers\AdjustmentController::class, 'searchReferences'])->name('search_references');
+        // Recopier des ecritures vers un autre journal, et vers d'autres mois :
+        // ce qui revient a l'identique chaque mois ne se ressaisit plus.
+        Route::get('/copie', [App\Http\Controllers\AdjustmentController::class, 'copie'])->name('copie');
+        Route::post('/copie/apercu', [App\Http\Controllers\AdjustmentController::class, 'apercuDeLaCopie'])->name('copie.apercu');
+        Route::post('/copie', [App\Http\Controllers\AdjustmentController::class, 'appliquerLaCopie'])->name('copie.appliquer');
         Route::get('/reimputation', [App\Http\Controllers\AdjustmentController::class, 'reimputation'])->name('reimputation');
         Route::post('/reimputation/apply', [App\Http\Controllers\AdjustmentController::class, 'applyReimputation'])->name('reimputation.apply');
     });

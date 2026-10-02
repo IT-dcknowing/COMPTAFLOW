@@ -35,6 +35,7 @@ class SyntaxeDesScriptsDesVuesTest extends TestCase
         'exercice_comptable.blade.php',
         'adjustment/bulk_edit.blade.php',
         'adjustment/reimputation.blade.php',
+        'adjustment/copie.blade.php',
     ];
 
     public function test_chaque_bloc_de_script_se_compile(): void

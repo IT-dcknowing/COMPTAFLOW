@@ -206,6 +206,118 @@ class AdjustmentController extends Controller
      *  - chaque lot est tracé dans le journal d'audit avec l'ancien compte de
      *    chaque ligne, ce qui permet de revenir en arrière si besoin.
      */
+    /**
+     * Page de copie : recopier des écritures vers un autre journal, d'autres mois.
+     *
+     * Beaucoup d'écritures reviennent à l'identique d'un mois sur l'autre. Les
+     * ressaisir est long, et c'est autant d'occasions de se tromper. On choisit
+     * ici le journal et le mois d'origine, on coche ce qu'on veut, puis on dit
+     * où cela doit arriver. La règle de la copie elle-même tient dans le
+     * service CopieDesEcritures.
+     */
+    public function copie(Request $request)
+    {
+        $user = Auth::user();
+        $activeCompanyId = session('current_company_id', $user->company_id);
+
+        if (!$activeCompanyId) {
+            return redirect()->route('accountant.space')
+                ->with('error', "Ouvrez d'abord une comptabilité pour recopier des écritures.");
+        }
+
+        $journaux = CodeJournal::where('company_id', $activeCompanyId)
+            ->orderBy('code_journal')->get();
+
+        $mois = \App\Services\CopieDesEcritures::moisDisponibles($activeCompanyId);
+
+        $journalSource = $request->integer('journal_source') ?: null;
+        $moisSource = $request->input('mois_source') ?: null;
+
+        // Rien de choisi : on ne devine pas, on attend. Afficher un journal au
+        // hasard donnerait à croire que c'est celui qu'on va recopier.
+        $pieces = ($journalSource && $moisSource)
+            ? \App\Services\CopieDesEcritures::source($activeCompanyId, $journalSource, $moisSource)
+            : collect();
+
+        return view('adjustment.copie', compact(
+            'journaux', 'mois', 'journalSource', 'moisSource', 'pieces'
+        ));
+    }
+
+    /**
+     * Ce que la copie produirait, avant de l'écrire.
+     */
+    public function apercuDeLaCopie(Request $request)
+    {
+        $user = Auth::user();
+        $activeCompanyId = session('current_company_id', $user->company_id);
+
+        $donnees = $request->validate([
+            'ids' => ['array'],
+            'ids.*' => ['integer'],
+            'journal_cible' => ['required', 'integer'],
+            'mois_cibles' => ['array'],
+            'mois_cibles.*' => ['string', 'regex:/^\d{4}-\d{2}$/'],
+        ]);
+
+        return response()->json(\App\Services\CopieDesEcritures::apercu(
+            (int) $activeCompanyId,
+            $donnees['ids'] ?? [],
+            (int) $donnees['journal_cible'],
+            $donnees['mois_cibles'] ?? []
+        ));
+    }
+
+    /**
+     * Recopie pour de bon.
+     */
+    public function appliquerLaCopie(Request $request)
+    {
+        $user = Auth::user();
+        $activeCompanyId = session('current_company_id', $user->company_id);
+
+        $donnees = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'journal_cible' => ['required', 'integer'],
+            'mois_cibles' => ['required', 'array', 'min:1'],
+            'mois_cibles.*' => ['string', 'regex:/^\d{4}-\d{2}$/'],
+        ], [
+            'ids.required' => "Cochez au moins une ligne à recopier.",
+            'mois_cibles.required' => "Choisissez au moins un mois de destination.",
+        ]);
+
+        $issue = \App\Services\CopieDesEcritures::copier(
+            (int) $activeCompanyId,
+            $donnees['ids'],
+            (int) $donnees['journal_cible'],
+            $donnees['mois_cibles'],
+            $user->id,
+            $user
+        );
+
+        if ($issue['creees'] === 0) {
+            $message = $issue['refus'] !== []
+                ? implode(' ', $issue['refus'])
+                : "Rien n'a été recopié : ces lignes sont déjà présentes à destination.";
+
+            return back()->with('error', $message)->withInput();
+        }
+
+        $message = sprintf('%d ligne(s) recopiée(s) en %d pièce(s).',
+            $issue['creees'], $issue['pieces']);
+
+        if ($issue['passees'] > 0) {
+            $message .= sprintf(' %d ligne(s) déjà présente(s) ont été passées.', $issue['passees']);
+        }
+
+        if ($issue['refus'] !== []) {
+            $message .= ' ' . implode(' ', $issue['refus']);
+        }
+
+        return back()->with('success', $message);
+    }
+
     public function applyReimputation(Request $request)
     {
         $request->validate([

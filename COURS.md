@@ -23,6 +23,7 @@ Il se lit dans l'ordre. Chaque notion est illustrée par un exemple chiffré.
 8. [Les liasses fiscales](#8-les-liasses-fiscales)
 9. [État des lieux : fait, à faire](#9-état-des-lieux--fait-à-faire)
 10. [Qui a le droit de quoi](#10-qui-a-le-droit-de-quoi)
+11. [La copie d'écritures](#11-la-copie-décritures)
 
 ---
 
@@ -747,6 +748,65 @@ n'en reste aucune trace à remettre. C'est la limite, et il faut la connaître.
 
 ---
 
+## 11. La copie d'écritures
+
+**Correction Écriture › Copie d'écritures**
+
+Beaucoup d'écritures reviennent à l'identique d'un mois sur l'autre : loyer,
+salaires, abonnements, dotations. Les ressaisir douze fois est long, et c'est
+douze occasions de se tromper.
+
+Trois temps : on choisit le **journal et le mois d'origine**, on **coche** les
+lignes (un bouton coche tout le journal, une case coche une pièce entière), puis
+on dit **où** cela arrive — un journal, et un ou plusieurs mois.
+
+### Ce que la copie garde, et ce qu'elle change
+
+| | |
+|---|---|
+| **Gardé tel quel** | compte, tiers, libellé, référence, montants, statut, poste de trésorerie, justificatif |
+| **Changé** | le journal et le mois choisis ; le **jour du mois est conservé** |
+| **Neuf** | les numéros de saisie |
+
+Rien n'est réinterprété. Ce qui doit différer se corrige ensuite à la main,
+depuis la liste des écritures.
+
+### Pourquoi les numéros doivent être neufs
+
+C'est le point qui engage tout le reste. Le numéro de saisie désigne la **pièce** :
+toutes les lignes qui le partagent forment une seule opération, et c'est sur lui
+que se construit le tableau des flux de trésorerie (voir le chapitre 7).
+
+Recopier un numéro ferait de la copie et de l'originale **une même pièce**, à deux
+dates et dans deux journaux. Le TFT y lirait des contreparties qui n'existent
+pas, et classerait des flux au hasard.
+
+Donc : une pièce d'origine donne **une pièce nouvelle par mois de destination**.
+Les lignes cochées d'une même pièce restent ensemble — c'est ce qui permet à la
+copie de rester équilibrée.
+
+### Deux refus, jamais contournés
+
+- **Un mois hors de tout exercice, ou dans un exercice clos.** L'écriture y serait
+  invisible, ou rouvrirait des comptes arrêtés. Seuls les mois d'un exercice
+  ouvert sont donc proposés.
+- **Un report à nouveau.** Il naît de la clôture ; le recopier ferait naître une
+  ouverture de comptes qui n'a pas eu lieu. Il ne s'offre même pas à la copie.
+
+### Et trois prudences
+
+- Une ligne **déjà présente à l'identique** dans la destination est passée, et le
+  nombre est annoncé. Un second clic ne double pas les livres.
+- Une **pièce cochée à moitié** arrive déséquilibrée : on ne le refuse pas — la
+  personne sait peut-être ce qu'elle fait — mais on le dit avant, pas après.
+- Un **31 recopié en février** se pose au dernier jour du mois, plutôt que de
+  glisser en mars sans prévenir.
+
+Le bouton **Vérifier d'abord** annonce ce qui serait créé, ce qui serait passé et
+ce qui est refusé, sans rien écrire.
+
+---
+
 ## Annexe — où se trouve quoi dans le code
 
 | Sujet | Fichier |
@@ -765,6 +825,7 @@ n'en reste aucune trace à remettre. C'est la limite, et il faut la connaître.
 | Correspondance codes DGI | `database/seeders/LiasseMappingSeeder.php` |
 | Postes de trésorerie | `app/Traits/HandlesTreasuryPosts.php` |
 | Qui est rattaché à quoi | `app/Services/Rattachements.php` |
+| Copie d'écritures | `app/Services/CopieDesEcritures.php` |
 | Remise en place d'une archive | `app/Services/RestaurationDArchive.php` |
 | Archive des suppressions | `app/Models/ArchivedRecord.php`, `app/Traits/LogsActivity.php` |
 

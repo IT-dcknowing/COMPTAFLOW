@@ -823,6 +823,10 @@
                     <i class="fa-solid fa-right-left"></i>
                     <span>Réimputation</span>
                 </a>
+                <a href="{{ route('adjustment.copie') }}" class="menu-link-new {{ request()->routeIs('adjustment.copie') ? 'active' : '' }}">
+                    <i class="fa-solid fa-copy"></i>
+                    <span>Copie d'écritures</span>
+                </a>
             </div>
 
             {{-- ANALYTIQUE --}}
