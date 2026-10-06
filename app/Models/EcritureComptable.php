@@ -47,6 +47,9 @@ class EcritureComptable extends Model
         // Elle distingue un renvoi d'une ecriture nouvelle ; sans elle, rejouer
         // une synchronisation dupliquait tout et la balance doublait.
         'cle_selflow',
+        // L'opération Selflow d'origine : toutes ses lignes partagent un seul
+        // `n_saisie`. Voir la migration 2026_10_06_090000.
+        'operation_selflow',
     ];
 
     // Si tu utilises des dates dans ce format et veux les cast automatiquement

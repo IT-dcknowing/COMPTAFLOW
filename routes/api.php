@@ -175,6 +175,13 @@ Route::prefix('external')->group(function () {
     Route::post('/ecritures/deverser', [\App\Http\Controllers\Api\ExternalSyncController::class, 'deverserEcritures'])
         ->middleware('cle.entreprise')
         ->name('api.external.ecritures.deverser');
+    // Rejeu : les opérations parties avant le 06/10/2026 sont arrivées une
+    // ligne par pièce. Ce point d'entrée les regroupe sous un seul numéro,
+    // sans rien recréer — rejouer le déversement n'aurait rien changé, chaque
+    // ligne y étant déjà reconnue à sa clé.
+    Route::post('/ecritures/regrouper', [\App\Http\Controllers\Api\ExternalSyncController::class, 'regrouperEcritures'])
+        ->middleware('cle.entreprise')
+        ->name('api.external.ecritures.regrouper');
     // Selflow déverse son référentiel — plan comptable, journaux, tiers — dans
     // l'entreprise Comptaflow qui lui est liée. Sens unique : rien ne repart.
     Route::post('/referentiel/deverser', [\App\Http\Controllers\Api\ExternalSyncController::class, 'deverserReferentiel'])

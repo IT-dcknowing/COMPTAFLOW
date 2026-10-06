@@ -204,8 +204,11 @@ class CopieDesEcrituresTest extends TestCase
             $this->user->id, $this->user
         );
 
+        // La copie est la ligne la plus récente. « La première qui n'est pas
+        // la charge » attrapait sa contrepartie de janvier dès que SQLite
+        // changeait d'index pour lire la table — l'ordre n'était pas dit.
         $copie = EcritureComptable::where('company_id', $this->company->id)
-            ->where('id', '!=', $charge->id)->firstOrFail();
+            ->where('id', '!=', $charge->id)->orderByDesc('id')->firstOrFail();
 
         $this->assertSame('2026-02-28', substr((string) $copie->date, 0, 10),
             'Glisser en mars sans prévenir serait pire que de se poser au dernier jour.');

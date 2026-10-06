@@ -14,6 +14,7 @@ use App\Models\PlanComptable;
 use App\Models\PlanTiers;
 use App\Models\User;
 use App\Services\UniformisationImport;
+use App\Services\NumerotationSaisie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -521,6 +522,82 @@ class ExternalSyncController extends Controller
      * Déverse des écritures de Selflow vers COMPTAFLOW.
      * POST /api/external/ecritures/deverser
      */
+    /**
+     * Regroupe sous un seul numéro de saisie les lignes d'une opération Selflow
+     * arrivées une par une.
+     *
+     * Avant le 06/10/2026, chaque ligne déversée devenait sa propre pièce.
+     * Selflow envoie ici, opération par opération, la liste des clés de ses
+     * lignes ; on leur donne un numéro commun. Rien n'est créé ni supprimé, et
+     * les montants ne bougent pas.
+     *
+     * Une opération n'est regroupée que si **toutes** ses lignes sont là et
+     * qu'elle tombe juste : regrouper une moitié d'opération ferait une pièce
+     * déséquilibrée de plus, sous un numéro qui aurait l'air d'aller bien.
+     * Rejouer est sans effet : une opération déjà regroupée est reconnue.
+     */
+    public function regrouperEcritures(Request $request)
+    {
+        $expectedSecret = config('external_sync.external_sync_secret');
+        $providedSecret = $request->input('secret') ?? $request->header('X-Sync-Secret');
+        if (!self::secretValide($providedSecret, $expectedSecret)) {
+            return response()->json(['success' => false, 'message' => 'Accès non autorisé.'], 401);
+        }
+
+        $request->validate([
+            'selflow_company_id'      => 'required|integer',
+            'operations'              => 'required|array|max:500',
+            'operations.*.operation'  => 'required|string|max:64',
+            'operations.*.cles'       => 'required|array|min:2',
+            'operations.*.cles.*'     => 'required|string|max:64',
+        ]);
+
+        $company = self::entrepriseDeLaRequete($request);
+
+        if (!$company) {
+            return response()->json(['success' => false, 'message' => 'Entreprise non trouvée ou non connectée.'], 404);
+        }
+
+        $bilan = ['regroupees' => 0, 'deja' => 0, 'refus' => []];
+
+        foreach ($request->input('operations') as $op) {
+            $lignes = EcritureComptable::where('company_id', $company->id)
+                ->whereIn('cle_selflow', $op['cles'])
+                ->get();
+
+            if ($lignes->count() !== count(array_unique($op['cles']))) {
+                $bilan['refus'][] = $op['operation'] . ' : ' . $lignes->count() . ' ligne(s) sur ' . count($op['cles']) . ' reçues';
+                continue;
+            }
+
+            if (round((float) $lignes->sum('debit') - (float) $lignes->sum('credit'), 2) != 0.0) {
+                $bilan['refus'][] = $op['operation'] . ' : opération déséquilibrée';
+                continue;
+            }
+
+            if ($lignes->pluck('n_saisie')->unique()->count() === 1
+                && $lignes->every(fn ($l) => $l->operation_selflow === $op['operation'])) {
+                $bilan['deja']++;
+                continue;
+            }
+
+            $premiere = $lignes->sortBy('id')->first();
+            $numero = EcritureComptable::where('company_id', $company->id)
+                ->where('operation_selflow', $op['operation'])
+                ->value('n_saisie')
+                ?? NumerotationSaisie::global($company->id, $premiere->exercices_comptables_id, $premiere->date);
+
+            EcritureComptable::whereIn('id', $lignes->pluck('id'))->update([
+                'n_saisie'          => $numero,
+                'operation_selflow' => $op['operation'],
+            ]);
+
+            $bilan['regroupees']++;
+        }
+
+        return response()->json(['success' => true] + $bilan);
+    }
+
     public function deverserEcritures(Request $request)
     {
         $expectedSecret = config('external_sync.external_sync_secret');
@@ -572,6 +649,39 @@ class ExternalSyncController extends Controller
         $count = 0;
         $ignorees = 0;
         $refus = [];
+
+        // ── Le numéro de saisie est celui de l'OPÉRATION, pas de la ligne ──
+        //
+        // `n_saisie` recevait `cle_selflow`, l'identité d'une seule ligne chez
+        // Selflow : chaque ligne devenait une pièce à elle seule, aucune
+        // équilibrée, et la balance par pièce ne tombait jamais (constat du
+        // propriétaire, 05/10/2026). Toutes les lignes d'une même opération
+        // partagent désormais un numéro, attribué à la convention du dossier ;
+        // l'opération d'origine reste dessous, dans `operation_selflow`.
+        //
+        // Une opération déjà commencée chez nous — envoi précédent
+        // partiellement accepté — garde son numéro : la suite s'y rattache.
+        $numerosDesOperations = [];
+        $numeroDeSaisie = function (array $ec, string $date) use ($request, $company, $exercice, &$numerosDesOperations): ?array {
+            $operation = $ec['operation_selflow'] ?? null;
+
+            if (!$operation && $request->filled('operation')) {
+                $operation = 'SELFLOW-' . $request->input('selflow_company_id') . '-OP' . $request->input('operation');
+            }
+
+            if (!$operation) {
+                return null;
+            }
+
+            if (!isset($numerosDesOperations[$operation])) {
+                $numerosDesOperations[$operation] = EcritureComptable::where('company_id', $company->id)
+                    ->where('operation_selflow', $operation)
+                    ->value('n_saisie')
+                    ?? NumerotationSaisie::global($company->id, $exercice->id, $date);
+            }
+
+            return [$operation, $numerosDesOperations[$operation]];
+        };
 
         DB::beginTransaction();
         try {
@@ -638,6 +748,8 @@ class ExternalSyncController extends Controller
                 $planComptable = self::compteGeneral($company, $accountCode, $libelle);
                 $planTiersId = self::tiers($company, $ec['compte_tiers'] ?? null, $planComptable->id);
 
+                [$operationSelflow, $nSaisie] = $numeroDeSaisie($ec, (string) $ec['date_ecriture']) ?? [null, null];
+
                 // ── L'écriture ──
                 EcritureComptable::create([
                     'company_id'              => $company->id,
@@ -647,8 +759,9 @@ class ExternalSyncController extends Controller
                     'date'                    => $ec['date_ecriture'],
                     'description_operation'   => $libelle,
                     'reference_piece'         => $refPiece,
-                    'n_saisie'                => $cleSelflow ?: ($refPiece ?: 'SELF_' . time() . '_' . $count),
+                    'n_saisie'                => $nSaisie ?? ($cleSelflow ?: ($refPiece ?: 'SELF_' . time() . '_' . $count)),
                     'cle_selflow'             => $cleSelflow,
+                    'operation_selflow'       => $operationSelflow,
                     'plan_comptable_id'       => $planComptable->id,
                     'plan_tiers_id'           => $planTiersId,
                     'debit'                   => $debitVal,

@@ -727,6 +727,112 @@ class LiaisonCleParEntrepriseTest extends TestCase
         ], ['X-Company-Key' => $cle]);
     }
 
+    // ═════════════════════════════════════════════════════════════════════════
+    // Le numéro de saisie est celui de l'opération — chantier 7.1 du plan
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /** Une vente, telle que Selflow la déverse : trois lignes, une opération. */
+    private function uneVente(string $operation): array
+    {
+        $ligne = fn (string $cle, array $compte) => array_merge([
+            'cle_selflow' => $cle, 'operation_selflow' => $operation,
+            'date_ecriture' => '2026-06-15', 'code_journal' => 'VTE',
+            'libelle' => 'Facture 2026-042', 'reference_document' => 'FA-042',
+            'debit' => 0, 'credit' => 0,
+        ], $compte);
+
+        return [
+            $ligne($operation . '-1', ['compte_debit' => '411000', 'debit' => 118000]),
+            $ligne($operation . '-2', ['compte_credit' => '701000', 'credit' => 100000]),
+            $ligne($operation . '-3', ['compte_credit' => '443100', 'credit' => 18000]),
+        ];
+    }
+
+    public function test_les_lignes_d_une_operation_partagent_un_seul_numero_de_saisie(): void
+    {
+        $this->postJson('/api/external/ecritures/deverser', [
+            'secret' => self::SECRET, 'selflow_company_id' => self::SELFLOW_A,
+            'atomique' => true, 'operation' => '12',
+            'ecritures' => $this->uneVente('SELFLOW-7-OP12'),
+        ], ['X-Company-Key' => $this->cleA])->assertOk();
+
+        $lignes = DB::table('ecriture_comptables')->where('company_id', self::DOSSIER_A)->get();
+
+        // Avant : trois pièces d'une ligne, chacune numérotée de sa clé.
+        $this->assertCount(3, $lignes);
+        $this->assertCount(1, $lignes->pluck('n_saisie')->unique());
+        $this->assertStringStartsWith('ECR-', $lignes->first()->n_saisie);
+        $this->assertSame(0.0, round($lignes->sum('debit') - $lignes->sum('credit'), 2));
+    }
+
+    public function test_deux_operations_ont_deux_numeros(): void
+    {
+        $this->postJson('/api/external/ecritures/deverser', [
+            'secret' => self::SECRET, 'selflow_company_id' => self::SELFLOW_A,
+            'ecritures' => array_merge($this->uneVente('SELFLOW-7-OP12'), $this->uneVente('SELFLOW-7-OP13')),
+        ], ['X-Company-Key' => $this->cleA])->assertOk();
+
+        $this->assertCount(2, DB::table('ecriture_comptables')->where('company_id', self::DOSSIER_A)->distinct()->pluck('n_saisie'));
+    }
+
+    public function test_le_regroupement_rassemble_les_lignes_deja_reçues_sans_rien_creer(): void
+    {
+        // Ce qui est parti avant le correctif : une pièce par ligne.
+        foreach ($this->uneVente('SELFLOW-7-OP20') as $i => $ec) {
+            DB::table('ecriture_comptables')->insert([
+                'company_id' => self::DOSSIER_A, 'n_saisie' => $ec['cle_selflow'], 'cle_selflow' => $ec['cle_selflow'],
+                'date' => '2026-06-15', 'debit' => $ec['debit'], 'credit' => $ec['credit'],
+                'exercices_comptables_id' => 1,
+            ]);
+        }
+
+        $corps = [
+            'secret' => self::SECRET, 'selflow_company_id' => self::SELFLOW_A,
+            'operations' => [['operation' => 'SELFLOW-7-OP20', 'cles' => ['SELFLOW-7-OP20-1', 'SELFLOW-7-OP20-2', 'SELFLOW-7-OP20-3']]],
+        ];
+
+        $this->postJson('/api/external/ecritures/regrouper', $corps, ['X-Company-Key' => $this->cleA])
+            ->assertOk()->assertJson(['regroupees' => 1]);
+
+        $lignes = DB::table('ecriture_comptables')->where('company_id', self::DOSSIER_A)->get();
+        $this->assertCount(3, $lignes);
+        $this->assertCount(1, $lignes->pluck('n_saisie')->unique());
+
+        // Rejouer ne change rien.
+        $this->postJson('/api/external/ecritures/regrouper', $corps, ['X-Company-Key' => $this->cleA])
+            ->assertOk()->assertJson(['regroupees' => 0, 'deja' => 1]);
+    }
+
+    public function test_une_operation_incomplete_ne_se_regroupe_pas(): void
+    {
+        DB::table('ecriture_comptables')->insert([
+            'company_id' => self::DOSSIER_A, 'n_saisie' => 'SELFLOW-7-OP21-1', 'cle_selflow' => 'SELFLOW-7-OP21-1',
+            'date' => '2026-06-15', 'debit' => 118000, 'credit' => 0,
+        ]);
+
+        $this->postJson('/api/external/ecritures/regrouper', [
+            'secret' => self::SECRET, 'selflow_company_id' => self::SELFLOW_A,
+            'operations' => [['operation' => 'SELFLOW-7-OP21', 'cles' => ['SELFLOW-7-OP21-1', 'SELFLOW-7-OP21-2']]],
+        ], ['X-Company-Key' => $this->cleA])->assertOk()->assertJson(['regroupees' => 0]);
+
+        $this->assertSame('SELFLOW-7-OP21-1', DB::table('ecriture_comptables')->value('n_saisie'));
+    }
+
+    public function test_on_ne_regroupe_pas_les_lignes_d_un_autre_dossier(): void
+    {
+        DB::table('ecriture_comptables')->insert([
+            ['company_id' => self::DOSSIER_B, 'n_saisie' => 'X1', 'cle_selflow' => 'SELFLOW-8-1', 'date' => '2026-06-15', 'debit' => 10, 'credit' => 0],
+            ['company_id' => self::DOSSIER_B, 'n_saisie' => 'X2', 'cle_selflow' => 'SELFLOW-8-2', 'date' => '2026-06-15', 'debit' => 0, 'credit' => 10],
+        ]);
+
+        $this->postJson('/api/external/ecritures/regrouper', [
+            'secret' => self::SECRET, 'selflow_company_id' => self::SELFLOW_A,
+            'operations' => [['operation' => 'SELFLOW-7-OP1', 'cles' => ['SELFLOW-8-1', 'SELFLOW-8-2']]],
+        ], ['X-Company-Key' => $this->cleA])->assertOk()->assertJson(['regroupees' => 0]);
+
+        $this->assertSame(['X1', 'X2'], DB::table('ecriture_comptables')->orderBy('id')->pluck('n_saisie')->all());
+    }
+
     private function deverserChez(int $selflowCompanyId, ?string $cle)
     {
         return $this->postJson('/api/external/ecritures/deverser', [
@@ -1021,6 +1127,8 @@ class LiaisonCleParEntrepriseTest extends TestCase
             $table->string('description_operation')->nullable();
             $table->string('reference_piece')->nullable();
             $table->string('cle_selflow', 64)->nullable();
+            $table->string('operation_selflow', 64)->nullable();
+            $table->string('n_saisie_user')->nullable();
             $table->unsignedBigInteger('plan_comptable_id')->nullable();
             $table->unsignedBigInteger('plan_tiers_id')->nullable();
             $table->unsignedBigInteger('code_journal_id')->nullable();
