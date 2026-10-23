@@ -3936,6 +3936,33 @@ class AdminConfigController extends Controller
             return view('admin.import.report', ['report' => $report, 'batch_id' => $id]);
         }
 
+        // Les écritures exigent un exercice comptable : sans exercice ouvert, on
+        // invite l'utilisateur à le créer au lieu de laisser la base rejeter l'insertion.
+        if ($import->type === 'courant') {
+            $companyId = $import->company_id ?: session('current_company_id', $user->company_id);
+            $exercice  = $import->exercice_id
+                ? ExerciceComptable::where('company_id', $companyId)->find($import->exercice_id)
+                : null;
+
+            if (!$exercice) {
+                $exercice = ExerciceComptable::where('company_id', $companyId)
+                    ->where('cloturer', 0)
+                    ->find(session('current_exercice_id'))
+                    ?? ExerciceComptable::where('company_id', $companyId)
+                        ->where('cloturer', 0)
+                        ->orderByDesc('date_debut')
+                        ->first();
+            }
+
+            if (!$exercice) {
+                return redirect()->route('admin.import.staging', $id)->with('exercice_missing', true);
+            }
+
+            if ((int) $import->exercice_id !== (int) $exercice->id) {
+                $import->update(['exercice_id' => $exercice->id]);
+            }
+        }
+
         // Marquer l'import comme en cours
         $import->update([
             'status'    => 'processing',

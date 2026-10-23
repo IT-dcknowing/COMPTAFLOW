@@ -127,6 +127,26 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    @if(session('exercice_missing'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'info',
+                title: 'Exercice comptable requis',
+                html: "Aucun exercice comptable ouvert n'existe pour cette entreprise.<br>Veuillez <strong>créer d'abord l'exercice comptable</strong>, puis relancer l'importation.",
+                showCancelButton: true,
+                confirmButtonText: 'Continuer',
+                cancelButtonText: 'Fermer',
+                confirmButtonColor: '#4f46e5',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "{{ route('exercice_comptable') }}";
+                }
+            });
+        });
+    </script>
+    @endif
 <script>
         /**
          * Charge la page de staging en AJAX pour une expérience fluide (filtres, pagination)
