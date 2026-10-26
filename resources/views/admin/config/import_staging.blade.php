@@ -133,7 +133,7 @@
             Swal.fire({
                 icon: 'info',
                 title: 'Exercice comptable requis',
-                html: "Aucun exercice comptable ouvert n'existe pour cette entreprise.<br>Veuillez <strong>créer d'abord l'exercice comptable</strong>, puis relancer l'importation.",
+                html: "Veuillez <strong>créer d'abord l'exercice comptable</strong>.",
                 showCancelButton: true,
                 confirmButtonText: 'Continuer',
                 cancelButtonText: 'Fermer',
