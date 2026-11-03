@@ -89,7 +89,10 @@ class ExternalCompanyController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'mode'                        => 'sometimes|required|in:creer,lier',
             'selflow_company_id'          => 'required|integer|min:1',
+            'comptaflow_company_id'       => 'required_if:mode,lier|integer|min:1',
+            'conserver_acces'             => 'required_if:mode,lier|accepted',
             'entreprise'                  => 'required|array',
             'entreprise.nom'              => 'required|string|max:255',
             'entreprise.forme_juridique'  => 'nullable|string|max:50',
@@ -101,7 +104,9 @@ class ExternalCompanyController extends Controller
             'entreprise.email'            => 'nullable|email|max:255',
             'entreprise.admin_nom'        => 'nullable|string|max:150',
             'entreprise.admin_prenom'     => 'nullable|string|max:150',
-            'entreprise.admin_email'      => 'required|email|max:255',
+            // En mode « lier », le dossier existe déjà : ses comptes d'accès
+            // doivent rester intacts, aucun e-mail administrateur n'est envoyé.
+            'entreprise.admin_email'      => 'required_if:mode,creer|required_without:mode|email|max:255',
             // L'empreinte bcrypt du compte Selflow, telle qu'elle est en base
             // là-bas. Jamais un mot de passe : `regex` refuse tout ce qui n'a
             // pas la forme d'une empreinte, pour qu'un connecteur mal réglé qui
@@ -123,6 +128,96 @@ class ExternalCompanyController extends Controller
                 'message' => 'Données invalides.',
                 'errors'  => $validator->errors(),
             ], 422);
+        }
+
+        // Le mode « lier » rattache un dossier existant sans le recréer.
+        // Aucun utilisateur, compte, plan comptable ni écriture n'est modifié.
+        if ($request->input('mode', 'creer') === 'lier') {
+            $companyId = (int) $request->input('comptaflow_company_id');
+            $selflowId = (int) $request->input('selflow_company_id');
+
+            $company = Company::query()->whereKey($companyId)->first();
+
+            if (!$company) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le dossier Comptaflow demandé est introuvable.',
+                ], 404);
+            }
+
+            if ($company->selflow_company_id !== null
+                && (int) $company->selflow_company_id !== $selflowId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ce dossier Comptaflow est déjà lié à une autre entreprise Selflow.',
+                ], 409);
+            }
+
+            $autreDossier = Company::query()
+                ->where('selflow_company_id', $selflowId)
+                ->where('id', '<>', $companyId)
+                ->exists();
+
+            if ($autreDossier) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cette entreprise Selflow est déjà liée à un autre dossier Comptaflow.',
+                ], 409);
+            }
+
+            try {
+                $resultat = DB::transaction(function () use ($companyId, $selflowId, $request) {
+                    $dossier = Company::query()->whereKey($companyId)->lockForUpdate()->firstOrFail();
+
+                    if ($dossier->selflow_company_id !== null
+                        && (int) $dossier->selflow_company_id !== $selflowId) {
+                        throw new \\RuntimeException('Ce dossier Comptaflow vient d’être lié à une autre entreprise Selflow.');
+                    }
+
+                    $dossier->forceFill(['selflow_company_id' => $selflowId])->save();
+
+                    $cle = null;
+                    if (!$dossier->selflow_sync_key_revoked_at && $dossier->selflow_sync_key_chiffree) {
+                        try {
+                            $cle = Crypt::decryptString($dossier->selflow_sync_key_chiffree);
+                        } catch (\\Throwable $e) {
+                            Log::warning('Liaison Selflow : clé existante illisible lors du rattachement', [
+                                'company_id' => $dossier->id,
+                            ]);
+                        }
+                    }
+
+                    if (!$cle) {
+                        $cle = $dossier->poserUneCleDeLiaison();
+                    }
+
+                    $this->ouvrirLExercice($dossier, $dossier->admin, $request->input('exercice'));
+
+                    return ['company_id' => $dossier->id, 'sync_key' => $cle];
+                });
+            } catch (\\Throwable $e) {
+                Log::error('Liaison Selflow : rattachement du dossier existant impossible', [
+                    'company_id' => $companyId,
+                    'selflow_company_id' => $selflowId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Impossible de rattacher ce dossier Comptaflow.',
+                ], 409);
+            }
+
+            Log::info('Liaison Selflow : dossier Comptaflow existant rattaché', [
+                'company_id' => $resultat['company_id'],
+                'selflow_company_id' => $selflowId,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'company_id' => $resultat['company_id'],
+                'sync_key' => $resultat['sync_key'],
+            ]);
         }
 
         // ── Idempotence ──
