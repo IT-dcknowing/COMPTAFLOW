@@ -184,6 +184,7 @@ class BalanceController extends Controller
 
             $user = Auth::user();
             $companyId = session('current_company_id', $user->company_id);
+            $company = \App\Models\Company::withoutGlobalScopes()->findOrFail($companyId);
 
             $compte1 = PlanComptable::withoutGlobalScopes()->where('company_id', $companyId)->findOrFail($request->plan_comptable_id_1);
             $compte2 = PlanComptable::withoutGlobalScopes()->where('company_id', $companyId)->findOrFail($request->plan_comptable_id_2);
@@ -289,7 +290,7 @@ class BalanceController extends Controller
             $pdf->getDomPDF()->set_option('enable_font_subsetting', true);
             $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
             $pdf->loadView('balance', [
-                'company_name' => $user->company->company_name ?? 'Non défini',
+                'company_name' => $company->company_name ?? 'Non défini',
                 'ecritures' => $ecritures,
                 'date_debut' => $request->date_debut,
                 'date_fin' => $request->date_fin,
@@ -426,6 +427,7 @@ class BalanceController extends Controller
 
             $user = Auth::user();
             $companyId = session('current_company_id', $user->company_id);
+            $company = \App\Models\Company::withoutGlobalScopes()->findOrFail($companyId);
 
             // --- Détermination des bornes de comptes ---
             $compte1 = PlanComptable::withoutGlobalScopes()->where('company_id', $companyId)->findOrFail($request->plan_comptable_id_1);
@@ -506,7 +508,7 @@ class BalanceController extends Controller
             $pdf->getDomPDF()->set_option('enable_font_subsetting', true);
             $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
             $pdf->loadView($view, [
-                'company_name' => $user->company->company_name ?? 'Non défini',
+                'company_name' => $company->company_name ?? 'Non défini',
                 'ecritures' => $ecritures,
                 'date_debut' => $request->date_debut,
                 'date_fin' => $request->date_fin,
