@@ -80,6 +80,7 @@ class GrandLivreController extends Controller
 
             $user          = Auth::user();
             $companyId     = session('current_company_id', $user->company_id);
+            $company = \App\Models\Company::withoutGlobalScopes()->findOrFail($companyId);
             $format        = $request->format_fichier ?? 'pdf';
             $displayMode   = $request->display_mode   ?? 'comptaflow';
             $exerciceId    = session('current_exercice_id');
@@ -122,7 +123,7 @@ class GrandLivreController extends Controller
 
             (new \App\Services\GrandLivrePdfService())->generate(
                 $ecritures, $soldesInitiaux, $titre, $displayMode,
-                $user->company->company_name ?? 'Non défini',
+                $company->company_name ?? 'Non défini',
                 $request->date_debut, $request->date_fin,
                 $compte1->numero_de_compte, $compte2->numero_de_compte,
                 $grandLivresPath . $filename
@@ -159,6 +160,7 @@ class GrandLivreController extends Controller
 
             $user        = Auth::user();
             $companyId   = session('current_company_id', $user->company_id);
+            $company = \App\Models\Company::withoutGlobalScopes()->findOrFail($companyId);
             $displayMode = $request->display_mode ?? 'comptaflow';
             $exerciceId  = session('current_exercice_id');
 
@@ -177,7 +179,7 @@ class GrandLivreController extends Controller
 
             (new \App\Services\GrandLivrePdfService())->generate(
                 $ecritures, $soldesInitiaux, $titre, $displayMode,
-                $user->company->company_name ?? 'Non défini',
+                $company->company_name ?? 'Non défini',
                 $request->date_debut, $request->date_fin,
                 $compte1->numero_de_compte, $compte2->numero_de_compte,
                 $filePath
