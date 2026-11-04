@@ -171,7 +171,7 @@ class ExternalCompanyController extends Controller
 
                     if ($dossier->selflow_company_id !== null
                         && (int) $dossier->selflow_company_id !== $selflowId) {
-                        throw new \\RuntimeException('Ce dossier Comptaflow vient d’être lié à une autre entreprise Selflow.');
+                        throw new \RuntimeException('Ce dossier Comptaflow vient d’être lié à une autre entreprise Selflow.');
                     }
 
                     $dossier->forceFill(['selflow_company_id' => $selflowId])->save();
@@ -180,7 +180,7 @@ class ExternalCompanyController extends Controller
                     if (!$dossier->selflow_sync_key_revoked_at && $dossier->selflow_sync_key_chiffree) {
                         try {
                             $cle = Crypt::decryptString($dossier->selflow_sync_key_chiffree);
-                        } catch (\\Throwable $e) {
+                        } catch (\Throwable $e) {
                             Log::warning('Liaison Selflow : clé existante illisible lors du rattachement', [
                                 'company_id' => $dossier->id,
                             ]);
@@ -195,7 +195,7 @@ class ExternalCompanyController extends Controller
 
                     return ['company_id' => $dossier->id, 'sync_key' => $cle];
                 });
-            } catch (\\Throwable $e) {
+            } catch (\Throwable $e) {
                 Log::error('Liaison Selflow : rattachement du dossier existant impossible', [
                     'company_id' => $companyId,
                     'selflow_company_id' => $selflowId,
