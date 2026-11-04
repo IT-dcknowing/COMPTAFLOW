@@ -191,6 +191,13 @@ class ExternalCompanyController extends Controller
                         $cle = $dossier->poserUneCleDeLiaison();
                     }
 
+                    // Une clé existante et non révoquée prouve que la liaison
+                    // est opérationnelle : synchroniser aussi son statut métier.
+                    $dossier->forceFill([
+                        'selflow_sync_status' => 'active',
+                        'selflow_linked_at' => $dossier->selflow_linked_at ?? now(),
+                    ])->save();
+
                     $this->ouvrirLExercice($dossier, $dossier->admin, $request->input('exercice'));
 
                     return ['company_id' => $dossier->id, 'sync_key' => $cle];
