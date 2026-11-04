@@ -142,9 +142,14 @@
                                 </thead>
                                 <tbody id="corpsLiaisons">
                                     @forelse($companies as $comp)
-                                        @php $isLinked = !empty($comp->selflow_company_id); @endphp
+                                        @php
+                                            $isLinked = !empty($comp->selflow_company_id);
+                                            $isActiveLink = $isLinked
+                                                && !$comp->selflow_sync_key_revoked_at
+                                                && !empty($comp->selflow_sync_key_chiffree);
+                                        @endphp
                                         <tr data-f-compagnie="{{ $comp->company_name }}"
-                                            data-f-statut="{{ $isLinked && $comp->selflow_sync_status === 'active' ? 'Active' : 'Non liée' }}">
+                                            data-f-statut="{{ $isActiveLink ? 'Active' : 'Non liée' }}">
                                             <td class="ps-6">
                                                 <div class="fw-bold text-slate-800">{{ $comp->company_name }}</div>
                                                 <div class="text-xs text-muted">{{ $comp->juridique_form ?? 'SARL' }} · {{ $comp->email_adresse }}</div>
@@ -159,7 +164,7 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                @if($isLinked && $comp->selflow_sync_status === 'active')
+                                                @if($isActiveLink)
                                                     <span class="stat-badge badge-active"><i class="fa-solid fa-circle-check me-1"></i> Active (selflow ↔ comptaflow)</span>
                                                 @else
                                                     <span class="stat-badge badge-inactive"><i class="fa-solid fa-unlink me-1"></i> Non liée</span>
