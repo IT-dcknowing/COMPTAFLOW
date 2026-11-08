@@ -241,10 +241,10 @@ class Company extends Model
     /** Génère une clé distincte de la liaison Selflow. */
     public function poserUneCleGestionSites(): string
     {
-        $cle = 'gds_live_' . \\Illuminate\\Support\\Str::random(48);
+        $cle = 'gds_live_' . \Illuminate\Support\Str::random(48);
         $this->forceFill([
             'gestionsites_sync_key_hash' => hash('sha256', $cle),
-            'gestionsites_sync_key_chiffree' => \\Illuminate\\Support\\Facades\\Crypt::encryptString($cle),
+            'gestionsites_sync_key_chiffree' => \Illuminate\Support\Facades\Crypt::encryptString($cle),
             'gestionsites_sync_key_revoked_at' => null,
             'gestionsites_linked_at' => now(),
         ])->save();
@@ -259,8 +259,8 @@ class Company extends Model
         }
 
         try {
-            return \\Illuminate\\Support\\Facades\\Crypt::decryptString($this->gestionsites_sync_key_chiffree);
-        } catch (\\Throwable) {
+            return \Illuminate\Support\Facades\Crypt::decryptString($this->gestionsites_sync_key_chiffree);
+        } catch (\Throwable) {
             return null;
         }
     }
