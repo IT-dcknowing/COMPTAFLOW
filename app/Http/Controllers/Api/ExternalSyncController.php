@@ -239,9 +239,12 @@ class ExternalSyncController extends Controller
      * un déversement refusé, ou perdu en route, laissait quand même « dernière
      * synchronisation : aujourd'hui » à l'écran.
      */
-    private static function daterLaReception(Company $company): void
+    private static function daterLaReception(Company $company, ?string $origine = 'SELFLOW'): void
     {
-        $company->forceFill(['selflow_last_deposit_at' => now()])->save();
+        $colonne = $origine === 'GESTION_DE_SITES'
+            ? 'gestionsites_last_deposit_at'
+            : 'selflow_last_deposit_at';
+        $company->forceFill([$colonne => now()])->save();
     }
 
     /**
@@ -607,7 +610,8 @@ class ExternalSyncController extends Controller
         }
 
         $request->validate([
-            'selflow_company_id' => 'required|integer',
+            'selflow_company_id' => 'required_without:gestionsites_company_id|integer',
+            'gestionsites_company_id' => 'required_without:selflow_company_id|integer',
             'ecritures'          => 'required|array',
             // Selflow déverse désormais une **opération entière** en un appel,
             // et non ligne par ligne. Quand il le dit, une seule ligne refusée
@@ -618,6 +622,11 @@ class ExternalSyncController extends Controller
         ]);
 
         $atomique = $request->boolean('atomique');
+        $origine = $request->attributes->get('integration_origine', 'SELFLOW');
+        $idSource = $origine === 'GESTION_DE_SITES'
+            ? $request->input('gestionsites_company_id')
+            : $request->input('selflow_company_id');
+        $prefixeSource = $origine === 'GESTION_DE_SITES' ? 'GESTION-DE-SITES' : 'SELFLOW';
 
         $company = self::entrepriseDeLaRequete($request);
 
@@ -662,11 +671,11 @@ class ExternalSyncController extends Controller
         // Une opération déjà commencée chez nous — envoi précédent
         // partiellement accepté — garde son numéro : la suite s'y rattache.
         $numerosDesOperations = [];
-        $numeroDeSaisie = function (array $ec, string $date) use ($request, $company, $exercice, &$numerosDesOperations): ?array {
+        $numeroDeSaisie = function (array $ec, string $date) use ($request, $company, $exercice, &$numerosDesOperations, $prefixeSource, $idSource): ?array {
             $operation = $ec['operation_selflow'] ?? null;
 
             if (!$operation && $request->filled('operation')) {
-                $operation = 'SELFLOW-' . $request->input('selflow_company_id') . '-OP' . $request->input('operation');
+                $operation = $prefixeSource . '-' . $idSource . '-OP' . $request->input('operation');
             }
 
             if (!$operation) {
@@ -698,7 +707,10 @@ class ExternalSyncController extends Controller
                 // d'une écriture **nouvelle**. Rejouer une synchronisation —
                 // après une coupure réseau, après un retry — dupliquait tout,
                 // et la balance doublait sans que rien ne le signale.
-                $cleSelflow = $ec['cle_selflow'] ?? null;
+                $cleSelflow = $ec['cle_source'] ?? $ec['cle_selflow'] ?? null;
+                if ($cleSelflow && !str_starts_with($cleSelflow, $prefixeSource . '-')) {
+                    $cleSelflow = $prefixeSource . '-' . $idSource . '-' . $cleSelflow;
+                }
 
                 if ($cleSelflow && EcritureComptable::where('company_id', $company->id)
                         ->where('cle_selflow', $cleSelflow)->exists()) {
@@ -798,7 +810,7 @@ class ExternalSyncController extends Controller
                 ], 422);
             }
 
-            self::daterLaReception($company);
+            self::daterLaReception($company, $origine);
 
             DB::commit();
 
