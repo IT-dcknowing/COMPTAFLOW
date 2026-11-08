@@ -876,7 +876,8 @@ class ExternalSyncController extends Controller
         }
 
         $request->validate([
-            'selflow_company_id'    => 'required|integer',
+            'selflow_company_id'    => 'required_without:gestionsites_company_id|integer',
+            'gestionsites_company_id' => 'required_without:selflow_company_id|integer',
             'comptaflow_company_id' => 'required|integer',
             'plan_comptable'        => 'nullable|array',
             'codes_journaux'        => 'nullable|array',
@@ -894,19 +895,27 @@ class ExternalSyncController extends Controller
         // deux identifiants entre eux — c'est tout ce qu'on peut faire sans
         // clé, et cela ne vaut que le temps de la transition : les deux valeurs
         // viennent du même corps de requête, donc du même appelant.
+        $origine = $request->attributes->get('integration_origine', 'SELFLOW');
+        $idSource = $origine === 'GESTION_DE_SITES'
+            ? $request->input('gestionsites_company_id')
+            : $request->input('selflow_company_id');
         $company = self::entrepriseDeLaRequete($request);
+
+        $idLie = $origine === 'GESTION_DE_SITES'
+            ? $company?->gestionsites_company_id
+            : $company?->selflow_company_id;
 
         if ($company
             && ((int) $company->id !== (int) $request->comptaflow_company_id
-                || (int) $company->selflow_company_id !== (int) $request->selflow_company_id)) {
+                || (int) $idLie !== (int) $idSource)) {
             $company = null;
         }
 
         if (!$company) {
             return response()->json([
                 'success' => false,
-                'message' => "Aucune liaison entre l'entreprise Selflow n° {$request->selflow_company_id} "
-                    . "et l'entreprise Comptaflow n° {$request->comptaflow_company_id}. "
+                'message' => "Aucune liaison entre l'entreprise source n° {$idSource} "
+                    . "et le dossier COMPTAFLOW n° {$request->comptaflow_company_id}. "
                     . 'Établissez la liaison avant de déverser le référentiel.',
             ], 404);
         }
@@ -944,7 +953,7 @@ class ExternalSyncController extends Controller
                         trim((string) ($l['numero_de_compte'] ?? '')),
                         trim((string) ($l['intitule'] ?? '')),
                     ], (array) $request->input('plan_comptable', [])),
-                    $refus),
+                    $refus, [], $origine),
 
                 // Le type est détecté par l'import, comme sur l'écran où il est
                 // marqué « auto-généré par défaut ».
@@ -956,7 +965,7 @@ class ExternalSyncController extends Controller
                         trim((string) ($l['type'] ?? '')),
                         trim((string) ($l['compte_numero'] ?? '')),
                     ], (array) $request->input('codes_journaux', [])),
-                    $refus, ['type']),
+                    $refus, ['type'], $origine),
 
                 // Seuls les champs nécessaires passent par l'import : le numéro,
                 // l'intitulé, le compte collectif. La catégorie se déduit du
@@ -968,13 +977,13 @@ class ExternalSyncController extends Controller
                         trim((string) ($l['intitule'] ?? '')),
                         trim((string) ($l['compte_general'] ?? '')),
                     ], (array) $request->input('tiers', [])),
-                    $refus),
+                    $refus, [], $origine),
             ];
 
             // Le reste de la fiche d'un tiers ne demande aucune vérification.
             self::completerLesTiers($company, (array) $request->input('tiers', []));
 
-            self::daterLaReception($company);
+            self::daterLaReception($company, $origine);
         } catch (\Throwable $e) {
             Log::error('ExternalSync deverserReferentiel error', [
                 'company_id' => $company->id,
@@ -1029,7 +1038,7 @@ class ExternalSyncController extends Controller
      * @return array{recues: int, creees: int, deja_la: int, ecartees: int}
      */
     private static function importer(Company $company, User $admin, string $type, array $colonnes,
-        array $lignes, array &$refus, array $auto = []): array
+        array $lignes, array &$refus, array $auto = [], string $origine = 'SELFLOW'): array
     {
         $lignes = array_values(array_filter($lignes, fn ($l) => ($l[0] ?? '') !== '' || ($l[1] ?? '') !== ''));
 
@@ -1045,9 +1054,9 @@ class ExternalSyncController extends Controller
         $import = ImportStaging::create([
             'company_id' => $company->id,
             'user_id'    => $admin->id,
-            'source'     => 'SELFLOW',
+            'source'     => $origine,
             'type'       => $type,
-            'file_name'  => 'Déversement Selflow',
+            'file_name'  => 'Déversement ' . ($origine === 'GESTION_DE_SITES' ? 'GESTION-DE-SITES' : 'Selflow'),
             'raw_data'   => array_merge([$colonnes], $lignes),
             'mapping'    => $mapping,
             'status'     => 'staging',
