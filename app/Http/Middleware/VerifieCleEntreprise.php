@@ -82,6 +82,11 @@ class VerifieCleEntreprise
         // la table des dossiers à chaque écriture reçue.
         $hache = hash('sha256', $cle);
         $entreprise = Company::where('selflow_sync_key_hash', $hache)->first();
+        $origine = $entreprise ? 'SELFLOW' : null;
+        if (!$entreprise) {
+            $entreprise = Company::where('gestionsites_sync_key_hash', $hache)->first();
+            $origine = $entreprise ? 'GESTION_DE_SITES' : null;
+        }
         $parGrace = false;
 
         // ── La clé précédente, essayée **en second** ──
@@ -110,14 +115,13 @@ class VerifieCleEntreprise
             return self::refus($request, 401, 'Clé de synchronisation inconnue.');
         }
 
-        if ($entreprise->selflow_sync_key_revoked_at) {
-            // Nommer la révocation, et la dater. « Clé inconnue » enverrait
-            // l'entreprise chercher une panne de réseau pendant que la vraie
-            // réponse — la liaison a été coupée, et quand — tient en une ligne.
+        $dateRevocation = $origine === 'GESTION_DE_SITES'
+            ? $entreprise->gestionsites_sync_key_revoked_at
+            : $entreprise->selflow_sync_key_revoked_at;
+        if ($dateRevocation) {
             return self::refus($request, 401, sprintf(
-                'Clé de synchronisation révoquée le %s. Reprovisionnez la liaison depuis Selflow '
-                . 'pour obtenir une nouvelle clé ; l\'ancienne ne redeviendra pas valide.',
-                $entreprise->selflow_sync_key_revoked_at->format('d/m/Y')
+                'Clé de synchronisation révoquée le %s.',
+                $dateRevocation->format('d/m/Y')
             ));
         }
 
@@ -126,7 +130,7 @@ class VerifieCleEntreprise
         // La clé authentifie un dossier ; le corps en annonce un. Sans cette
         // comparaison, la clé ne sert à rien : il suffirait de la présenter et
         // d'annoncer l'entreprise du voisin.
-        $croisement = self::croisement($request, $entreprise);
+        $croisement = self::croisement($request, $entreprise, $origine);
 
         if ($croisement !== null) {
             Log::warning('Liaison Selflow : écriture croisée refusée', [
@@ -142,6 +146,7 @@ class VerifieCleEntreprise
         }
 
         $request->attributes->set('entreprise_liee', $entreprise);
+        $request->attributes->set('integration_origine', $origine);
         // `rotate-key` en a besoin : une demande de renouvellement présentée
         // avec la clé **précédente** est un renouvellement rejoué — Selflow n'a
         // pas reçu la réponse du premier. Il faut lui rendre la clé courante,
@@ -190,7 +195,7 @@ class VerifieCleEntreprise
      *
      * @return string|null le motif du refus, ou `null` si les deux concordent
      */
-    private static function croisement(Request $request, Company $entreprise): ?string
+    private static function croisement(Request $request, Company $entreprise, ?string $origine = 'SELFLOW'): ?string
     {
         $annonceComptaflow = $request->input('comptaflow_company_id');
 
@@ -200,6 +205,15 @@ class VerifieCleEntreprise
                 $entreprise->id,
                 (int) $annonceComptaflow
             );
+        }
+
+        if ($origine === 'GESTION_DE_SITES') {
+            $annonce = $request->input('gestionsites_company_id');
+            if ($annonce !== null && $entreprise->gestionsites_company_id !== null
+                && (int) $annonce !== (int) $entreprise->gestionsites_company_id) {
+                return 'La clé présentée ne correspond pas à l’entreprise GESTION-DE-SITES annoncée.';
+            }
+            return null;
         }
 
         $annonceSelflow = $request->input('selflow_company_id');
