@@ -147,6 +147,14 @@ Route::prefix('v1')->group(function () {
 // désignant un autre dossier que celui annoncé dans le corps.
 // ═══════════════════════════════════════════════════════════════════════════
 Route::prefix('external')->group(function () {
+    // Liaison indépendante GESTION-DE-SITES : elle ne réutilise aucun identifiant Selflow.
+    Route::post('/gestionsites/companies/provision', [\\App\\Http\\Controllers\\Api\\ExternalGestionSitesController::class, 'provision'])
+        ->middleware('throttle:6,1')
+        ->name('api.external.gestionsites.provision');
+    Route::post('/gestionsites/companies/verify', [\\App\\Http\\Controllers\\Api\\ExternalGestionSitesController::class, 'verify'])
+        ->middleware(['cle.entreprise', 'throttle:60,1'])
+        ->name('api.external.gestionsites.verify');
+
     // ── Le cycle de vie de la liaison ──
     //
     // `provision` est le seul appel sans `cle.entreprise` : il n'y a pas encore
