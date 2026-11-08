@@ -148,10 +148,10 @@ Route::prefix('v1')->group(function () {
 // ═══════════════════════════════════════════════════════════════════════════
 Route::prefix('external')->group(function () {
     // Liaison indépendante GESTION-DE-SITES : elle ne réutilise aucun identifiant Selflow.
-    Route::post('/gestionsites/companies/provision', [\\App\\Http\\Controllers\\Api\\ExternalGestionSitesController::class, 'provision'])
+    Route::post('/gestionsites/companies/provision', [\App\Http\Controllers\Api\ExternalGestionSitesController::class, 'provision'])
         ->middleware('throttle:6,1')
         ->name('api.external.gestionsites.provision');
-    Route::post('/gestionsites/companies/verify', [\\App\\Http\\Controllers\\Api\\ExternalGestionSitesController::class, 'verify'])
+    Route::post('/gestionsites/companies/verify', [\App\Http\Controllers\Api\ExternalGestionSitesController::class, 'verify'])
         ->middleware(['cle.entreprise', 'throttle:60,1'])
         ->name('api.external.gestionsites.verify');
 
@@ -195,7 +195,7 @@ Route::prefix('external')->group(function () {
     Route::post('/referentiel/deverser', [\App\Http\Controllers\Api\ExternalSyncController::class, 'deverserReferentiel'])
         ->middleware('cle.entreprise')
         ->name('api.external.referentiel.deverser');
-    Route::post('/gestionsites/referentiel/deverser', [\\App\\Http\\Controllers\\Api\\ExternalSyncController::class, 'deverserReferentiel'])
+    Route::post('/gestionsites/referentiel/deverser', [\App\Http\Controllers\Api\ExternalSyncController::class, 'deverserReferentiel'])
         ->middleware('cle.entreprise')
         ->name('api.external.gestionsites.referentiel.deverser');
 
