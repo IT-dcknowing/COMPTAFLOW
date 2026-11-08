@@ -48,6 +48,9 @@ class Company extends Model
         'selflow_last_deposit_at'     => 'datetime',
         'selflow_sync_key_precedente_expire_at' => 'datetime',
         'selflow_sync_key_rotated_at'           => 'datetime',
+        'gestionsites_sync_key_revoked_at' => 'datetime',
+        'gestionsites_linked_at' => 'datetime',
+        'gestionsites_last_deposit_at' => 'datetime',
     ];
 
     /**
