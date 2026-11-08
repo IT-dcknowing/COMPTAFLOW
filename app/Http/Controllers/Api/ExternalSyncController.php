@@ -672,7 +672,7 @@ class ExternalSyncController extends Controller
         // partiellement accepté — garde son numéro : la suite s'y rattache.
         $numerosDesOperations = [];
         $numeroDeSaisie = function (array $ec, string $date) use ($request, $company, $exercice, &$numerosDesOperations, $prefixeSource, $idSource): ?array {
-            $operation = $ec['operation_selflow'] ?? null;
+            $operation = $ec['operation_source'] ?? $ec['operation_selflow'] ?? null;
 
             if (!$operation && $request->filled('operation')) {
                 $operation = $prefixeSource . '-' . $idSource . '-OP' . $request->input('operation');
