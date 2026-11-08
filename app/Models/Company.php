@@ -33,6 +33,8 @@ class Company extends Model
         'selflow_linked_at', 'selflow_last_deposit_at',
         'selflow_sync_key_hash_precedente', 'selflow_sync_key_precedente_expire_at',
         'selflow_sync_key_rotated_at',
+        'gestionsites_company_id', 'gestionsites_sync_key_hash', 'gestionsites_sync_key_chiffree',
+        'gestionsites_sync_key_revoked_at', 'gestionsites_linked_at', 'gestionsites_last_deposit_at',
     ];
 
     protected $casts = [
@@ -58,7 +60,7 @@ class Company extends Model
      */
     protected $hidden = [
         'selflow_sync_key', 'selflow_sync_key_hash', 'selflow_sync_key_chiffree',
-        'selflow_sync_key_hash_precedente',
+        'selflow_sync_key_hash_precedente', 'gestionsites_sync_key_hash', 'gestionsites_sync_key_chiffree',
     ];
 
     /**
@@ -231,6 +233,33 @@ class Company extends Model
         $cle = $this->cleDeLiaisonEnClair();
 
         return $cle ? ['X-Company-Key' => $cle] : [];
+    }
+
+    /** Génère une clé distincte de la liaison Selflow. */
+    public function poserUneCleGestionSites(): string
+    {
+        $cle = 'gds_live_' . \\Illuminate\\Support\\Str::random(48);
+        $this->forceFill([
+            'gestionsites_sync_key_hash' => hash('sha256', $cle),
+            'gestionsites_sync_key_chiffree' => \\Illuminate\\Support\\Facades\\Crypt::encryptString($cle),
+            'gestionsites_sync_key_revoked_at' => null,
+            'gestionsites_linked_at' => now(),
+        ])->save();
+
+        return $cle;
+    }
+
+    public function cleGestionSitesEnClair(): ?string
+    {
+        if (!$this->gestionsites_sync_key_chiffree || $this->gestionsites_sync_key_revoked_at) {
+            return null;
+        }
+
+        try {
+            return \\Illuminate\\Support\\Facades\\Crypt::decryptString($this->gestionsites_sync_key_chiffree);
+        } catch (\\Throwable) {
+            return null;
+        }
     }
 
     public function users()
