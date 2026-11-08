@@ -195,6 +195,9 @@ Route::prefix('external')->group(function () {
     Route::post('/referentiel/deverser', [\App\Http\Controllers\Api\ExternalSyncController::class, 'deverserReferentiel'])
         ->middleware('cle.entreprise')
         ->name('api.external.referentiel.deverser');
+    Route::post('/gestionsites/referentiel/deverser', [\\App\\Http\\Controllers\\Api\\ExternalSyncController::class, 'deverserReferentiel'])
+        ->middleware('cle.entreprise')
+        ->name('api.external.gestionsites.referentiel.deverser');
 
     // ── Le reste de la passerelle ──
     //
