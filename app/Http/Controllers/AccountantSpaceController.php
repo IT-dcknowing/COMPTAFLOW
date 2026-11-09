@@ -89,8 +89,53 @@ class AccountantSpaceController extends Controller
 
         $companies = Company::with('admin')->whereIn('id', $allCompanyIds)->get();
 
+        // Comptabiliser les éléments du référentiel par entreprise ET par utilisateur
+        // créateur : comptes généraux, codes journaux et comptes tiers.
+        $referentielParEntreprise = [];
+        $companyIdsForReferentiel = $companies->pluck('id')->all() ?: [0];
+
+        foreach ([
+            'accounts' => 'plan_comptables',
+            'journals' => 'code_journals',
+            'tiers' => 'plan_tiers',
+        ] as $typeReferentiel => $tableReferentiel) {
+            $lignesReferentiel = DB::table($tableReferentiel)
+                ->whereIn('company_id', $companyIdsForReferentiel)
+                ->select('company_id', 'user_id')
+                ->selectRaw('COUNT(*) as total')
+                ->groupBy('company_id', 'user_id')
+                ->get();
+
+            foreach ($lignesReferentiel as $ligneReferentiel) {
+                $companyIdReferentiel = (int) $ligneReferentiel->company_id;
+                $userIdReferentiel = (int) ($ligneReferentiel->user_id ?? 0);
+
+                if (!isset($referentielParEntreprise[$companyIdReferentiel][$userIdReferentiel])) {
+                    $referentielParEntreprise[$companyIdReferentiel][$userIdReferentiel] = [
+                        'accounts' => 0,
+                        'journals' => 0,
+                        'tiers' => 0,
+                    ];
+                }
+
+                $referentielParEntreprise[$companyIdReferentiel][$userIdReferentiel][$typeReferentiel] =
+                    (int) $ligneReferentiel->total;
+            }
+        }
+
+        $referentielUserIds = collect($referentielParEntreprise)
+            ->flatMap(fn ($parUtilisateur) => array_keys($parUtilisateur))
+            ->filter(fn ($id) => (int) $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $referentielUsers = User::whereIn('id', $referentielUserIds)
+            ->get(['id', 'name', 'last_name'])
+            ->keyBy('id');
+
         // Charger les KPIs pour chaque entreprise
-        $companiesData = $companies->map(function ($comp) use ($user) {
+        $companiesData = $companies->map(function ($comp) use ($user, $referentielParEntreprise, $referentielUsers) {
             // Comparaison typée : selon le driver PDO, user_id peut remonter en chaîne
             $isOwner = (int) $comp->user_id === (int) $user->id
                 || ($user->role === 'admin' && (int) $user->company_id === (int) $comp->id);
@@ -124,6 +169,25 @@ class AccountantSpaceController extends Controller
                 ->get();
 
             $assignedUsers = $assignedUsers->concat($legacyUsers);
+
+            // Détail du référentiel créé par chaque utilisateur dans cette société.
+            $referentielUsersForCompany = collect($referentielParEntreprise[$comp->id] ?? [])
+                ->map(function ($counts, $userId) use ($referentielUsers) {
+                    $responsable = (int) $userId > 0 ? $referentielUsers->get((int) $userId) : null;
+                    $nomResponsable = $responsable
+                        ? trim(($responsable->name ?? '') . ' ' . ($responsable->last_name ?? ''))
+                        : ((int) $userId > 0 ? 'Utilisateur indisponible' : 'Utilisateur non attribué');
+
+                    return [
+                        'id' => (int) $userId,
+                        'name' => $nomResponsable,
+                        'accounts_count' => (int) ($counts['accounts'] ?? 0),
+                        'journals_count' => (int) ($counts['journals'] ?? 0),
+                        'tiers_count' => (int) ($counts['tiers'] ?? 0),
+                    ];
+                })
+                ->sortBy('name')
+                ->values();
 
             // KPIs Financiers SYSCOHADA
             // numero_de_compte est dans plan_comptables (JOIN nécessaire)
@@ -174,6 +238,7 @@ class AccountantSpaceController extends Controller
                 'accounts_count' => $accountsCount,
                 'tiers_count' => $tiersCount,
                 'journals_count' => $journalsCount,
+                'referentiel_users' => $referentielUsersForCompany,
                 'exercice_actif' => $exerciceActif ? date('Y', strtotime($exerciceActif->date_debut)) : 'Aucun',
                 'assigned_users' => $assignedUsers,
                 'ca' => $ca,
@@ -182,6 +247,14 @@ class AccountantSpaceController extends Controller
                 'ventes_count' => $ventesCount,
             ];
         });
+
+        // Liste unique des utilisateurs qui ont créé au moins un compte,
+        // un code journal ou un tiers dans les dossiers visibles du cabinet.
+        $referentielUsersOptions = $companiesData
+            ->flatMap(fn ($data) => $data['referentiel_users'])
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
 
         // 2. Collaborateurs assignés à mes entreprises (tableau)
         //    Deux rattachements possibles : la table pivot company_user, ou le
@@ -296,7 +369,7 @@ class AccountantSpaceController extends Controller
 
         $informations = $this->informationsEspace($user, $cabinetGere);
 
-        return view('accountant.index', compact('companiesData', 'collaborators', 'assignableCollaborators', 'chatUsers', 'stats', 'selectedCollaboratorId', 'cabinetGere', 'informations'));
+        return view('accountant.index', compact('companiesData', 'referentielUsersOptions', 'collaborators', 'assignableCollaborators', 'chatUsers', 'stats', 'selectedCollaboratorId', 'cabinetGere', 'informations'));
     }
 
     /**
