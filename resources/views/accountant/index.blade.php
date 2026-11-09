@@ -716,7 +716,9 @@ body {
                                             <span style="color:var(--text-secondary);text-align:right;">
                                                 {{ $responsable['accounts_count'] }} comptes ·
                                                 {{ $responsable['journals_count'] }} journaux ·
-                                                {{ $responsable['tiers_count'] }} tiers
+                                                {{ $responsable['clients_count'] }} clients ·
+                                                {{ $responsable['fournisseurs_count'] }} fournisseurs ·
+                                                {{ $responsable['autres_count'] }} autres tiers
                                             </span>
                                         </div>
                                         @endforeach
