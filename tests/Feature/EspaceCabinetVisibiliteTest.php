@@ -102,6 +102,67 @@ class EspaceCabinetVisibiliteTest extends TestCase
             ->assertSee('Client B', false);
     }
 
+    public function test_le_portefeuille_filtre_par_entreprise_et_utilisateur_du_referentiel(): void
+    {
+        $company = Company::create([
+            'company_name' => 'Cabinet Client Filtre',
+            'activity' => 'Commerce',
+            'juridique_form' => 'SARL',
+            'cabinet_id' => $this->cabinet->id,
+            'user_id' => $this->gerant->id,
+        ]);
+
+        $responsable = User::factory()->create([
+            'name' => 'Aminata',
+            'last_name' => 'Comptable',
+        ]);
+
+        $compteId = DB::table('plan_comptables')->insertGetId([
+            'numero_de_compte' => '411' . random_int(100, 999),
+            'intitule' => 'Clients',
+            'adding_strategy' => 'manual',
+            'user_id' => $responsable->id,
+            'company_id' => $company->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('code_journals')->insert([
+            'code_journal' => 'V' . random_int(100, 999),
+            'intitule' => 'Journal des ventes',
+            'traitement_analytique' => false,
+            'user_id' => $responsable->id,
+            'company_id' => $company->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('plan_tiers')->insert([
+            'numero_de_tiers' => '411' . random_int(10000, 99999),
+            'compte_general' => $compteId,
+            'intitule' => 'Client de test',
+            'type_de_tiers' => 'Client',
+            'user_id' => $responsable->id,
+            'company_id' => $company->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->gerant)
+            ->get(route('accountant.space', ['page' => 'companies']))
+            ->assertOk()
+            ->assertSee('company-search', false)
+            ->assertSee('company-directory-filter', false)
+            ->assertSee('company-user-filter', false)
+            ->assertSee('Cabinet Client Filtre', false)
+            ->assertSee('Aminata Comptable', false)
+            ->assertSee('1 comptes', false)
+            ->assertSee('1 journaux', false)
+            ->assertSee('1 clients', false)
+            ->assertSee('0 fournisseurs', false)
+            ->assertSee('0 autres tiers', false);
+    }
+
     public function test_un_membre_ne_voit_pas_le_portefeuille(): void
     {
         $membre = User::factory()->create(['role' => 'admin', 'pack' => 'cabinet']);
