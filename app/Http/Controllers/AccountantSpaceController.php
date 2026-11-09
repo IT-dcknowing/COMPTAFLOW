@@ -115,12 +115,49 @@ class AccountantSpaceController extends Controller
                         'accounts' => 0,
                         'journals' => 0,
                         'tiers' => 0,
+                        'clients' => 0,
+                        'fournisseurs' => 0,
+                        'autres' => 0,
                     ];
                 }
 
                 $referentielParEntreprise[$companyIdReferentiel][$userIdReferentiel][$typeReferentiel] =
                     (int) $ligneReferentiel->total;
             }
+        }
+
+        // Répartir les tiers en clients, fournisseurs et autres catégories.
+        $tiersParType = DB::table('plan_tiers')
+            ->whereIn('company_id', $companyIdsForReferentiel)
+            ->select('company_id', 'user_id', 'type_de_tiers')
+            ->selectRaw('COUNT(*) as total')
+            ->groupBy('company_id', 'user_id', 'type_de_tiers')
+            ->get();
+
+        foreach ($tiersParType as $ligneTier) {
+            $companyIdReferentiel = (int) $ligneTier->company_id;
+            $userIdReferentiel = (int) ($ligneTier->user_id ?? 0);
+            $typeTier = mb_strtolower(trim((string) $ligneTier->type_de_tiers));
+
+            $categorieTier = match ($typeTier) {
+                'client', 'clients' => 'clients',
+                'fournisseur', 'fournisseurs' => 'fournisseurs',
+                default => 'autres',
+            };
+
+            if (!isset($referentielParEntreprise[$companyIdReferentiel][$userIdReferentiel])) {
+                $referentielParEntreprise[$companyIdReferentiel][$userIdReferentiel] = [
+                    'accounts' => 0,
+                    'journals' => 0,
+                    'tiers' => 0,
+                    'clients' => 0,
+                    'fournisseurs' => 0,
+                    'autres' => 0,
+                ];
+            }
+
+            $referentielParEntreprise[$companyIdReferentiel][$userIdReferentiel][$categorieTier] =
+                (int) $ligneTier->total;
         }
 
         $referentielUserIds = collect($referentielParEntreprise)
@@ -184,6 +221,9 @@ class AccountantSpaceController extends Controller
                         'accounts_count' => (int) ($counts['accounts'] ?? 0),
                         'journals_count' => (int) ($counts['journals'] ?? 0),
                         'tiers_count' => (int) ($counts['tiers'] ?? 0),
+                        'clients_count' => (int) ($counts['clients'] ?? 0),
+                        'fournisseurs_count' => (int) ($counts['fournisseurs'] ?? 0),
+                        'autres_count' => (int) ($counts['autres'] ?? 0),
                     ];
                 })
                 ->sortBy('name')
