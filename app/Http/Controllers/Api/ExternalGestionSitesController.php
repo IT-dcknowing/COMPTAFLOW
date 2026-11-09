@@ -86,6 +86,25 @@ class ExternalGestionSitesController extends Controller
         ]);
     }
 
+    /**
+     * Liste les tiers déjà créés dans le dossier COMPTAFLOW lié.
+     * GESTION-DE-SITES ne crée pas de tiers comptables : il choisit parmi ceux-ci.
+     */
+    public function listerTiers(Request $request)
+    {
+        $company = $request->attributes->get('entreprise_liee');
+        if (!$company || $request->attributes->get('integration_origine') !== 'GESTION_DE_SITES') {
+            return response()->json(['success' => false, 'message' => 'Liaison GESTION-DE-SITES introuvable.'], 404);
+        }
+
+        $tiers = \\App\\Models\\PlanTiers::query()
+            ->where('company_id', $company->id)
+            ->orderBy('intitule')
+            ->get(['id', 'numero_de_tiers', 'intitule', 'type_de_tiers', 'compte_general', 'ncc', 'rccm', 'email', 'telephone']);
+
+        return response()->json(['success' => true, 'company_id' => $company->id, 'tiers' => $tiers]);
+    }
+
     /** Vérifie une liaison existante à partir de sa clé propre. */
     public function verify(Request $request)
     {
