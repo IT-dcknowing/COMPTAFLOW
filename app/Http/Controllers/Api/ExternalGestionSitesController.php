@@ -97,7 +97,7 @@ class ExternalGestionSitesController extends Controller
             return response()->json(['success' => false, 'message' => 'Liaison GESTION-DE-SITES introuvable.'], 404);
         }
 
-        $tiers = \\App\\Models\\PlanTiers::query()
+        $tiers = \App\Models\PlanTiers::query()
             ->where('company_id', $company->id)
             ->orderBy('intitule')
             ->get(['id', 'numero_de_tiers', 'intitule', 'type_de_tiers', 'compte_general', 'ncc', 'rccm', 'email', 'telephone']);
