@@ -195,6 +195,15 @@ body {
     flex-wrap: wrap;
 }
 
+.company-directory-filters {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.4fr) minmax(220px, 1fr) minmax(220px, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+.company-directory-filters .dark-input,
+.company-directory-filters .filter-select { width: 100%; min-height: 42px; }
+
 .filter-pill {
     background: rgba(15,23,42,0.05);
     color: var(--text-secondary);
@@ -267,7 +276,7 @@ body {
     font-size: 0.75rem;
 }
 
-.company-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
+.company-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; margin-bottom: 1rem; }
 .ckpi { text-align: center; background: rgba(0,0,0,0.02); border: 1px solid var(--space-border); border-radius: 8px; padding: 0.5rem 0.25rem; }
 .ckpi-val { font-size: 1rem; font-weight: 800; color: var(--blue); line-height: 1.2; }
 .ckpi-lbl { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
@@ -445,6 +454,8 @@ body {
 @media (max-width: 640px) {
     .kpi-grid { grid-template-columns: 1fr; }
     .companies-grid { grid-template-columns: 1fr; }
+    .company-directory-filters { grid-template-columns: 1fr; }
+    .company-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 </style>
 
@@ -601,10 +612,34 @@ body {
                         </button>
                     </div>
 
+                    <div class="company-directory-filters" role="search" aria-label="Filtres du portefeuille sociétés">
+                        <input type="search" class="dark-input" id="company-search"
+                               placeholder="Rechercher une entreprise par nom, activité ou code..."
+                               aria-label="Rechercher une entreprise">
+                        <select class="filter-select" id="company-directory-filter" aria-label="Choisir une entreprise du cabinet">
+                            <option value="all">Toutes les entreprises du cabinet</option>
+                            @foreach($companiesData as $d)
+                                <option value="{{ $d['model']->id }}">{{ $d['model']->company_name }}</option>
+                            @endforeach
+                        </select>
+                        <select class="filter-select" id="company-user-filter" aria-label="Filtrer par utilisateur responsable du référentiel">
+                            <option value="all">Tous les utilisateurs du référentiel</option>
+                            @foreach($referentielUsersOptions as $responsable)
+                                <option value="{{ $responsable['id'] }}">{{ $responsable['name'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <div class="companies-grid" id="company-cards-grid">
                         @forelse($companiesData as $data)
                         @php $comp = $data['model']; @endphp
-                        <div class="company-card" data-company-status="{{ $data['assigned_status'] }}">
+                        <div class="company-card"
+                             data-company-status="{{ $data['assigned_status'] }}"
+                             data-company-id="{{ $comp->id }}"
+                             data-company-name="{{ strtolower($comp->company_name) }}"
+                             data-company-activity="{{ strtolower($comp->activity ?? '') }}"
+                             data-company-code="{{ strtolower($comp->company_code ?? '') }}"
+                             data-referentiel-user-ids="{{ $data['referentiel_users']->pluck('id')->implode(',') }}">
                             <div class="company-card-header">
                                 <div class="company-logo">{{ strtoupper(substr($comp->company_name,0,2)) }}</div>
                                 <div style="flex:1; min-width:0;">
@@ -656,6 +691,10 @@ body {
                                         <div class="ckpi-lbl">Comptes</div>
                                     </div>
                                     <div class="ckpi">
+                                        <div class="ckpi-val">{{ $data['journals_count'] }}</div>
+                                        <div class="ckpi-lbl">Journaux</div>
+                                    </div>
+                                    <div class="ckpi">
                                         <div class="ckpi-val">{{ $data['tiers_count'] }}</div>
                                         <div class="ckpi-lbl">Tiers</div>
                                     </div>
@@ -664,6 +703,26 @@ body {
                                         <div class="ckpi-lbl">Exercice</div>
                                     </div>
                                 </div>
+
+                                @if($data['referentiel_users']->isNotEmpty())
+                                <details class="mb-3" style="border:1px solid var(--space-border);border-radius:9px;padding:0.65rem 0.8rem;">
+                                    <summary style="cursor:pointer;font-size:0.72rem;font-weight:800;color:var(--blue);">
+                                        Référentiel par utilisateur ({{ $data['referentiel_users']->count() }})
+                                    </summary>
+                                    <div style="display:grid;gap:0.55rem;margin-top:0.7rem;">
+                                        @foreach($data['referentiel_users'] as $responsable)
+                                        <div style="display:flex;justify-content:space-between;gap:0.6rem;align-items:flex-start;font-size:0.7rem;">
+                                            <strong style="color:var(--text-primary);">{{ $responsable['name'] }}</strong>
+                                            <span style="color:var(--text-secondary);text-align:right;">
+                                                {{ $responsable['accounts_count'] }} comptes ·
+                                                {{ $responsable['journals_count'] }} journaux ·
+                                                {{ $responsable['tiers_count'] }} tiers
+                                            </span>
+                                        </div>
+                                        @endforeach
+                                    </div>
+                                </details>
+                                @endif
 
                                 <!-- Équipe -->
                                 @if($data['assigned_users']->count() > 0)
@@ -737,6 +796,9 @@ body {
                             </button>
                         </div>
                         @endforelse
+                    </div>
+                    <div id="company-filter-empty" class="dark-card text-center" style="display:none;margin-top:1rem;padding:1.5rem;color:var(--text-muted);">
+                        Aucune entreprise ne correspond à ces filtres.
                     </div>
                     <div id="company-filter-empty" class="dark-card text-center" style="grid-column:1/-1;padding:3rem;display:none;">
                         <i class="fas fa-building" style="font-size:2.5rem;color:var(--text-muted);display:block;margin-bottom:1rem;"></i>
@@ -1522,24 +1584,41 @@ function selectCollaboratorForAssign(userId) {
     }
 }
 
-function filterCompanyCards(filter) {
+let companyStatusFilter = 'all';
+
+function applyCompanyDirectoryFilters() {
     const cards = document.querySelectorAll('.company-card[data-company-status]');
     const emptyMessage = document.getElementById('company-filter-empty');
+    const search = (document.getElementById('company-search')?.value || '').trim().toLocaleLowerCase();
+    const companyId = document.getElementById('company-directory-filter')?.value || 'all';
+    const userId = document.getElementById('company-user-filter')?.value || 'all';
     let shown = 0;
 
     cards.forEach(card => {
-        const status = card.dataset.companyStatus;
-        if (filter === 'all' || status === filter) {
-            card.style.display = 'block';
-            shown += 1;
-        } else {
-            card.style.display = 'none';
-        }
+        const statusMatches = companyStatusFilter === 'all' || card.dataset.companyStatus === companyStatusFilter;
+        const searchable = [
+            card.dataset.companyName || '',
+            card.dataset.companyActivity || '',
+            card.dataset.companyCode || ''
+        ].join(' ').toLocaleLowerCase();
+        const searchMatches = !search || searchable.includes(search);
+        const companyMatches = companyId === 'all' || card.dataset.companyId === companyId;
+        const userIds = (card.dataset.referentielUserIds || '').split(',').filter(Boolean);
+        const userMatches = userId === 'all' || userIds.includes(userId);
+        const visible = statusMatches && searchMatches && companyMatches && userMatches;
+
+        card.style.display = visible ? 'block' : 'none';
+        if (visible) shown += 1;
     });
 
     if (emptyMessage) {
-        emptyMessage.style.display = shown === 0 ? 'block' : 'none';
+        emptyMessage.style.display = cards.length > 0 && shown === 0 ? 'block' : 'none';
     }
+}
+
+function filterCompanyCards(filter) {
+    companyStatusFilter = filter;
+    applyCompanyDirectoryFilters();
 }
 
 function setupCompanyFilters() {
@@ -1551,6 +1630,14 @@ function setupCompanyFilters() {
             filterCompanyCards(button.dataset.filter);
         });
     });
+
+    ['company-search', 'company-directory-filter', 'company-user-filter'].forEach(id => {
+        const control = document.getElementById(id);
+        if (!control) return;
+        control.addEventListener(id === 'company-search' ? 'input' : 'change', applyCompanyDirectoryFilters);
+    });
+
+    applyCompanyDirectoryFilters();
 }
 
 function openDetachCollaboratorModal(userId, button) {
