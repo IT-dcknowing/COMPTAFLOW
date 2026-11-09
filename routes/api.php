@@ -154,7 +154,7 @@ Route::prefix('external')->group(function () {
     Route::post('/gestionsites/companies/verify', [\App\Http\Controllers\Api\ExternalGestionSitesController::class, 'verify'])
         ->middleware(['cle.entreprise', 'throttle:60,1'])
         ->name('api.external.gestionsites.verify');
-    Route::post('/gestionsites/tiers/lister', [\\App\\Http\\Controllers\\Api\\ExternalGestionSitesController::class, 'listerTiers'])
+    Route::post('/gestionsites/tiers/lister', [\App\Http\Controllers\Api\ExternalGestionSitesController::class, 'listerTiers'])
         ->middleware(['cle.entreprise', 'throttle:60,1'])
         ->name('api.external.gestionsites.tiers.lister');
 
