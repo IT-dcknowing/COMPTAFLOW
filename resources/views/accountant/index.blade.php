@@ -797,13 +797,10 @@ body {
                         </div>
                         @endforelse
                     </div>
-                    <div id="company-filter-empty" class="dark-card text-center" style="display:none;margin-top:1rem;padding:1.5rem;color:var(--text-muted);">
-                        Aucune entreprise ne correspond à ces filtres.
-                    </div>
-                    <div id="company-filter-empty" class="dark-card text-center" style="grid-column:1/-1;padding:3rem;display:none;">
-                        <i class="fas fa-building" style="font-size:2.5rem;color:var(--text-muted);display:block;margin-bottom:1rem;"></i>
-                        <div style="font-weight:700;color:var(--text-primary);margin-bottom:0.5rem;">Aucune société trouvée</div>
-                        <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1.5rem;">Changez le filtre pour afficher d'autres sociétés.</div>
+                    <div id="company-filter-empty" class="dark-card text-center" style="grid-column:1/-1;padding:1.5rem;display:none;">
+                        <i class="fas fa-filter" style="font-size:1.8rem;color:var(--text-muted);display:block;margin-bottom:0.75rem;"></i>
+                        <div style="font-weight:700;color:var(--text-primary);margin-bottom:0.35rem;">Aucune entreprise ne correspond à ces filtres.</div>
+                        <div style="color:var(--text-muted);font-size:0.82rem;">Modifiez la recherche, l'entreprise ou l'utilisateur sélectionné.</div>
                     </div>
                 </div>
 
