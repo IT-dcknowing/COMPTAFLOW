@@ -201,8 +201,6 @@ $baseRanCounter = (int)(EcritureComptable::where('company_id', $targetCompanyId)
         $hasReference = ($referenceCol !== null && $referenceCol !== '' && $referenceCol !== 'AUTO');
         
         if ($hasNSaisie && $hasReference) {
-            $nSaisieValues = [];
-            $referenceValues = [];
             $groupsNSaisie = [];
             $groupsReference = [];
             
@@ -253,7 +251,6 @@ $baseRanCounter = (int)(EcritureComptable::where('company_id', $targetCompanyId)
                 $credit = $parseAmount($rowMappedTemp['credit'] ?? 0);
                 
                 if ($nsVal !== '') {
-                    $nSaisieValues[] = $nsVal;
                     $keyNS = $jour . '|' . $journal . '|' . strtoupper($nsVal);
                     if (!isset($groupsNSaisie[$keyNS])) {
                         $groupsNSaisie[$keyNS] = ['d' => 0.0, 'c' => 0.0];
@@ -263,7 +260,6 @@ $baseRanCounter = (int)(EcritureComptable::where('company_id', $targetCompanyId)
                 }
                 
                 if ($refVal !== '') {
-                    $referenceValues[] = $refVal;
                     $keyRef = $jour . '|' . $journal . '|' . strtoupper($refVal);
                     if (!isset($groupsReference[$keyRef])) {
                         $groupsReference[$keyRef] = ['d' => 0.0, 'c' => 0.0];
