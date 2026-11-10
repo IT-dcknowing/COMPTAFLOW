@@ -2378,7 +2378,7 @@ class AdminConfigController extends Controller
                         }
                     }
                     
-                    $groupingKeyStrategy = \\App\\Services\\Import\\EntryGroupingStrategy::choose(
+                    $groupingKeyStrategy = \App\Services\Import\EntryGroupingStrategy::choose(
                         $groupsNSaisie,
                         $groupsReference,
                         $hasNSaisie,
