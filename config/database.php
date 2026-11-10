@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\\Support\\Str;
+use Illuminate\Support\Str;
 
 // Ne référencer l'attribut SSL PDO MySQL que si le driver et sa constante
 // sont réellement disponibles dans le PHP CLI utilisé par Artisan.
