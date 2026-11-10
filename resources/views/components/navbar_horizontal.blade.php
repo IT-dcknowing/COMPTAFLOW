@@ -162,10 +162,7 @@
         <button id="sidebarToggleBtn" class="btn btn-icon btn-light rounded-circle me-3" style="border: 1px solid #e2e8f0; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; transition: all 0.2s;">
             <i class="fa-solid fa-bars" id="sidebarToggleIcon"></i>
         </button>
-        <div class="nav-h-logo">
-            <i class="fa-solid fa-bolt"></i>
-        </div>
-        <div class="nav-h-title">Flow Compta</div>
+
     </div>
     
     <div class="nav-h-links" id="horizontalNavLinks">
