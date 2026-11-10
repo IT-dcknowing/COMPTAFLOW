@@ -273,40 +273,12 @@ $baseRanCounter = (int)(EcritureComptable::where('company_id', $targetCompanyId)
                 }
             }
             
-            $uniqueNSaisie = array_unique($nSaisieValues);
-            $uniqueReference = array_unique($referenceValues);
-            
-            $totalRowsCount = count($data);
-            if ($totalRowsCount > 0) {
-                $nsRatio = count($uniqueNSaisie) / $totalRowsCount;
-                $refRatio = count($uniqueReference) / $totalRowsCount;
-                
-                if (count($uniqueNSaisie) < 10 && count($uniqueReference) >= 10 && $nsRatio < 0.05) {
-                    $groupingKeyStrategy = 'reference';
-                } elseif (count($uniqueReference) < 10 && count($uniqueNSaisie) >= 10 && $refRatio < 0.05) {
-                    $groupingKeyStrategy = 'n_saisie';
-                } else {
-                    $unbalancedNS = 0;
-                    foreach ($groupsNSaisie as $g) {
-                        if (abs($g['d'] - $g['c']) > 0.01) {
-                            $unbalancedNS++;
-                        }
-                    }
-                    
-                    $unbalancedRef = 0;
-                    foreach ($groupsReference as $g) {
-                        if (abs($g['d'] - $g['c']) > 0.01) {
-                            $unbalancedRef++;
-                        }
-                    }
-                    
-                    if ($unbalancedRef < $unbalancedNS) {
-                        $groupingKeyStrategy = 'reference';
-                    } else {
-                        $groupingKeyStrategy = 'n_saisie';
-                    }
-                }
-            }
+            $groupingKeyStrategy = \\App\\Services\\Import\\EntryGroupingStrategy::choose(
+                $groupsNSaisie,
+                $groupsReference,
+                $hasNSaisie,
+                $hasReference
+            );
         } elseif ($hasReference) {
             $groupingKeyStrategy = 'reference';
         } else {
@@ -536,8 +508,17 @@ $baseRanCounter = (int)(EcritureComptable::where('company_id', $targetCompanyId)
             $normalizedRef = $this->normalizeReferenceForGrouping($ref);
             $normalizedNS = $this->normalizeReferenceForGrouping($origNS);
 
-            // Définir la clé : par référence si renseignée, sinon par numéro de saisie original
-            $key = ($normalizedRef !== '') ? 'REF_' . $normalizedRef : 'NS_' . ($normalizedNS !== '' ? $normalizedNS : 'IMPORT');
+            // Appliquer exactement la stratégie utilisée par la prévisualisation.
+            // Une même pièce peut contenir plusieurs références de facture.
+            if ($groupingKeyStrategy === 'reference' && $normalizedRef !== '') {
+                $key = 'REF_' . $normalizedRef;
+            } elseif ($normalizedNS !== '') {
+                $key = 'NS_' . $normalizedNS;
+            } elseif ($normalizedRef !== '') {
+                $key = 'REF_' . $normalizedRef;
+            } else {
+                $key = 'NS_IMPORT';
+            }
 
             $groups[$jCode][$key][$monthYear][] = $row;
         }
