@@ -2322,8 +2322,6 @@ class AdminConfigController extends Controller
                 $hasReference = ($referenceCol !== null && $referenceCol !== '' && $referenceCol !== 'AUTO');
                 
                 if ($hasNSaisie && $hasReference) {
-                    $nSaisieValues = [];
-                    $referenceValues = [];
                     $groupsNSaisie = [];
                     $groupsReference = [];
                     
@@ -2358,7 +2356,6 @@ class AdminConfigController extends Controller
                         }
                         
                         if ($nsVal !== '') {
-                            $nSaisieValues[] = $nsVal;
                             $keyNS = $jour . '|' . $journal . '|' . strtoupper($nsVal);
                             if (!isset($groupsNSaisie[$keyNS])) {
                                 $groupsNSaisie[$keyNS] = ['d' => 0.0, 'c' => 0.0];
@@ -2368,7 +2365,6 @@ class AdminConfigController extends Controller
                         }
                         
                         if ($refVal !== '') {
-                            $referenceValues[] = $refVal;
                             $keyRef = $jour . '|' . $journal . '|' . strtoupper($refVal);
                             if (!isset($groupsReference[$keyRef])) {
                                 $groupsReference[$keyRef] = ['d' => 0.0, 'c' => 0.0];
@@ -2378,40 +2374,12 @@ class AdminConfigController extends Controller
                         }
                     }
                     
-                    $uniqueNSaisie = array_unique($nSaisieValues);
-                    $uniqueReference = array_unique($referenceValues);
-                    
-                    $totalRowsCount = count($data);
-                    if ($totalRowsCount > 0) {
-                        $nsRatio = count($uniqueNSaisie) / $totalRowsCount;
-                        $refRatio = count($uniqueReference) / $totalRowsCount;
-                        
-                        if (count($uniqueNSaisie) < 10 && count($uniqueReference) >= 10 && $nsRatio < 0.05) {
-                            $groupingKeyStrategy = 'reference';
-                        } elseif (count($uniqueReference) < 10 && count($uniqueNSaisie) >= 10 && $refRatio < 0.05) {
-                            $groupingKeyStrategy = 'n_saisie';
-                        } else {
-                            $unbalancedNS = 0;
-                            foreach ($groupsNSaisie as $g) {
-                                if (abs($g['d'] - $g['c']) > 0.01) {
-                                    $unbalancedNS++;
-                                }
-                            }
-                            
-                            $unbalancedRef = 0;
-                            foreach ($groupsReference as $g) {
-                                if (abs($g['d'] - $g['c']) > 0.01) {
-                                    $unbalancedRef++;
-                                }
-                            }
-                            
-                            if ($unbalancedRef < $unbalancedNS) {
-                                $groupingKeyStrategy = 'reference';
-                            } else {
-                                $groupingKeyStrategy = 'n_saisie';
-                            }
-                        }
-                    }
+                    $groupingKeyStrategy = \App\Services\Import\EntryGroupingStrategy::choose(
+                        $groupsNSaisie,
+                        $groupsReference,
+                        $hasNSaisie,
+                        $hasReference
+                    );
                 } elseif ($hasReference) {
                     $groupingKeyStrategy = 'reference';
                 } else {
@@ -3695,10 +3663,18 @@ class AdminConfigController extends Controller
                 $normalizedRef = $this->normalizeReferenceForGrouping($reference);
                 $normalizedNS = $this->normalizeReferenceForGrouping($nSaisie);
 
-                if ($normalizedRef !== '') {
+                // Appliquer la stratégie déterminée globalement avant la validation.
+                // Ne pas rebasculer systématiquement sur la référence : plusieurs références
+                // peuvent appartenir à une même pièce identifiée par le numéro de saisie.
+                if ($groupingKeyStrategy === 'reference' && $normalizedRef !== '') {
+                    $keyPart = 'REF_' . $normalizedRef;
+                } elseif ($normalizedNS !== '') {
+                    $keyPart = 'NS_' . $normalizedNS;
+                } elseif ($normalizedRef !== '') {
+                    // Repli uniquement si le numéro de saisie est absent sur cette ligne.
                     $keyPart = 'REF_' . $normalizedRef;
                 } else {
-                    $keyPart = 'NS_' . ($normalizedNS !== '' ? $normalizedNS : 'IMPORT');
+                    $keyPart = 'NS_IMPORT';
                 }
                 
                 $parsedDate = $r['parsed_date'] ?? null;
@@ -3759,10 +3735,18 @@ class AdminConfigController extends Controller
                 $normalizedRef = $this->normalizeReferenceForGrouping($reference);
                 $normalizedNS = $this->normalizeReferenceForGrouping($nSaisie);
 
-                if ($normalizedRef !== '') {
+                // Appliquer la stratégie déterminée globalement avant la validation.
+                // Ne pas rebasculer systématiquement sur la référence : plusieurs références
+                // peuvent appartenir à une même pièce identifiée par le numéro de saisie.
+                if ($groupingKeyStrategy === 'reference' && $normalizedRef !== '') {
+                    $keyPart = 'REF_' . $normalizedRef;
+                } elseif ($normalizedNS !== '') {
+                    $keyPart = 'NS_' . $normalizedNS;
+                } elseif ($normalizedRef !== '') {
+                    // Repli uniquement si le numéro de saisie est absent sur cette ligne.
                     $keyPart = 'REF_' . $normalizedRef;
                 } else {
-                    $keyPart = 'NS_' . ($normalizedNS !== '' ? $normalizedNS : 'IMPORT');
+                    $keyPart = 'NS_IMPORT';
                 }
                 
                 $parsedDate = $r['parsed_date'] ?? null;
