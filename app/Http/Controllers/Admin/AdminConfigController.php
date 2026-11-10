@@ -2322,8 +2322,6 @@ class AdminConfigController extends Controller
                 $hasReference = ($referenceCol !== null && $referenceCol !== '' && $referenceCol !== 'AUTO');
                 
                 if ($hasNSaisie && $hasReference) {
-                    $nSaisieValues = [];
-                    $referenceValues = [];
                     $groupsNSaisie = [];
                     $groupsReference = [];
                     
@@ -2358,7 +2356,6 @@ class AdminConfigController extends Controller
                         }
                         
                         if ($nsVal !== '') {
-                            $nSaisieValues[] = $nsVal;
                             $keyNS = $jour . '|' . $journal . '|' . strtoupper($nsVal);
                             if (!isset($groupsNSaisie[$keyNS])) {
                                 $groupsNSaisie[$keyNS] = ['d' => 0.0, 'c' => 0.0];
@@ -2368,7 +2365,6 @@ class AdminConfigController extends Controller
                         }
                         
                         if ($refVal !== '') {
-                            $referenceValues[] = $refVal;
                             $keyRef = $jour . '|' . $journal . '|' . strtoupper($refVal);
                             if (!isset($groupsReference[$keyRef])) {
                                 $groupsReference[$keyRef] = ['d' => 0.0, 'c' => 0.0];
