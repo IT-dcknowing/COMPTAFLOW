@@ -1,6 +1,14 @@
 <?php
 
-use Illuminate\Support\Str;
+use Illuminate\\Support\\Str;
+
+// Ne référencer l'attribut SSL PDO MySQL que si le driver et sa constante
+// sont réellement disponibles dans le PHP CLI utilisé par Artisan.
+$mysqlPdoOptions = [];
+$mysqlSslCa = env('MYSQL_ATTR_SSL_CA');
+if ($mysqlSslCa && extension_loaded('pdo_mysql') && defined('PDO::MYSQL_ATTR_SSL_CA')) {
+    $mysqlPdoOptions[constant('PDO::MYSQL_ATTR_SSL_CA')] = $mysqlSslCa;
+}
 
 return [
 
@@ -57,9 +65,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => $mysqlPdoOptions,
         ],
 
         'mariadb' => [
@@ -77,9 +83,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => $mysqlPdoOptions,
         ],
 
         'pgsql' => [
