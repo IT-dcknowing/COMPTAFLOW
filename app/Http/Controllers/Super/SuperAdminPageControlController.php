@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Super;
 
 use App\Http\Controllers\Controller;
 use App\Models\AiProviderCredential;
+use App\Models\AiScanSetting;
 use App\Models\Company;
 use App\Models\SuperAdminPageRule;
 use Illuminate\Http\Request;
@@ -46,8 +47,9 @@ class SuperAdminPageControlController extends Controller
         $rules = SuperAdminPageRule::all()->groupBy(fn ($r) => $r->company_id === null ? 'global' : (string) $r->company_id);
         $companies = Company::orderBy('company_name')->get(['id', 'company_name']);
         $credentials = AiProviderCredential::orderBy('provider')->orderBy('model')->get();
+        $scanSettings = AiScanSetting::firstOrCreate(['id' => 1], ['quotas_enabled' => false, 'limits' => []]);
 
-        return view('superadmin.page-control.index', compact('sections', 'rules', 'companies', 'credentials'));
+        return view('superadmin.page-control.index', compact('sections', 'rules', 'companies', 'credentials', 'scanSettings'));
     }
 
     public function savePageRules(Request $request)
@@ -87,6 +89,8 @@ class SuperAdminPageControlController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        AiProviderCredential::query()->update(['is_active' => false]);
+
         AiProviderCredential::updateOrCreate(
             ['provider' => trim($data['provider']), 'model' => trim($data['model'])],
             ['api_key' => $data['api_key'], 'notes' => $data['notes'] ?? null, 'is_active' => true, 'updated_by' => $request->user()->id]
@@ -97,8 +101,35 @@ class SuperAdminPageControlController extends Controller
 
     public function toggleCredential(AiProviderCredential $credential)
     {
+        if (!$credential->is_active) {
+            AiProviderCredential::whereKeyNot($credential->id)->update(['is_active' => false]);
+        }
         $credential->update(['is_active' => !$credential->is_active, 'updated_by' => request()->user()->id]);
         return back()->with('success', 'Statut de la configuration IA mis à jour.');
+    }
+
+    public function saveScanSettings(Request $request)
+    {
+        $data = $request->validate([
+            'quotas_enabled' => ['nullable', 'boolean'],
+            'limits.Starter.monthly' => ['nullable', 'integer', 'min:1'],
+            'limits.Starter.batch' => ['nullable', 'integer', 'min:1'],
+            'limits.Pro.monthly' => ['nullable', 'integer', 'min:1'],
+            'limits.Pro.batch' => ['nullable', 'integer', 'min:1'],
+            'limits.Enterprise.monthly' => ['nullable', 'integer', 'min:1'],
+            'limits.Enterprise.batch' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        AiScanSetting::updateOrCreate(
+            ['id' => 1],
+            [
+                'quotas_enabled' => $request->boolean('quotas_enabled'),
+                'limits' => $data['limits'] ?? [],
+                'updated_by' => $request->user()->id,
+            ]
+        );
+
+        return back()->with('success', 'Les paramètres de quotas du SCAN ont été enregistrés.');
     }
 
     public function deleteCredential(AiProviderCredential $credential)
