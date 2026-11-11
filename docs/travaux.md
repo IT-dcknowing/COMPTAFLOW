@@ -1,0 +1,56 @@
+# COMPTAFLOW — Suivi du chantier de modernisation
+
+> Dépôt de travail : `IT-dcknowing/COMPTAFLOW`  
+> Branche de suivi initiale : `superadmin/masquage-pages-et-cles-ia`  
+> Règle : une branche française par groupe fonctionnel, revue puis fusionnée dans `main`.  
+> Mise à jour : 11 novembre 2026.
+
+## Objectif général
+
+Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les parcours de production et améliorer en priorité les modules de scan. Conserver la charte claire de l'application (fonds blancs/bleu clair, bleu de marque, composants cohérents), éviter les interfaces sombres.
+
+## Tableau de suivi
+
+| Priorité | Groupe / périmètre | Travaux prévus | État |
+|---|---|---|---|
+| P0 | Super Admin — visibilité des pages | Inventaire des routes/pages par section ; masquage global ou par entreprise ; activation/désactivation ; motif/commentaire ; contrôle serveur des accès et navigation cohérente | À faire |
+| P0 | Super Admin — clés API IA | Fournisseurs/maisons, modèles, clés chiffrées, activation, clé par fournisseur/modèle, test de connexion, permissions et journalisation | À faire |
+| P0 | Scan groupé `/bulk-scan` | Audit UI + contrôleur + services IA/OCR + tiers + écritures créées + règles d'exercice + paramétrage fournisseur/modèle ; refonte visuelle | À auditer |
+| P0 | Scan unitaire `/ecriture-scan` | Comparaison avec le scan groupé ; cohérence métier et UX ; conservation du parcours une facture | À auditer |
+| P1 | Analytique `/analytique` | Refonte axes, sections, ventilations, rapports ; centres de coûts, marges, répartitions, écarts et indicateurs analytiques | À auditer |
+| P1 | Administration `/admin` | Inventaire complet des pages et navigation ; cohérence et regroupement | À auditer |
+| P1 | Informations entreprise | Repenser la disposition et les groupes de champs de `/compagny_information` | À auditer |
+| P1 | Habilitations | Tableau utilisateurs × permissions, recherche, filtres, profils et sauvegarde lisible | À auditer |
+| P1 | Performance Super Admin | KPI CA, charges, trésorerie nette, salaires, postes de dépenses, TVA collectée/déductible, tendances et comparaisons ; remplacer le flux des dernières écritures | À auditer |
+| P1 | Dashboard comptable | Retirer les KPI identifiés comme inutiles sur `/dashboard-compta` (inventaire à faire avant suppression) | À auditer |
+| P1 | Reporting résultat | Présentation financière soignée type feuille Excel, totaux, sections, comparatifs, export | À auditer |
+| P1 | Notifications | Corriger la relation expéditeur nullable et toute autre donnée orpheline ; écran de maintenance propre en cas d'indisponibilité ; contact support et lien WhatsApp | À corriger |
+| P2 | Rapprochement bancaire | Refonte UI sans présumer que le workflow métier est terminé ; distinguer clairement étapes disponibles/en cours | À auditer |
+| P1 | Liasses SN et SMT | Diagnostiquer CSS/conteneur/zoom/tableau qui réduit la feuille ; rétablir une feuille pleine largeur/écran et vérifier responsive | À auditer |
+
+## Règles techniques et de sécurité
+
+- Ne jamais exposer une exception, trace SQL, chemin serveur, cookie ou détail interne à un utilisateur final.
+- Une page masquée doit aussi être protégée côté serveur : retirer le lien du menu ne suffit pas.
+- Prévoir une priorité explicite : masquage global, puis exceptions par entreprise (afficher/masquer), sans ambiguïté.
+- Les clés API sont chiffrées au repos, jamais renvoyées en clair après enregistrement, jamais inscrites dans les logs.
+- Les secrets existants dans `.env` restent compatibles pendant la migration.
+- Le scan doit appliquer les limites du forfait/tiers avant de lancer OCR/IA et avant toute création ; éviter les doublons et rendre les erreurs partielles explicites.
+- Ne pas modifier le schéma métier ou supprimer des KPI/champs sans avoir identifié leurs usages.
+- Tests ciblés, revue des routes, permissions et validations avant chaque fusion.
+- La fusion GitHub ne signifie pas que le déploiement ou les tests en production sont effectués.
+
+## Journal d'avancement
+
+### 11 novembre 2026 — Initialisation
+- [x] Confirmation du dépôt de référence et des conventions Git.
+- [x] Inventaire initial des routes : `/bulk-scan`, `/ecriture-scan`, `/analytique/*`, `/compagny_information`, `/admin/habilitations`, `/rapprochement/*`, `/reporting/resultat`, `/notifications`, `/dashboard-compta`.
+- [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
+- [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
+- [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
+
+## Décisions / éléments à confirmer pendant l'audit
+- Inventaire exact des sections et pages à partir des routes et des menus (ne pas se limiter aux exemples).
+- Règles précises des quotas par tiers du module scan et unité de consommation.
+- Fournisseurs IA et modèles déjà configurés dans le projet, variables d'environnement et stockage actuel.
+- Liste exacte des KPI à retirer de `/dashboard-compta`, après lecture de la page et de ses usages.
