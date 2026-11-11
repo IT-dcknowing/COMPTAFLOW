@@ -101,6 +101,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Valider les ventilations analytiques uniquement contre les sections et axes de l'entreprise active.
 - [x] Valider le compte collectif d'un tiers dans le périmètre de l'entreprise à la création et à la modification.
 - [x] Aligner le scan groupé sur le vrai schéma de réponse et les champs du modèle PlanTiers.
+- [x] Ajouter des tentatives progressives côté scan groupé sur les réponses 429/503 ; cela ne remplace pas le quota métier par forfait.
 - [x] Externaliser l'URL du service Python dans la configuration Laravel.
 
 ### Dépôt Python — branche `scan/analyse-factures`
