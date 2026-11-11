@@ -102,7 +102,7 @@ class SuperAdminPageControlController extends Controller
     public function toggleCredential(AiProviderCredential $credential)
     {
         if (!$credential->is_active) {
-            AiProviderCredential::whereKeyNot($credential->id)->update(['is_active' => false]);
+            AiProviderCredential::where('id', '!=', $credential->id)->update(['is_active' => false]);
         }
         $credential->update(['is_active' => !$credential->is_active, 'updated_by' => request()->user()->id]);
         return back()->with('success', 'Statut de la configuration IA mis à jour.');
