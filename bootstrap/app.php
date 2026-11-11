@@ -26,10 +26,28 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\CheckBlockedStatus::class,
-            \\App\\Http\\Middleware\\EnforcePageVisibility::class,
+            \App\Http\Middleware\EnforcePageVisibility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\\Throwable $exception, \\Illuminate\\Http\\Request $request) {
+            if (config('app.debug') || $request->expectsJson()) {
+                return null;
+            }
+
+            if ($exception instanceof \\Illuminate\\Auth\\AuthenticationException
+                || $exception instanceof \\Illuminate\\Validation\\ValidationException
+                || $exception instanceof \\Illuminate\\Database\\Eloquent\\ModelNotFoundException
+                || $exception instanceof \\Illuminate\\Auth\\Access\\AuthorizationException) {
+                return null;
+            }
+
+            if ($exception instanceof \\Symfony\\Component\\HttpKernel\\Exception\\HttpExceptionInterface
+                && $exception->getStatusCode() < 500) {
+                return null;
+            }
+
+            return response()->view('errors.500', [], 500);
+        });
     })->create();
 
