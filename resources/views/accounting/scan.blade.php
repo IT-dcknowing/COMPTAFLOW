@@ -729,6 +729,11 @@
                                 }
                             }
 
+                            // Une clé invalide ou une configuration absente ne doit pas déclencher de tentatives inutiles.
+                            if (response.status === 503 && ['api_key', 'api_not_configured', 'api_provider'].includes(responseData.error_type)) {
+                                throw new Error(responseData.error || "Vérifiez la configuration de la clé API dans le Super Admin.");
+                            }
+
                             // Gestion de la surcharge 503 (service temporairement indisponible)
                             if (response.status === 503) {
                                 if (retryCount < MAX_RETRIES) {
