@@ -64,12 +64,12 @@
 <div class="row g-4">
 <div class="col-xl-5"><div class="card border-0 shadow-sm"><div class="card-header bg-white"><h5 class="mb-0">Ajouter un fournisseur / modèle</h5></div><div class="card-body">
 <form method="POST" action="{{ route('superadmin.ai-credentials.store') }}">@csrf
-<div class="mb-3"><label class="form-label">Maison / fournisseur IA</label><input name="provider" class="form-control" list="ai-providers" placeholder="Ex. Google, OpenAI, Anthropic, Mistral" required><datalist id="ai-providers">@foreach($credentials->pluck('provider')->unique() as $provider)<option value="{{ $provider }}">@endforeach</datalist></div>
-<div class="mb-3"><label class="form-label">Nom du modèle</label><input name="model" class="form-control" placeholder="Ex. gemini-2.5-flash" required></div>
+<div class="mb-3"><label class="form-label">Maison / fournisseur IA</label><input name="provider" class="form-control" list="ai-providers" value="Google Gemini" placeholder="Ex. Google Gemini, OpenAI, Anthropic, Mistral" required><datalist id="ai-providers">@foreach($credentials->pluck('provider')->unique() as $provider)<option value="{{ $provider }}">@endforeach</datalist></div>
+<div class="mb-3"><label class="form-label">Nom du modèle</label><input name="model" class="form-control" value="gemini-2.5-flash-lite" placeholder="Ex. gemini-2.5-flash-lite" required></div>
 <div class="mb-3"><label class="form-label">Clé API</label><input name="api_key" type="password" class="form-control" autocomplete="new-password" required></div>
 <div class="mb-3"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2" placeholder="Usage, environnement, remarques"></textarea></div>
 <button class="btn btn-primary w-100"><i class="fa-solid fa-shield-halved me-1"></i>Enregistrer la configuration</button>
-</form><small class="text-muted d-block mt-3">Les clés sont chiffrées en base et ne sont jamais réaffichées en clair. La connexion effective du modèle devra être raccordée au service IA concerné.</small>
+</form><small class="text-muted d-block mt-3">Les clés sont chiffrées en base et ne sont jamais réaffichées en clair. Le fournisseur actif est utilisé par le service Python de scan via une connexion HTTPS sécurisée.</small>
 </div></div></div>
 <div class="col-xl-7"><h5 class="fw-bold mb-3">Modèles configurés</h5>
 @if($credentials->isEmpty())<div class="card border-0 bg-light p-4 text-center text-muted">Aucun fournisseur IA configuré pour le moment.</div>@endif
