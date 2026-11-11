@@ -21,6 +21,8 @@ class AnalyticalReportingService
             ->join('sections_analytiques as s', 'v.section_id', '=', 's.id')
             ->join('plan_comptables as pc', 'e.plan_comptable_id', '=', 'pc.id')
             ->where('s.company_id', $companyId)
+            ->where('e.company_id', $companyId)
+            ->where('pc.company_id', $companyId)
             ->where('e.statut', 'approved');
 
         if ($axeId) {
@@ -88,6 +90,7 @@ class AnalyticalReportingService
             ->join('plan_comptables as pc', 'e.plan_comptable_id', '=', 'pc.id')
             ->leftJoin('code_journals as cj', 'e.code_journal_id', '=', 'cj.id')
             ->where('e.company_id', $companyId)
+            ->where('pc.company_id', $companyId)
             ->where('e.statut', 'approved');
 
         if ($sectionId && $sectionId !== 'all') {
