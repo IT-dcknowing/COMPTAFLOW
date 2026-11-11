@@ -56,14 +56,22 @@ class PythonAiService
 
             if ($response->failed()) {
                 Log::error("Python AI Facture Error: " . $response->body());
-                return ['success' => false, 'error' => "Échec de l'analyse (Code: " . $response->status() . ")"];
+                return [
+                    'success' => false,
+                    'error' => "Le service d'analyse a refusé la demande.",
+                    'http_code' => $response->status(),
+                ];
             }
 
             return ['success' => true, 'data' => $response->json()];
 
         } catch (\Exception $e) {
             Log::error("Python AI Facture Exception: " . $e->getMessage());
-            return ['success' => false, 'error' => "Erreur lors de l'envoi de la facture : " . $e->getMessage()];
+            return [
+                'success' => false,
+                'error' => "Le service d'analyse est momentanément indisponible.",
+                'http_code' => 503,
+            ];
         }
     }
 
