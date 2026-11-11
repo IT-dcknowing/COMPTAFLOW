@@ -706,7 +706,12 @@
 
                             const responseData = await response.json();
 
-                            // Gestion du quota 429
+                            // Un quota épuisé n'est pas une simple surcharge : ne pas relancer inutilement.
+                            if (response.status === 429 && responseData.error_type === 'api_quota') {
+                                throw new Error(responseData.error || "Quota API épuisé. Rechargez les crédits ou vérifiez le quota gratuit du fournisseur IA.");
+                            }
+
+                            // Gestion d'une limitation temporaire 429.
                             if (response.status === 429) {
                                 if (retryCount < MAX_RETRIES) {
                                     const baseWait = Math.pow(2, retryCount) * 2000;
@@ -746,7 +751,7 @@
                         } catch (e) {
                             const msg = e.message;
                             if (msg.includes('503') || msg.includes('surcharg')) throw new Error("⚠️ L'IA est temporairement indisponible. Réessayez dans 30 secondes.");
-                            if (msg.includes('quota') || msg.includes('429')) throw new Error("⚠️ Quota IA dépassé. Réessayez dans quelques minutes.");
+                            if (msg.includes('quota') || msg.includes('429')) throw new Error("⚠️ Quota API épuisé. Rechargez les crédits ou vérifiez le quota gratuit dans le compte du fournisseur IA.");
                             throw new Error(`Erreur de communication: ${msg}`);
                         }
                     };
