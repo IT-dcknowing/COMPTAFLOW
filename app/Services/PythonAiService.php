@@ -12,7 +12,7 @@ class PythonAiService
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(env('PYTHON_AI_API_URL', 'https://dc-knowing.com/agent'), '/');
+        $this->baseUrl = rtrim(config('services.python_ai.url', 'https://dc-knowing.com/agent'), '/');
     }
 
     /**
