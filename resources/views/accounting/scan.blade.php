@@ -812,7 +812,7 @@
 
                     renderTable(result);
                 } catch (e) {
-                    if (window.Swal) await Swal.fire({icon:'warning',title:'Analyse non aboutie',html:'<div class="text-start"><p>'+e.message+'</p><p class="mb-1"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a></p><p><a href="https://wa.me/225767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></p></div>',confirmButtonText:'Compris',confirmButtonColor:'#2456bd'});
+                    if (window.Swal) await Swal.fire({icon:'warning',title:'Analyse non aboutie',html:'<div class="text-start"><p>'+e.message+'</p><p class="mb-1"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a></p><p><a href="https://wa.me/2250767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></p></div>',confirmButtonText:'Compris',confirmButtonColor:'#2456bd'});
                     else alert(e.message);
                     resetUI();
                 } finally { 
