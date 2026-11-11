@@ -59,6 +59,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
 - [x] Rédiger la proposition cible de refonte analytique dans \`docs/proposition-refonte-analytique.md\`.
 - [x] Recomposer le dashboard Performance avec CA classe 70, charges classe 6, trésorerie nette classe 5, résultat, masse salariale classe 66, TVA collectée 443 et TVA déductible 445 ; supprimer le tableau des dernières écritures et corriger les libellés des postes de charges.
+- [x] Retirer les quatre KPI de \`/dashboard-compta\` et conserver un bandeau de contexte de l'exercice actif.
 - [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
 
 ## Constats techniques de l'audit initial
