@@ -20,7 +20,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 | P1 | Analytique `/analytique` | Refonte axes, sections, ventilations, rapports ; centres de coûts, marges, répartitions, écarts et indicateurs analytiques | À auditer |
 | P1 | Administration `/admin` | Inventaire complet des pages et navigation ; cohérence et regroupement | À auditer |
 | P1 | Informations entreprise | Repenser la disposition et les groupes de champs de `/compagny_information` | À auditer |
-| P1 | Habilitations | Tableau utilisateurs × permissions, recherche, filtres, profils et sauvegarde lisible | À auditer |
+| P1 | Habilitations | Gestion des accès par collaborateur, sections de permissions, recherche et sauvegarde lisible | Recherche nom/rôle ajoutée ; audit complet des règles et test de sauvegarde restants |
 | P1 | Performance Super Admin | KPI CA, charges, trésorerie nette, salaires, postes de dépenses, TVA collectée/déductible, tendances et comparaisons ; remplacer le flux des dernières écritures | KPI de pilotage fusionnés dans `main` ; vérification des comptes à poursuivre |
 | P1 | Dashboard comptable | Retirer les KPI identifiés comme inutiles sur `/dashboard-compta` (inventaire à faire avant suppression) | À auditer |
 | P1 | Reporting résultat | Présentation financière soignée type feuille Excel, totaux, sections, comparatifs, export | À auditer |
