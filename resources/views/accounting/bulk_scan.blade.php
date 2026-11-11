@@ -585,7 +585,7 @@
                         </div>
                         <div class="card-body">
                             <div class="alert alert-danger mb-0 small"><strong>Échec du scan :</strong> <span class="scan-error-message"></span>
-                                <div class="scan-support-actions"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a><a href="https://wa.me/225767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></div>
+                                <div class="scan-support-actions"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a><a href="https://wa.me/2250767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></div>
                             </div>
                         </div>
                     `;
