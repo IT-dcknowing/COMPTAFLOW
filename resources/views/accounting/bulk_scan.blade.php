@@ -473,6 +473,9 @@
 
                         if (![429, 503].includes(response.status) || attempt === 5) break;
 
+                        const errorPreview = await response.clone().json().catch(() => ({}));
+                        if (['api_quota', 'api_key', 'api_not_configured', 'api_provider'].includes(errorPreview.error_type)) break;
+
                         const waitMs = Math.min(Math.pow(2, attempt) * (response.status === 429 ? 2000 : 3000), 30000);
                         const waitSeconds = Math.ceil(waitMs / 1000);
                         queueEl.querySelector('.status-text').innerText =
