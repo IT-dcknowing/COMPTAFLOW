@@ -116,7 +116,7 @@ class IaController extends Controller
 
             // 4. Appel de l'API Python via le Service
             \Illuminate\Support\Facades\Log::info("Appel Python AI Service...");
-            $result = $this->pythonAiService->analyzeInvoice($image);
+            $result = $this->pythonAiService->analyzeInvoice($image, $prompt);
             
             if (!$result['success']) {
                 $errorMsg = $result['error'] ?? 'Erreur inconnue API Python';
@@ -345,7 +345,8 @@ CONSIGNES RELATIVES AUX DONNÉES (CRITIQUE) :
    - Exemple OD : "FACT N° 789/OD/Salaire Axel"
 3. PLUSIEURS LIGNES D'ÉCRITURE : Si le document comporte plusieurs lignes de dépenses/opérations distinctes, tu DOIS créer une ligne d'écriture pour chaque opération réelle avec son montant et son libellé LITTÉRAL respectif.
 4. AUCUNE REFORMULATION : Si le document dit "Achat de consommables divers", utilise ce texte exact, ne résume pas en "Divers achats".
-5. RÉPONDS UNIQUEMENT EN JSON PUR (PAS DE MARKDOWN).
+5. JOURNAL À UTILISER : le journal de saisie sélectionné est "$journalCode". Ne change pas ce code.
+6. RÉPONDS UNIQUEMENT EN JSON PUR (PAS DE MARKDOWN).
 
 Schema JSON attendu :
 {
