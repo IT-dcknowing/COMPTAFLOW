@@ -73,8 +73,8 @@ class AxeAnalytiqueController extends Controller
 
     public function update(Request $request, $id)
     {
-        $axe = AxeAnalytique::where('company_id', $companyId)->findOrFail($id);
         $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
+        $axe = AxeAnalytique::where('company_id', $companyId)->findOrFail($id);
 
         $request->validate([
             'code' => 'required|string|max:20',
