@@ -188,7 +188,7 @@ class PythonAiService
             }
 
             return ['success' => true, 'message' => 'Connexion réussie. Le fournisseur et le modèle répondent correctement.'];
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             Log::warning('Super Admin AI credential test exception', [
                 'provider' => $credential->provider,
                 'model' => $credential->model,
