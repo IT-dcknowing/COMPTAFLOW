@@ -9,6 +9,8 @@ use App\Models\SectionAnalytique;
 use App\Models\RegleVentilation;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class VentilationController extends Controller
 {
@@ -69,7 +71,8 @@ class VentilationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Erreur lors de l\'enregistrement : ' . $e->getMessage());
+            Log::error('Erreur enregistrement règle de ventilation analytique', ['company_id' => $companyId, 'exception' => $e]);
+            return back()->with('error', 'Une erreur est survenue lors de l’enregistrement de la règle. Vérifiez les données et réessayez.');
         }
     }
     
