@@ -214,7 +214,6 @@ class PerformanceController extends Controller
             'exerciceProgress' => $exerciceProgress,
             'revenueChartData' => $revenueChartData,
             'expenseChartData' => $expenseChartData,
-            'recentEntries' => $recentEntries,
         ];
     }
 
