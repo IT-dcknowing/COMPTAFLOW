@@ -77,7 +77,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - Le scan groupé enregistre les écritures dans une transaction, mais son ancienne réponse d'exception exposait le message technique : elle renvoie maintenant un message générique et journalise l'exception côté serveur.
 - Le scan unitaire filtre désormais les plans comptables et tiers par entreprise.
 - Le prompt IA reçoit désormais jusqu'à 500 tiers de l'entreprise, triés par numéro. L'écran conserve toutefois la liste complète des tiers pour le rapprochement local.
-- Le stockage des clés IA créé dans cette première version n'est pas encore consommé par `PythonAiService`. Le scan actuel utilise le service Python distant et Claude (Anthropic), pas `VertexAiService`/Gemini. Le routage effectif par fournisseur/modèle et le branchement du coffre de clés restent à développer.
+- Le coffre des clés IA est maintenant consommé par PythonAiService pour les appels de scan. Le scan prend le fournisseur et le modèle actifs, et transmet la clé chiffrée en base puis déchiffrée en mémoire au service Python via HTTPS.
 - Une clé Anthropic était codée en dur dans le dépôt Python. Le code de la branche dédiée a été remplacé par une lecture de `ANTHROPIC_API_KEY` depuis l'environnement ; cette correction ne révoque pas la clé déjà exposée dans l'historique Git. Révocation/rotation impérative avant déploiement.
 
 ## Constats analytiques initiaux
@@ -107,16 +107,16 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Externaliser l'URL du service Python dans la configuration Laravel.
 
 ### Dépôt Python — branche `scan/analyse-factures`
-- [x] Retirer la clé API du code source courant et la remplacer par `ANTHROPIC_API_KEY` lue depuis l'environnement.
-- [x] Ajouter `.env.example` pour documenter `ANTHROPIC_API_KEY` et `ANTHROPIC_MODEL`.
+- [x] Retirer la clé Anthropic révoquée du code source courant ; aucun secret fournisseur n'est conservé dans les fichiers Python suivis.
+- [x] Le fichier .env.example ne contient plus de variable de secret fournisseur ; les clés sont gérées dans le coffre chiffré Super Admin.
 - [x] Faire accepter un prompt métier à `/agent/facture`.
 - [x] Transmettre le contenu réel PDF/image au modèle au lieu de ne lui envoyer que le nom du fichier.
 - [x] Structurer la réponse selon le schéma comptable attendu par COMPTAFLOW.
 
 ### Restant impérativement à faire avant déploiement
-- [ ] Révoquer la clé Anthropic exposée dans l'historique Git et créer une nouvelle clé.
-- [ ] Définir les quotas exacts de scans par forfait (volume, période, traitement unitaire/groupe, comportement au dépassement).
-- [ ] Brancher les limites côté serveur avant chaque appel IA, avec contrôle atomique pour éviter les dépassements en concurrence.
+- [x] Clé Anthropic historique révoquée par le propriétaire ; le secret est absent du code courant. L'historique Git conserve le commit ancien, mais la clé n'est plus valide.
+- [x] Ajouter dans le Super Admin un écran de paramétrage des quotas Starter / Pro / Enterprise (factures par mois et par traitement groupé), désactivé par défaut.
+- [ ] Implémenter le compteur de consommation et l'application atomique des plafonds côté serveur avant d'activer réellement les quotas. Pour l'instant, aucun quota n'est appliqué.
 - [ ] Connecter le coffre Super Admin aux vrais secrets/fournisseurs du service Python ; aujourd'hui le coffre COMPTAFLOW et le moteur Python restent deux configurations distinctes.
 - [ ] Vérifier les versions installées de `langchain-anthropic` et tester les blocs multimodaux image/PDF sur l'environnement cible.
 - [ ] Ajouter tests unitaires/API pour le schéma de réponse, les fichiers invalides, les erreurs 429/5xx et les accès multi-entreprises.
@@ -124,3 +124,35 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [ ] Refaire les interfaces SCAN après validation fonctionnelle.
 
 **Statut sécurité :** aucune branche SCAN n'est fusionnée ni déployée. La clé doit être révoquée avant toute mise en service de la version corrigée.
+
+
+## Compléments demandés — fournisseur API, erreurs et exercice (11 novembre 2026)
+
+### Faits dans les branches de travail
+- [x] Le scan Laravel sélectionne la seule configuration IA active du coffre Super Admin ; l'enregistrement/activation d'un fournisseur désactive les autres configurations.
+- [x] Les clés restent chiffrées par le cast Laravel encrypted du modèle AiProviderCredential. Elles ne sont jamais renvoyées dans la vue.
+- [x] La clé, le fournisseur et le modèle sont transmis au service Python dans des en-têtes de requête HTTPS ; les logs applicatifs n'enregistrent pas la clé ni le corps complet de la requête.
+- [x] Le moteur Python accepte Google Gemini (SDK google-genai) et Anthropic avec la configuration fournie par COMPTAFLOW.
+- [x] Le code Python courant ne contient plus de clé API. La clé Anthropic historique a été révoquée par le propriétaire.
+- [x] Réponses d'erreur distinguées : quota API, clé invalide, API non configurée/indisponible, fichier illisible, document non-facture.
+- [x] Le scan groupé affiche le motif précis d'échec au lieu d'un message générique.
+- [x] Le scan unitaire ne relance plus automatiquement une erreur 429 identifiée comme quota épuisé.
+- [x] L'analyse refuse une facture dont la date est hors de l'exercice sélectionné et demande de changer l'exercice avant de relancer.
+- [x] Le point d'enregistrement groupé revalide les dates de toutes les lignes contre les bornes de l'exercice côté serveur.
+- [x] Le Super Admin contient désormais les champs de quotas mensuels et de taille de lot par forfait, avec option désactivée par défaut.
+
+### Configuration API de test
+- Fournisseur : Google Gemini (Google AI Studio)
+- Modèle de test : gemini-2.5-flash-lite
+- Portail de création de clé : https://aistudio.google.com/app/apikey
+- La clé doit être créée depuis le compte du propriétaire et collée dans le coffre Super Admin ; elle ne peut pas être générée depuis GitHub/ChatGPT.
+- Le niveau gratuit de Google peut utiliser les prompts et fichiers soumis pour améliorer ses produits et permettre une revue humaine. Utiliser uniquement des factures fictives ou anonymisées pour les essais gratuits.
+
+### Restant avant déploiement
+- [ ] Créer la clé Google AI Studio du propriétaire et l'enregistrer dans le Super Admin.
+- [ ] Installer requirements-ai.txt dans l'environnement Python (notamment google-genai) puis redémarrer le service.
+- [ ] Exécuter les migrations COMPTAFLOW.
+- [ ] Tester des factures PDF et images réelles anonymisées, un document non-facture, un scan illisible, une clé invalide et un quota épuisé.
+- [ ] Vérifier les erreurs 401/403/429 et la communication HTTPS en environnement cible.
+- [ ] Implémenter le compteur de quotas et la limitation serveur avant d'activer l'interrupteur des quotas.
+- [ ] Refaire les interfaces SCAN après validation du fonctionnement.
