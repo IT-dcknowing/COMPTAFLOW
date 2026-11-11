@@ -16,6 +16,11 @@ class PythonAiService
         $this->baseUrl = rtrim(config('services.python_ai.url', 'https://dc-knowing.com/agent'), '/');
     }
 
+    private function secureTransportAllowed(): bool
+    {
+        return !app()->environment('production') || str_starts_with($this->baseUrl, 'https://');
+    }
+
     /**
      * Envoie un message de chat à un agent spécifique.
      */
@@ -23,6 +28,10 @@ class PythonAiService
     {
         $sessionId = $sessionId ?? session()->getId();
         $clientId = $clientId ?? (Auth::check() ? Auth::user()->company_id : null);
+
+        if (!$this->secureTransportAllowed()) {
+            return ['success' => false, 'error' => "Configuration refusée : le serveur IA doit être appelé en HTTPS en production."];
+        }
 
         $credential = AiProviderCredential::where('is_active', true)->orderByDesc('updated_at')->first();
         if (!$credential) {
@@ -60,6 +69,15 @@ class PythonAiService
      */
     public function analyzeInvoice($file, ?string $prompt = null)
     {
+        if (!$this->secureTransportAllowed()) {
+            return [
+                'success' => false,
+                'error_type' => 'api_transport_security',
+                'error' => "Configuration refusée : le serveur IA doit être appelé en HTTPS en production.",
+                'http_code' => 503,
+            ];
+        }
+
         $credential = AiProviderCredential::where('is_active', true)
             ->orderByDesc('updated_at')
             ->first();
