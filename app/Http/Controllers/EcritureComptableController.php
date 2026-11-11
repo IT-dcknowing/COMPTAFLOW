@@ -699,7 +699,7 @@ class EcritureComptableController extends Controller
                     return response()->json(['success' => false, 'error' => 'Une date de facture est invalide.'], 422);
                 }
                 if ($lineDate->lt(\Carbon\Carbon::parse($exerciceActif->date_debut)) || $lineDate->gt(\Carbon\Carbon::parse($exerciceActif->date_fin))) {
-                    return response()->json(['success' => false, 'error' => 'Une date de facture est hors de la période de l’exercice sélectionné.'], 422);
+                    return response()->json(['success' => false, 'error_type' => 'exercise_mismatch', 'error' => 'Cette facture est datée hors de l’exercice sélectionné. Aucune écriture n’a été enregistrée. Changez l’exercice comptable dans le sélecteur, puis relancez le scan.'], 422);
                 }
             }
 
