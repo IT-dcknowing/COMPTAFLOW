@@ -25,6 +25,14 @@
                                     <div class="card-header border-bottom">
                                         <h6 class="mb-0 fw-bold"><i class="fa-solid fa-users me-2"></i>Collaborateurs</h6>
                                     </div>
+                                    <div class="p-3 border-bottom bg-white">
+                                        <label for="user-search" class="form-label small fw-bold text-secondary mb-2">Rechercher un collaborateur</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+                                            <input type="search" id="user-search" class="form-control border-start-0 bg-light" placeholder="Nom ou rôle..." autocomplete="off">
+                                        </div>
+                                        <small class="text-muted d-block mt-2"><span id="user-visible-count">{{ $users->count() }}</span> collaborateur(s)</small>
+                                    </div>
                                     <div class="list-group list-group-flush user-list">
                                         @foreach($users as $user)
                                             <a href="#" class="list-group-item list-group-item-action d-flex align-items-center p-3 user-select-btn" 
@@ -183,7 +191,22 @@
     <!-- Scripts -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const userButtons = document.querySelectorAll('.user-select-btn');
+            const userButtons = Array.from(document.querySelectorAll('.user-select-btn'));
+            const userSearch = document.getElementById('user-search');
+            const visibleCount = document.getElementById('user-visible-count');
+            if (userSearch) {
+                userSearch.addEventListener('input', function () {
+                    const term = this.value.trim().toLocaleLowerCase('fr');
+                    let visible = 0;
+                    userButtons.forEach(button => {
+                        const haystack = (button.getAttribute('data-user-name') + ' ' + button.getAttribute('data-user-role')).toLocaleLowerCase('fr');
+                        const match = haystack.includes(term);
+                        button.classList.toggle('d-none', !match);
+                        if (match) visible++;
+                    });
+                    if (visibleCount) visibleCount.textContent = visible;
+                });
+            }
             const permissionsPanel = document.getElementById('permissions-panel');
             const emptyState = document.getElementById('empty-state');
             const userNameTitle = document.getElementById('selected-user-name');
