@@ -129,7 +129,7 @@
                                                                 </div>
                                                                 <p class="text-slate-600 mb-2">{{ $notif->message }}</p>
                                                                 <div class="d-flex align-items-center gap-2">
-                                                                    <span class="small text-slate-400">De : <strong>{{ $notif->sender->name }} {{ $notif->sender->last_name }}</strong></span>
+                                                                    <span class="small text-slate-400">De : <strong>{{ $notif->sender ? trim($notif->sender->name.' '.($notif->sender->last_name ?? '')) : 'Compte indisponible' }}</strong></span>
                                                                     @if(!$notif->is_read)
                                                                         <span class="badge bg-blue-500 rounded-pill p-1" style="width: 8px; height: 8px;"></span>
                                                                     @endif

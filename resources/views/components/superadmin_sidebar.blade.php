@@ -173,6 +173,13 @@
             @endif
         </div>
 
+        <div class="menu-section">
+            <div class="menu-section-header">Configuration système</div>
+            <a href="{{ route('superadmin.pages.index') }}" class="menu-link-new {{ request()->routeIs('superadmin.pages.*', 'superadmin.ai-credentials.*') ? 'active' : '' }}">
+                <i class="fa-solid fa-sliders"></i><span>Visibilité des pages & clés IA</span>
+            </a>
+        </div>
+
         {{-- SECTION 3 : GESTION DES TÂCHES --}}
         <div class="menu-section">
             <div class="menu-section-header">Gestion des Tâches</div>

@@ -9,6 +9,8 @@ use App\Models\SectionAnalytique;
 use App\Models\RegleVentilation;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class VentilationController extends Controller
 {
@@ -35,9 +37,9 @@ class VentilationController extends Controller
         $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
 
         $request->validate([
-            'plan_comptable_id' => 'required|exists:plan_comptables,id',
+            'plan_comptable_id' => ['required', Rule::exists('plan_comptables', 'id')->where('company_id', $companyId)],
             'ventilations' => 'required|array',
-            'ventilations.*.section_id' => 'required|exists:sections_analytiques,id',
+            'ventilations.*.section_id' => ['required', Rule::exists('sections_analytiques', 'id')->where('company_id', $companyId)],
             'ventilations.*.pourcentage' => 'required|numeric|min:0.01|max:100',
         ]);
 
@@ -69,7 +71,8 @@ class VentilationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Erreur lors de l\'enregistrement : ' . $e->getMessage());
+            Log::error('Erreur enregistrement règle de ventilation analytique', ['company_id' => $companyId, 'exception' => $e]);
+            return back()->with('error', 'Une erreur est survenue lors de l’enregistrement de la règle. Vérifiez les données et réessayez.');
         }
     }
     

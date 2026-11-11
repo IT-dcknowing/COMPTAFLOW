@@ -35,6 +35,10 @@ return [
         ],
     ],
 
+    'python_ai' => [
+        'url' => env('PYTHON_AI_API_URL', 'https://dc-knowing.com/agent'),
+    ],
+
     'vertex_ai' => [
         'project_id' => env('GOOGLE_CLOUD_PROJECT_ID', 'scan1-comptaflow'),
         'project_number' => env('GOOGLE_CLOUD_PROJECT_NUMBER', '288805151479'),

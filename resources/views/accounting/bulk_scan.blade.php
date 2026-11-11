@@ -121,6 +121,12 @@
     .container-p-y, .content-wrapper, .layout-page {
         overflow: visible !important;
     }
+    .bulk-scan-hero{background:#fff;border:1px solid #e5ebf4;border-radius:20px;box-shadow:0 6px 20px rgba(20,48,90,.045)}
+    .bulk-scan-hero .hero-kicker{font-size:.72rem;letter-spacing:.08em;font-weight:800;color:#2456bd}
+    .queue-item{border-radius:12px}
+    .document-card{border-radius:16px!important;overflow:hidden;box-shadow:0 5px 18px rgba(20,48,90,.045)}
+    .scan-support-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .scan-support-actions a{font-weight:700;text-decoration:none}
 </style>
 
 <body>
@@ -136,10 +142,11 @@
                         <!-- Header -->
                         <div class="row mb-4">
                             <div class="col-12">
-                                <div class="d-flex align-items-center justify-content-between bg-white p-4 rounded-3 shadow-sm" style="overflow: visible !important;">
+                                <div class="bulk-scan-hero d-flex flex-wrap align-items-center justify-content-between gap-3 p-4" style="overflow: visible !important;">
                                     <div>
+                                        <div class="hero-kicker mb-2">TRAITEMENT MULTIDOCUMENT</div>
                                         <h4 class="mb-1 fw-bold text-dark"><i class="fa-solid fa-copy me-2 text-primary"></i>Centre de Scan Groupé</h4>
-                                        <p class="text-muted mb-0">Importez plusieurs factures (Photos ou PDF) et laissez l'IA générer les écritures pour vous.</p>
+                                        <p class="text-muted mb-0">Importez plusieurs factures, contrôlez chaque proposition et choisissez celles à enregistrer.</p>
                                     </div>
                                     <div class="d-flex gap-2">
                                         <button class="btn btn-outline-secondary" id="btnReset">
@@ -463,15 +470,33 @@
                         formData.append('journal_code', journal.code_journal);
                     }
                     
-                    const response = await fetch("{{ route('ia.traiter') }}", {
-                        method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
-                        body: formData
-                    });
+                    let response = null;
+                    for (let attempt = 0; attempt <= 5; attempt++) {
+                        response = await fetch("{{ route('ia.traiter') }}", {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                            body: formData
+                        });
 
-                    if (!response.ok) throw new Error("Erreur serveur: " + response.status);
+                        if (![429, 503].includes(response.status) || attempt === 5) break;
+
+                        const errorPreview = await response.clone().json().catch(() => ({}));
+                        if (['api_quota', 'api_key', 'api_not_configured', 'api_provider'].includes(errorPreview.error_type)) break;
+
+                        const waitMs = Math.min(Math.pow(2, attempt) * (response.status === 429 ? 2000 : 3000), 30000);
+                        const waitSeconds = Math.ceil(waitMs / 1000);
+                        queueEl.querySelector('.status-text').innerText =
+                            (response.status === 429 ? 'Quota IA atteint' : 'Service IA surchargé') +
+                            ' — nouvel essai dans ' + waitSeconds + ' s';
+                        await new Promise(resolve => setTimeout(resolve, waitMs));
+                    }
 
                     const data = await response.json();
+                    if (!response.ok) {
+                        const error = new Error(data.error || "Le document n'a pas pu être traité.");
+                        error.scanErrorType = data.error_type || 'unknown';
+                        throw error;
+                    }
                     if (data.success) {
                         item.data = data.data;
                         item.status = 'success';
@@ -485,14 +510,19 @@
                     }
                 } catch (error) {
                     console.error("Process Error:", error);
-                    let errMsg = 'Échec';
-                    
-                    if (error.message.includes('429')) {
-                        errMsg = 'Quota atteint (attente...)';
-                        queueEl.querySelector('.status-icon').innerHTML = '<i class="bx bx-timer text-warning fs-4"></i>';
-                        // On pourrait relancer après un délai, mais le backend fait déjà 5 tentatives.
-                        // On affiche donc un message explicite.
-                    }
+                    item.errorType = error.scanErrorType || 'unknown';
+                    const supportFailure = ['api_quota','api_key','api_not_configured','api_provider','api_transport_security','api_unavailable'].includes(item.errorType)
+                        || error.message.includes('429') || error.message.includes('503') || error.message.toLowerCase().includes('quota');
+                    item.errorMessage = supportFailure
+                        ? "Le service de traitement intelligent rencontre actuellement une difficulté. Nous vous prions de contacter le support technique DC-KNOWING pour obtenir de l'assistance. Nous sommes désolés pour ce désagrément."
+                        : (item.errorType === 'exercise_mismatch'
+                            ? (error.message || "Cette facture ne correspond pas à l'exercice sélectionné. Changez d'exercice puis relancez le scan.")
+                            : item.errorType === 'not_invoice'
+                                ? "Ce document ne semble pas être une facture. Aucune écriture ne sera créée."
+                                : item.errorType === 'document_unreadable'
+                                    ? "Le document est illisible. Importez un scan plus net ou le PDF original."
+                                    : (error.message || "Le serveur n'a pas pu analyser ce document."));
+                    let errMsg = item.errorMessage;
 
                     item.status = 'error';
                     queueEl.classList.replace('processing', 'error');
@@ -554,11 +584,13 @@
                             <button class="btn btn-sm btn-light text-danger" onclick="window.removeDocument('${docId}')"><i class="bx bx-trash"></i></button>
                         </div>
                         <div class="card-body">
-                            <div class="alert alert-danger mb-0 small">
-                                <strong>ERREUR :</strong> Le serveur n'a pas pu traiter ce document. Vérifiez le format ou réessayez.
+                            <div class="alert alert-danger mb-0 small"><strong>Échec du scan :</strong> <span class="scan-error-message"></span>
+                                ${['api_quota','api_key','api_not_configured','api_provider','api_transport_security','api_unavailable'].includes(item.errorType) || item.errorMessage.includes('support technique') ? '<div class="scan-support-actions"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a><a href="https://wa.me/2250767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></div>' : ''}
                             </div>
                         </div>
                     `;
+                    const messageNode = card.querySelector('.scan-error-message');
+                    if (messageNode) messageNode.textContent = item.errorMessage || 'Le serveur n’a pas pu traiter ce document.';
                     return;
                 }
 
@@ -725,15 +757,16 @@
                 
                 // --- ROBUST SUPPLIER LOOKUP ---
                 let supplierAccId = '';
-                const supplierName = (data.fournisseur || "").toUpperCase().trim();
-                const tier = TIERS_LIST.find(t => t.intitule.toUpperCase().includes(supplierName));
+                const supplierName = (data.tiers || data.fournisseur || "").toUpperCase().trim();
+                const tier = supplierName
+                    ? TIERS_LIST.find(t => (t.intitule || "").toUpperCase().includes(supplierName))
+                    : null;
                 if (tier) {
-                    // Try to find the associated general account (usually account 40xxx)
-                    const genAcc = GEN_ACCOUNTS.find(a => a.id == tier.compte_collectif_id);
+                    // PlanTiers.compte_general contient l'identifiant du compte collectif.
+                    const genAcc = GEN_ACCOUNTS.find(a => a.id == tier.compte_general);
                     if (genAcc) supplierAccId = genAcc.id;
-                    else supplierAccId = window.findBestAccount(tier.compte_collectif_num, 'FOURNISSEUR');
                 } else {
-                    supplierAccId = window.findBestAccount(data.fournisseur, 'FOURNISSEUR') || '';
+                    supplierAccId = window.findBestAccount(supplierName, 'FOURNISSEUR') || '';
                 }
 
                 // --- AUTO BALANCE CHARGE ---
@@ -822,10 +855,16 @@
                             <input type="checkbox" class="form-check-input row-has-tva" ${lineData.apply_tva && !isVatRow ? 'checked' : ''} ${isVatRow ? 'disabled' : ''}>
                         </td>
                         <td>
-                            <select class="form-select form-select-sm select2 row-tier">
-                                <option value="">Néant</option>
-                                ${TIERS_LIST.map(t => `<option value="${t.id}" ${t.id == matchedTierId ? 'selected' : ''}>[${t.compte_collectif_num}] ${t.intitule}</option>`).join('')}
-                            </select>
+                            <div class="input-group input-group-sm">
+                                <select class="form-select form-select-sm select2 row-tier">
+                                    <option value="">Néant</option>
+                                    ${TIERS_LIST.map(t => `<option value="${t.id}" ${t.id == matchedTierId ? 'selected' : ''}>[${t.numero_de_tiers}] ${t.intitule}</option>`).join('')}
+                                </select>
+                                <button type="button" class="btn btn-outline-primary" title="Créer un tiers"
+                                    onclick="window.currentTierSelect=this.parentElement.querySelector('.row-tier'); window.createQuickTier('${docId}')">
+                                    <i class="bx bx-plus"></i>
+                                </button>
+                            </div>
                         </td>
                         <td><input type="text" class="form-control form-control-sm row-lib" value="${lineData.intitule || identifiedTierName || ''}"></td>
                         <td><input type="number" class="form-control form-control-sm text-end row-debit" value="${cleanAmount(lineData.debit) || (lineData.type === 'DEBIT' ? cleanAmount(lineData.montant) : 0)}"></td>
@@ -990,9 +1029,9 @@
             };
 
             window.createQuickTier = (docId) => {
-                const modalEl = document.getElementById('modalCenterCreateTier');
+                const modalEl = document.getElementById('createTiersModal');
                 if (!modalEl) return;
-                const modal = new bootstrap.Modal(modalEl);
+                const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
                 modal.show();
             };
 
@@ -1016,11 +1055,18 @@
                     body: JSON.stringify(data) 
                 }).then(r => r.json()).then(res => {
                     if (res.success) {
-                        const newTier = { id: res.id, numero_de_tiers: res.numero_de_tiers, intitule: res.intitule, compte_collectif_num: res.compte_collectif_num };
+                        const newTier = {
+                            id: res.id,
+                            numero_de_tiers: res.numero_de_tiers,
+                            intitule: res.intitule,
+                            compte_general: data.compte_general
+                        };
                         TIERS_LIST.push(newTier);
                         document.querySelectorAll('.row-tier').forEach(sel => {
-                            const newOption = new Option(`[${res.compte_collectif_num}] ${res.intitule}`, res.id);
+                            const isCurrent = window.currentTierSelect === sel;
+                            const newOption = new Option(`[${res.numero_de_tiers}] ${res.intitule}`, res.id, isCurrent, isCurrent);
                             $(sel).append(newOption);
+                            if (isCurrent) $(sel).trigger('change');
                         });
                         const m = bootstrap.Modal.getInstance(document.getElementById('createTiersModal'));
                         if (m) m.hide();

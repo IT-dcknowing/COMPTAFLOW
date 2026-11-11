@@ -105,7 +105,7 @@ class IaController extends Controller
             $planComptableContext = $this->buildPlanComptableContext($companyId);
             $tiersContext = $this->buildTiersContext($companyId);
             $mappingsContext = $this->buildMappingsContext($companyId);
-            $companyName = Company::find($companyId)->raison_sociale ?? 'Mon Entreprise';
+            $companyName = Company::whereKey($companyId)->value('raison_sociale') ?: 'Mon Entreprise';
 
             \Illuminate\Support\Facades\Log::info("Contexte métier récupéré");
 
@@ -116,11 +116,12 @@ class IaController extends Controller
 
             // 4. Appel de l'API Python via le Service
             \Illuminate\Support\Facades\Log::info("Appel Python AI Service...");
-            $result = $this->pythonAiService->analyzeInvoice($image);
+            $result = $this->pythonAiService->analyzeInvoice($image, $prompt);
             
             if (!$result['success']) {
-                $errorMsg = $result['error'] ?? 'Erreur inconnue API Python';
-                
+                $errorMsg = $result['error'] ?? 'Le service IA n’a pas pu traiter le document.';
+                $errorType = $result['error_type'] ?? 'api_unavailable';
+
                 IaLog::create([
                     'company_id' => $companyId,
                     'user_id' => $user->id,
@@ -128,14 +129,28 @@ class IaController extends Controller
                     'image_nom' => $image->getClientOriginalName(),
                     'status' => 'error',
                     'erreur_message' => substr($errorMsg, 0, 250),
-                    'json_brut' => json_encode(['details' => $result['details'] ?? [], 'msg' => $errorMsg]),
+                    'json_brut' => json_encode(['error_type' => $errorType, 'message' => $errorMsg]),
                 ]);
+
+                $httpStatus = (int) ($result['http_code'] ?? 502);
+                $httpStatus = in_array($httpStatus, [422, 429, 503], true) ? $httpStatus : 502;
+
+                $apiFailureTypes = ['api_quota', 'api_key', 'api_not_configured', 'api_provider', 'api_transport_security', 'api_unavailable'];
+                $publicError = in_array($errorType, $apiFailureTypes, true)
+                    ? "Le service de traitement intelligent rencontre actuellement une difficulté. Nous vous prions de contacter le support technique DC-KNOWING pour obtenir de l'assistance. Nous sommes désolés pour ce désagrément."
+                    : $errorMsg;
 
                 return response()->json([
                     'success' => false,
-                    'error' => "Erreur IA: " . $errorMsg,
-                    'http_code' => $result['http_code'] ?? 500
-                ], 500);
+                    'error_type' => $errorType,
+                    'error' => $publicError,
+                    'support' => in_array($errorType, $apiFailureTypes, true) ? [
+                        'email' => 'it.dcknowing@gmail.com',
+                        'whatsapp' => 'https://wa.me/2250767131993',
+                        'phone_display' => '07 67 13 19 93',
+                    ] : null,
+                    'http_code' => $httpStatus,
+                ], $httpStatus);
             }
 
 
@@ -149,6 +164,66 @@ class IaController extends Controller
             }
 
             $data = $result['data'];
+
+            if (($data['statut_lecture'] ?? null) === 'illisible') {
+                return response()->json([
+                    'success' => false,
+                    'error_type' => 'document_unreadable',
+                    'error' => $data['analyse'] ?? "Le document est illisible. Importez un scan plus net ou le PDF original.",
+                ], 422);
+            }
+
+            if (($data['est_facture'] ?? true) === false) {
+                return response()->json([
+                    'success' => false,
+                    'error_type' => 'not_invoice',
+                    'error' => $data['explication_rejet'] ?? "Ce document ne semble pas être une facture. Aucune écriture ne sera créée.",
+                ], 422);
+            }
+
+            // Refuser dès l'analyse toute facture datée hors de l'exercice courant.
+            if (!empty($data['date'])) {
+                try {
+                    $invoiceDate = \Carbon\Carbon::parse($data['date'])->startOfDay();
+                } catch (\Throwable $dateError) {
+                    return response()->json([
+                        'success' => false,
+                        'error_type' => 'document_unreadable',
+                        'error' => "La date de la facture n'a pas pu être lue correctement. Vérifiez le document avant de continuer.",
+                    ], 422);
+                }
+
+                $exerciseQuery = \App\Models\ExerciceComptable::where('company_id', $companyId);
+                $exerciseContextId = session('current_exercice_id');
+                $exercise = $exerciseContextId
+                    ? (clone $exerciseQuery)->whereKey($exerciseContextId)->first()
+                    : (clone $exerciseQuery)->where('is_active', true)->first();
+
+                if (!$exercise) {
+                    $exercise = (clone $exerciseQuery)->where('cloturer', false)->orderByDesc('date_debut')->first();
+                }
+
+                if (!$exercise) {
+                    return response()->json([
+                        'success' => false,
+                        'error_type' => 'exercise_missing',
+                        'error' => "Aucun exercice comptable ouvert n'est sélectionné. Sélectionnez un exercice avant de scanner cette facture.",
+                    ], 422);
+                }
+
+                $exerciseStart = \Carbon\Carbon::parse($exercise->date_debut)->startOfDay();
+                $exerciseEnd = \Carbon\Carbon::parse($exercise->date_fin)->endOfDay();
+                if ($invoiceDate->lt($exerciseStart) || $invoiceDate->gt($exerciseEnd)) {
+                    return response()->json([
+                        'success' => false,
+                        'error_type' => 'exercise_mismatch',
+                        'error' => "La facture est datée du ".$invoiceDate->format('d/m/Y').", hors de l'exercice ".$exercise->intitule." (".$exerciseStart->format('d/m/Y')." au ".$exerciseEnd->format('d/m/Y')."). Aucune écriture ne sera enregistrée. Changez l'exercice comptable dans le sélecteur, puis relancez le scan.",
+                        'invoice_date' => $invoiceDate->toDateString(),
+                        'exercise_id' => $exercise->id,
+                    ], 422);
+                }
+            }
+
             $json_brut = json_encode($data);
 
             // Log du succès
@@ -178,10 +253,10 @@ class IaController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
+            // Ne jamais exposer chemins, lignes, trace ou détails internes dans la réponse HTTP.
             return response()->json([
-                'error' => "Erreur Serveur (500) : " . $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
+                'success' => false,
+                'error' => "Le service d'analyse des factures est momentanément indisponible. Veuillez réessayer dans quelques instants ou contacter le support technique DC-KNOWING.",
             ], 500);
         }
 
@@ -287,7 +362,8 @@ class IaController extends Controller
     private function buildTiersContext(int $companyId): string
     {
         $tiers = PlanTiers::where('company_id', $companyId)
-            ->limit(100)
+            ->orderBy('numero_de_tiers')
+            ->limit(500)
             ->get(['intitule', 'type_de_tiers', 'numero_de_tiers']);
 
         if ($tiers->isEmpty()) {
@@ -340,7 +416,8 @@ CONSIGNES RELATIVES AUX DONNÉES (CRITIQUE) :
    - Exemple OD : "FACT N° 789/OD/Salaire Axel"
 3. PLUSIEURS LIGNES D'ÉCRITURE : Si le document comporte plusieurs lignes de dépenses/opérations distinctes, tu DOIS créer une ligne d'écriture pour chaque opération réelle avec son montant et son libellé LITTÉRAL respectif.
 4. AUCUNE REFORMULATION : Si le document dit "Achat de consommables divers", utilise ce texte exact, ne résume pas en "Divers achats".
-5. RÉPONDS UNIQUEMENT EN JSON PUR (PAS DE MARKDOWN).
+5. JOURNAL À UTILISER : le journal de saisie sélectionné est "$journalCode". Ne change pas ce code.
+6. RÉPONDS UNIQUEMENT EN JSON PUR (PAS DE MARKDOWN).
 
 Schema JSON attendu :
 {

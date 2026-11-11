@@ -180,7 +180,10 @@ class PlanTiersController extends Controller
             
             $request->validate([
                 'numero_de_tiers' => 'required|string',
-                'compte_general' => 'required|exists:plan_comptables,id',
+                'compte_general' => [
+                    'required',
+                    \Illuminate\Validation\Rule::exists('plan_comptables', 'id')->where('company_id', $currentCompanyId)
+                ],
                 'intitule' => 'required|string',
                 'type_de_tiers' => 'required',
             ]);
@@ -240,30 +243,38 @@ class PlanTiersController extends Controller
 
             return redirect()->back()->with('success', 'Plan Tiers créé avec succès')->with('reload', true);
         } catch (\Exception $e) {
-            logger()->error('Erreur dans PlanTiersController@store: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Échec de création du plan tiers', [
+                'company_id' => $currentCompanyId ?? null,
+                'user_id' => Auth::id(),
+                'exception' => $e,
             ]);
             
             // Vérifier si c'est une requête AJAX
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Erreur lors de la création du plan tiers: ' . $e->getMessage()
+                    'error' => 'Une erreur est survenue lors de la création du tiers. Vérifiez les informations et réessayez.'
                 ], 500);
             }
             
-            return redirect()->back()->with('error', 'Erreur lors de la création du plan tiers: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Une erreur est survenue lors de la création du tiers. Veuillez réessayer.');
         }
     }
 
     public function update(Request $request, $id)
     {
         try {
+            $user = Auth::user();
+            $companyId = session('current_company_id', $user->company_id);
+
             $request->validate([
                 'numero_de_tiers'     => 'nullable|string|max:255',
                 'intitule'            => 'required|string|max:255',
                 'type_de_tiers'       => 'required|string',
-                'compte_general'      => 'required|exists:plan_comptables,id',
+                'compte_general'      => [
+                    'required',
+                    \Illuminate\Validation\Rule::exists('plan_comptables', 'id')->where('company_id', $companyId)
+                ],
                 'ncc'                 => 'nullable|string|max:100',
                 'rccm'                => 'nullable|string|max:100',
                 'compte_contribuable' => 'nullable|string|max:100',
@@ -273,8 +284,6 @@ class PlanTiersController extends Controller
                 'adresse'             => 'nullable|string|max:255',
             ]);
 
-            $user = Auth::user();
-            $companyId = session('current_company_id', $user->company_id);
             $tiers = PlanTiers::where('company_id', $companyId)->findOrFail($id);
             
             if ($request->filled('numero_de_tiers')) {
@@ -294,7 +303,8 @@ class PlanTiersController extends Controller
 
             return redirect()->back()->with('success', 'Plan de tiers mis à jour avec succès.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Erreur lors de la mise à jour du plan tiers : ' . $e->getMessage());
+            Log::error('Échec de mise à jour du plan tiers', ['exception' => $e]);
+            return redirect()->back()->with('error', 'Une erreur est survenue lors de la mise à jour du tiers. Veuillez réessayer.');
         }
     }
 

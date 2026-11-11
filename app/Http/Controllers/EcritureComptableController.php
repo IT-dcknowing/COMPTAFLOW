@@ -215,8 +215,13 @@ class EcritureComptableController extends Controller
             $data['annee'] = date('Y', strtotime($exerciceActifScan->date_debut));
         }
 
-        $plansComptables = PlanComptable::select('id', 'numero_de_compte', 'intitule')->orderBy('numero_de_compte')->get();
-        $plansTiers = PlanTiers::select('id', 'numero_de_tiers', 'intitule', 'compte_general')->with('compte')->get();
+        // Cloisonnement multi-entreprise identique au scan groupé.
+        $plansComptables = PlanComptable::select('id', 'numero_de_compte', 'intitule')
+            ->where('company_id', $activeCompanyId)
+            ->orderBy('numero_de_compte')->get();
+        $plansTiers = PlanTiers::select('id', 'numero_de_tiers', 'intitule', 'compte_general')
+            ->where('company_id', $activeCompanyId)
+            ->with('compte')->get();
 
         $nextSaisieNumber = NumerotationSaisie::utilisateur($activeCompanyId, $user);
 
@@ -498,7 +503,7 @@ class EcritureComptableController extends Controller
 
             if ($request->plan_analytique || $request->input('plan_analytique')) {
                 $ventilations = $request->input('ventilations', []);
-                $validationError = $this->validateVentilations($ventilations);
+                $validationError = $this->validateVentilations($ventilations, $activeCompanyId);
                 if ($validationError) {
                     return response()->json([
                         'success' => false,
@@ -619,14 +624,14 @@ class EcritureComptableController extends Controller
 
         }
         catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            Log::error('Échec enregistrement écriture', ['company_id' => $activeCompanyId ?? null, 'exception' => $e]);
+            return response()->json(['success' => false, 'message' => 'Une erreur est survenue pendant l’enregistrement. Veuillez réessayer ou contacter le support.'], 500);
         }
     }
 
     public function storeMultiple(Request $request)
     {
         \Illuminate\Support\Facades\Log::info('EcritureComptableController@storeMultiple called', [
-            'request' => $request->all(),
             'user_id' => auth()->id()
         ]);
         try {
@@ -661,6 +666,41 @@ class EcritureComptableController extends Controller
 
             if (!$exerciceActif || $exerciceActif->cloturer) {
                 return response()->json(['success' => false, 'error' => 'Impossible d\'enregistrer : L\'exercice est clôturé ou inexistant.'], 422);
+            }
+
+            // Contrôle strict du tenant, de l'exercice, des comptes, tiers et journaux.
+            $exerciseContextId = session('current_exercice_id');
+            if ($exerciseContextId && (int) $exerciseContextId !== (int) $exerciceActif->id) {
+                return response()->json(['success' => false, 'error' => 'Le scan ne correspond pas à l’exercice actuellement sélectionné. Actualisez la page.'], 403);
+            }
+
+            foreach ($ecrituresRaw as $index => $line) {
+                $accountId = $line['plan_comptable_id'] ?? $line['compte_general'] ?? null;
+                $journalId = $line['code_journal_id'] ?? $line['journal_id'] ?? null;
+                $tierId = $line['plan_tiers_id'] ?? $line['compte_tiers'] ?? null;
+                $lineExerciseId = $line['exercices_comptables_id'] ?? $line['exercice_id'] ?? $line['id_exercice'] ?? $exerciceActif->id;
+
+                if (!PlanComptable::where('company_id', $activeCompanyId)->whereKey($accountId)->exists()) {
+                    return response()->json(['success' => false, 'error' => 'Un compte général de la pièce est invalide ou ne dépend pas de cette entreprise.'], 422);
+                }
+                if (!CodeJournal::where('company_id', $activeCompanyId)->whereKey($journalId)->exists()) {
+                    return response()->json(['success' => false, 'error' => 'Un journal de la pièce est invalide ou ne dépend pas de cette entreprise.'], 422);
+                }
+                if ($tierId && !PlanTiers::where('company_id', $activeCompanyId)->whereKey($tierId)->exists()) {
+                    return response()->json(['success' => false, 'error' => 'Un tiers de la pièce est invalide ou ne dépend pas de cette entreprise.'], 422);
+                }
+                if ((int) $lineExerciseId !== (int) $exerciceActif->id) {
+                    return response()->json(['success' => false, 'error' => 'Toutes les lignes du scan doivent appartenir à l’exercice sélectionné.'], 422);
+                }
+
+                try {
+                    $lineDate = \Carbon\Carbon::parse($line['date'] ?? now()->format('Y-m-d'));
+                } catch (\Throwable $e) {
+                    return response()->json(['success' => false, 'error' => 'Une date de facture est invalide.'], 422);
+                }
+                if ($lineDate->lt(\Carbon\Carbon::parse($exerciceActif->date_debut)) || $lineDate->gt(\Carbon\Carbon::parse($exerciceActif->date_fin))) {
+                    return response()->json(['success' => false, 'error_type' => 'exercise_mismatch', 'error' => 'Cette facture est datée hors de l’exercice sélectionné. Aucune écriture n’a été enregistrée. Changez l’exercice comptable dans le sélecteur, puis relancez le scan.'], 422);
+                }
             }
 
             // --- GROUP BY N_SAISIE ---
@@ -716,7 +756,7 @@ class EcritureComptableController extends Controller
                         if (is_string($ventilations)) {
                             $ventilations = json_decode($ventilations, true) ?? [];
                         }
-                        $validationError = $this->validateVentilations($ventilations);
+                        $validationError = $this->validateVentilations($ventilations, $activeCompanyId);
                         if ($validationError) {
                             return response()->json([
                                 'success' => false,
@@ -870,7 +910,8 @@ class EcritureComptableController extends Controller
         }
         catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            Log::error('Échec enregistrement du lot de scan', ['company_id' => $activeCompanyId ?? null, 'exception' => $e]);
+            return response()->json(['success' => false, 'error' => 'Une erreur est survenue pendant la création des écritures. Aucune information technique ne peut être affichée.'], 500);
         }
     }
 
@@ -1580,14 +1621,21 @@ class EcritureComptableController extends Controller
         }
     }
 
-    private function validateVentilations($ventilations)
+    private function validateVentilations($ventilations, $companyId)
     {
         if (empty($ventilations)) {
             return "L'écriture analytique doit comporter au moins une ventilation.";
         }
 
-        $sectionIds = collect($ventilations)->pluck('section_id')->all();
-        $sections = \App\Models\SectionAnalytique::whereIn('id', $sectionIds)->get()->keyBy('id');
+        if (!$companyId) {
+            return "Entreprise active introuvable pour valider les ventilations.";
+        }
+
+        $sectionIds = collect($ventilations)->pluck('section_id')->filter()->unique()->values()->all();
+        $sections = \App\Models\SectionAnalytique::where('company_id', $companyId)
+            ->whereIn('id', $sectionIds)
+            ->get()
+            ->keyBy('id');
 
         // Group ventilations by axis
         $groupedByAxe = [];
@@ -1607,7 +1655,7 @@ class EcritureComptableController extends Controller
         foreach ($groupedByAxe as $axeId => $percentages) {
             $sum = array_sum($percentages);
             if (abs($sum - 100) > 0.05) {
-                $axe = \App\Models\AxeAnalytique::find($axeId);
+                $axe = \App\Models\AxeAnalytique::where('company_id', $companyId)->find($axeId);
                 $axeName = $axe ? $axe->libelle : "inconnu";
                 return "Le total des pourcentages pour l'axe '{$axeName}' doit être égal à 100%. Actuellement : " . round($sum, 2) . "%.";
             }

@@ -99,12 +99,34 @@ class PerformanceController extends Controller
 
         $netResult = $totalRevenue - $totalExpenses;
 
-        // KPI 4: Écritures du mois (Global)
-        $monthlyEntries = EcritureComptable::where('company_id', $companyId)
+        // Le chiffre d'affaires est isolé des autres produits de la classe 7.
+        $turnover = EcritureComptable::where('company_id', $companyId)
             ->where('statut', 'approved')
-            ->whereMonth('date', Carbon::now()->month)
-            ->whereYear('date', Carbon::now()->year)
-            ->count();
+            ->when($exerciceId, fn ($query) => $query->where('exercices_comptables_id', $exerciceId))
+            ->whereHas('planComptable', fn ($query) => $query->where('numero_de_compte', 'like', '70%'))
+            ->sum('credit');
+
+        // KPI de pilotage supplémentaires selon le plan SYSCOHADA.
+        $salaryExpenses = EcritureComptable::where('company_id', $companyId)
+            ->where('statut', 'approved')
+            ->when($exerciceId, fn ($query) => $query->where('exercices_comptables_id', $exerciceId))
+            ->whereHas('planComptable', fn ($query) => $query->where('numero_de_compte', 'like', '66%'))
+            ->sum('debit');
+
+        $vatCollected = EcritureComptable::where('company_id', $companyId)
+            ->where('statut', 'approved')
+            ->when($exerciceId, fn ($query) => $query->where('exercices_comptables_id', $exerciceId))
+            ->whereHas('planComptable', fn ($query) => $query->where('numero_de_compte', 'like', '443%'))
+            ->sum('credit');
+
+        $vatDeductible = EcritureComptable::where('company_id', $companyId)
+            ->where('statut', 'approved')
+            ->when($exerciceId, fn ($query) => $query->where('exercices_comptables_id', $exerciceId))
+            ->whereHas('planComptable', fn ($query) => $query->where('numero_de_compte', 'like', '445%'))
+            ->sum('debit');
+
+        $vatNetToPay = $vatCollected - $vatDeductible;
+        $expenseRatio = $turnover > 0 ? round(($totalExpenses / $turnover) * 100, 1) : null;
 
         // KPI 5: Solde Trésorerie (filtré sur l'exercice actif uniquement)
         $cashBalance = EcritureComptable::where('company_id', $companyId)
@@ -167,30 +189,16 @@ class PerformanceController extends Controller
         $revenueChartData = $this->getGlobalRevenueChartData($companyId, $exerciceId);
         $expenseChartData = $this->getGlobalExpenseChartData($companyId, $exerciceId);
 
-        // Dernières Écritures (Globales - toutes celles de l'entreprise)
-        $recentEntries = EcritureComptable::with(['planComptable', 'planTiers', 'user']) // + User info
-            ->where('company_id', $companyId)
-            ->where('statut', 'approved')
-            ->orderBy('date', 'desc')
-            ->limit(10) // Plus d'historique pour l'admin
-            ->get()
-            ->map(function($entry) {
-                $isIncome = $entry->credit > 0;
-                return [
-                    'description' => $entry->description_operation,
-                    'date' => Carbon::parse($entry->date)->translatedFormat('d M Y'),
-                    'journal' => $entry->codeJournal->libelle ?? 'Journal',
-                    'amount' => $isIncome ? $entry->credit : $entry->debit,
-                    'type' => $isIncome ? 'income' : 'expense',
-                    'user_name' => $entry->user->name ?? 'Système' // Voir qui a fait l'écriture
-                ];
-            });
-
         return [
             'totalRevenue' => $totalRevenue,
+            'turnover' => $turnover,
             'totalExpenses' => $totalExpenses,
             'netResult' => $netResult,
-            'monthlyEntries' => $monthlyEntries,
+            'salaryExpenses' => $salaryExpenses,
+            'vatCollected' => $vatCollected,
+            'vatDeductible' => $vatDeductible,
+            'vatNetToPay' => $vatNetToPay,
+            'expenseRatio' => $expenseRatio,
             'cashBalance' => $cashBalance,
             'clientCount' => $clientCount,
             'supplierCount' => $supplierCount,
@@ -198,7 +206,6 @@ class PerformanceController extends Controller
             'exerciceProgress' => $exerciceProgress,
             'revenueChartData' => $revenueChartData,
             'expenseChartData' => $expenseChartData,
-            'recentEntries' => $recentEntries,
         ];
     }
 
@@ -247,9 +254,9 @@ class PerformanceController extends Controller
             ->get();
 
         $categories = [
-            '60' => 'Achats', '61' => 'Services ext.', '62' => 'Autres Svcs', 
-            '63' => 'Impôts', '64' => 'Personnel', '65' => 'Autres', 
-            '66' => 'Financier', '67' => 'Exceptionnel', '68' => 'Amort.', '69' => 'Impôt Bén.'
+            '60' => 'Achats', '61' => 'Transports', '62' => 'Services extérieurs A',
+            '63' => 'Services extérieurs B', '64' => 'Impôts et taxes', '65' => 'Autres charges',
+            '66' => 'Charges de personnel', '67' => 'Charges financières', '68' => 'Dotations amortissements', '69' => 'Dotations provisions'
         ];
 
         $chartData = [];
