@@ -30,19 +30,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\\Throwable $exception, \\Illuminate\\Http\\Request $request) {
+        $exceptions->render(function (\Throwable $exception, \Illuminate\Http\Request $request) {
             if (config('app.debug') || $request->expectsJson()) {
                 return null;
             }
 
-            if ($exception instanceof \\Illuminate\\Auth\\AuthenticationException
-                || $exception instanceof \\Illuminate\\Validation\\ValidationException
-                || $exception instanceof \\Illuminate\\Database\\Eloquent\\ModelNotFoundException
-                || $exception instanceof \\Illuminate\\Auth\\Access\\AuthorizationException) {
+            if ($exception instanceof \Illuminate\Auth\AuthenticationException
+                || $exception instanceof \Illuminate\Validation\ValidationException
+                || $exception instanceof \Illuminate\Database\Eloquent\ModelNotFoundException
+                || $exception instanceof \Illuminate\Auth\Access\AuthorizationException) {
                 return null;
             }
 
-            if ($exception instanceof \\Symfony\\Component\\HttpKernel\\Exception\\HttpExceptionInterface
+            if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
                 && $exception->getStatusCode() < 500) {
                 return null;
             }
