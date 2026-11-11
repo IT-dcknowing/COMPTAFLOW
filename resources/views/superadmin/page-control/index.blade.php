@@ -102,7 +102,7 @@
 <div class="col-xl-7"><h5 class="fw-bold mb-3">Modèles configurés</h5>
 @if($credentials->isEmpty())<div class="card border-0 bg-light p-4 text-center text-muted">Aucun fournisseur IA configuré pour le moment.</div>@endif
 @foreach($credentials as $credential)<div class="key-card mb-3 {{ $credential->is_active ? 'is-active' : '' }}"><div class="d-flex justify-content-between gap-3 align-items-start"><div><div class="fw-bold">{{ $credential->provider }} <span class="text-primary">/</span> {{ $credential->model }}</div><div class="small text-muted">Clé enregistrée · {{ $credential->updated_at?->format('d/m/Y H:i') }}</div>@if($credential->notes)<p class="small mb-0 mt-2">{{ $credential->notes }}</p>@endif</div><span class="badge bg-{{ $credential->is_active?'success':'secondary' }}">{{ $credential->is_active?'Active':'Inactive' }}</span></div>
-<div class="d-flex gap-2 mt-3"><form method="POST" action="{{ route('superadmin.ai-credentials.toggle',$credential) }}">@csrf<button class="btn btn-sm btn-outline-primary">{{ $credential->is_active?'Désactiver':'Activer' }}</button></form><form method="POST" action="{{ route('superadmin.ai-credentials.delete',$credential) }}" onsubmit="return confirm('Supprimer cette configuration IA ?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Supprimer</button></form></div></div>@endforeach
+<div class="d-flex gap-2 mt-3"><button type="button" class="btn btn-sm btn-outline-info" onclick="testAiCredential(this,'{{ route('superadmin.ai-credentials.test',$credential) }}')"><i class="fa-solid fa-plug me-1"></i>Tester la connexion</button><form method="POST" action="{{ route('superadmin.ai-credentials.toggle',$credential) }}">@csrf<button class="btn btn-sm btn-outline-primary">{{ $credential->is_active?'Désactiver':'Activer' }}</button></form><form method="POST" action="{{ route('superadmin.ai-credentials.delete',$credential) }}" onsubmit="return confirm('Supprimer cette configuration IA ?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Supprimer</button></form></div></div>@endforeach
 </div></div>
 <div class="tab-pane fade" id="quotas-tab">
 <div class="alert alert-info border-0"><strong>Contrôle désactivé par défaut.</strong> Aucun plafond n'est appliqué tant que cette option reste désactivée. Les valeurs ci-dessous sont préparées pour une configuration ultérieure.</div>
@@ -147,5 +147,18 @@ document.addEventListener('DOMContentLoaded', function () {
   select.addEventListener('change',sync);sync();
  });
 });
+</script>
+<script>
+async function testAiCredential(button, url) {
+ const old=button.innerHTML; button.disabled=true; button.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Test…';
+ try {
+  const response=await fetch(url,{method:'POST',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content||'','Accept':'application/json'}});
+  const data=await response.json();
+  if(window.Swal) await Swal.fire({icon:data.success?'success':'warning',title:data.success?'Connexion réussie':'Test non concluant',text:data.message||'Le test n’a pas abouti.',confirmButtonColor:'#2456bd'});
+  else alert(data.message||'Test terminé');
+ } catch(e) {
+  if(window.Swal) await Swal.fire({icon:'warning',title:'Test indisponible',text:'Le service de test est momentanément indisponible. Contactez le support technique DC-KNOWING.'});
+ } finally {button.disabled=false;button.innerHTML=old;}
+}
 </script>
 </body></html>
