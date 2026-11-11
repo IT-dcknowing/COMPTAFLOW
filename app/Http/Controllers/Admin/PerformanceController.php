@@ -128,13 +128,6 @@ class PerformanceController extends Controller
         $vatNetToPay = $vatCollected - $vatDeductible;
         $expenseRatio = $turnover > 0 ? round(($totalExpenses / $turnover) * 100, 1) : null;
 
-        // KPI 4: Écritures du mois (Global)
-        $monthlyEntries = EcritureComptable::where('company_id', $companyId)
-            ->where('statut', 'approved')
-            ->whereMonth('date', Carbon::now()->month)
-            ->whereYear('date', Carbon::now()->year)
-            ->count();
-
         // KPI 5: Solde Trésorerie (filtré sur l'exercice actif uniquement)
         $cashBalance = EcritureComptable::where('company_id', $companyId)
             ->where('statut', 'approved')
@@ -201,7 +194,6 @@ class PerformanceController extends Controller
             'turnover' => $turnover,
             'totalExpenses' => $totalExpenses,
             'netResult' => $netResult,
-            'monthlyEntries' => $monthlyEntries,
             'salaryExpenses' => $salaryExpenses,
             'vatCollected' => $vatCollected,
             'vatDeductible' => $vatDeductible,
