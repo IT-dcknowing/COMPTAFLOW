@@ -119,7 +119,7 @@ class SuperAdminPageControlController extends Controller
             return response()->json(['success' => false, 'message' => 'Le service de test est temporairement indisponible. Contactez le support technique DC-KNOWING.'], 503);
         }
 
-        $result = app(\\App\\Services\\PythonAiService::class)->testCredential($credential);
+        $result = app(\App\Services\PythonAiService::class)->testCredential($credential);
         return response()->json($result, $result['success'] ? 200 : 422);
     }
 
