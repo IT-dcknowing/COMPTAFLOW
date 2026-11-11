@@ -222,15 +222,17 @@
 
                             <!-- Barre Latérale Droite : Alertes & Statut -->
                             <div class="space-y-8">
-                                <div class="glass-card p-6 bg-slate-900 text-white border-none shadow-xl shadow-blue-900/20">
-                                    <h3 class="text-base font-bold mb-4">Statut Clôture</h3>
-                                    <div class="w-full bg-slate-800 rounded-full h-2 mb-2">
-                                        <div class="bg-blue-500 h-2 rounded-full transition-all duration-1000" style="width: {{ $exerciceProgress ?? 0 }}%"></div>
+                                <div class="glass-card p-6">
+                                    <div class="flex items-center justify-between gap-3 mb-4">
+                                        <h3 class="text-base font-bold text-slate-800 mb-0">Avancement de l'exercice</h3>
+                                        <span class="badge bg-primary-subtle text-primary">{{ $exerciceProgress ?? 0 }}%</span>
                                     </div>
-                                    <p class="text-xs text-slate-400">Exercice {{ $exerciceYear ?? date('Y') }} complété à {{ $exerciceProgress ?? 0 }}%</p>
-                                    <button class="w-full mt-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition">
-                                        Générer Pré-Bilan
-                                    </button>
+                                    <div class="w-full bg-slate-100 rounded-full h-2.5 mb-3" role="progressbar"
+                                         aria-valuenow="{{ $exerciceProgress ?? 0 }}" aria-valuemin="0" aria-valuemax="100"
+                                         aria-label="Avancement de l'exercice comptable">
+                                        <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-1000" style="width: {{ $exerciceProgress ?? 0 }}%"></div>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mb-0">Exercice {{ $exerciceYear ?? date('Y') }} · progression calculée à partir des écritures approuvées.</p>
                                 </div>
 
                                 <div class="glass-card p-6">
