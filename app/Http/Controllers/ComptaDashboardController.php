@@ -3,13 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use App\Models\Company;
-use App\Models\PlanTiers;
 use App\Models\EcritureComptable;
-use App\Models\PlanComptable;
 use App\Models\ExerciceComptable;
-use App\Models\JournalSaisi;
 use Carbon\Carbon;
 
 class ComptaDashboardController extends Controller
@@ -235,24 +231,7 @@ class ComptaDashboardController extends Controller
             $habilitations = [];
         }
 
-        // DEBUG: Log pour voir ce qui se passe
-        Log::info('Habilitations avant ajout: ' . json_encode($habilitations));
-        Log::info('modal_saisie_direct present: ' . (in_array('modal_saisie_direct', $habilitations) ? 'yes' : 'no'));
-        Log::info('accounting_entry_real present: ' . (in_array('accounting_entry_real', $habilitations) ? 'yes' : 'no'));
-
-        // Ajouter automatiquement accounting_entry_real si l'utilisateur a modal_saisie_direct
-        if (in_array('modal_saisie_direct', $habilitations) && !in_array('accounting_entry_real', $habilitations)) {
-            $habilitations[] = 'accounting_entry_real';
-            Log::info('accounting_entry_real ajouté!');
-        }
-
-        // DEBUG: Forcer l'ajout de accounting_entry_real pour le test
-        if (!in_array('accounting_entry_real', $habilitations)) {
-            $habilitations[] = 'accounting_entry_real';
-            Log::info('accounting_entry_real forcé!');
-        }
-
-        Log::info('Habilitations finales: ' . json_encode($habilitations));
+        // Les habilitations retournées restent strictement celles accordées au collaborateur.
 
         // Assurez-vous que c'est un tableau valide, sinon retournez un tableau vide.
         return $habilitations;
