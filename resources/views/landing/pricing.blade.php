@@ -162,7 +162,11 @@
             padding-bottom: 20px;
             margin-bottom: 30px;
         }
-    </style>
+    
+:root{--cf-blue:#2458dc;--cf-navy:#101d3a}body{background:radial-gradient(circle at 12% 4%,#e4edff 0,transparent 34%),linear-gradient(180deg,#f7f9fd,#f1f5fb);color:#17233d}
+.pricing-card{border-radius:24px!important;border:1px solid #e3eaf4!important;box-shadow:0 22px 55px rgba(18,39,79,.07)!important;padding-top:42px!important}.pricing-card:hover{transform:translateY(-7px);box-shadow:0 28px 65px rgba(36,88,220,.14)!important}.pricing-card-premium{border:2px solid #2458dc!important}.popular-badge{background:#2458dc!important;border-radius:0 20px 0 16px!important}.text-primary{color:#2458dc!important}.btn-primary{background:#2458dc!important;border-color:#2458dc!important}
+.cf-pricing-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 auto 28px;font-weight:800;font-size:21px;color:#101d3a}.cf-pricing-brand img{width:54px;height:54px;object-fit:contain}@media(max-width:600px){.pricing-card{padding:28px 22px!important}.cf-pricing-brand{margin-bottom:18px}}
+</style>
     @include('components.echelle_affichage', ['echelle' => 0.8])
 </head>
 
@@ -172,6 +176,7 @@
     <div class="bg-blob blob-2"></div>
 
     <div class="container" style="max-width: 1200px;">
+        <a class="cf-pricing-brand" href="{{ route('landing.index') }}"><img src="data:image/png;base64,{{ trim(file_get_contents(public_path('assets/img/comptaflow-logo.png.b64'))) }}" alt="Logo COMPTAFLOW"><span>COMPTAFLOW</span></a>
 
         <div class="text-center mb-5">
             <a href="{{ route('landing.index') }}" class="btn btn-label-secondary btn-sm mb-4 rounded-pill">
