@@ -132,7 +132,7 @@
                         <!-- KPI financiers : chiffres réels de l'exercice -->
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-5">
                             @foreach([
-                                ['Chiffre d’affaires', $turnover ?? 0, 'fa-chart-line', 'blue', 'Produits comptabilisés · classe 7'],
+                                ['Chiffre d’affaires', $turnover ?? 0, 'fa-chart-line', 'blue', 'Ventes comptabilisées · classe 70'],
                                 ['Charges comptabilisées', $totalExpenses ?? 0, 'fa-arrow-trend-down', 'rose', 'Charges comptabilisées · classe 6'],
                                 ['Trésorerie nette', $cashBalance ?? 0, 'fa-vault', 'indigo', 'Solde net des comptes de trésorerie'],
                                 ['Résultat comptable', $netResult ?? 0, 'fa-scale-balanced', 'emerald', 'Produits moins charges']
