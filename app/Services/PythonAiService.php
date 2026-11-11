@@ -30,12 +30,12 @@ class PythonAiService
         $clientId = $clientId ?? (Auth::check() ? Auth::user()->company_id : null);
 
         if (!$this->secureTransportAllowed()) {
-            return ['success' => false, 'error' => "Configuration refusée : le serveur IA doit être appelé en HTTPS en production."];
+            return ['success' => false, 'error' => "Le service de traitement intelligent rencontre actuellement une difficulté. Merci de contacter le support technique DC-KNOWING.", 'error_type' => 'api_transport_security'];
         }
 
         $credential = AiProviderCredential::where('is_active', true)->orderByDesc('updated_at')->first();
         if (!$credential) {
-            return ['success' => false, 'error' => "Aucune clé API IA active. Configurez un fournisseur dans le Super Admin."];
+            return ['success' => false, 'error' => "Le service de traitement intelligent rencontre actuellement une difficulté. Merci de contacter le support technique DC-KNOWING.", 'error_type' => 'api_not_configured'];
         }
 
         try {
@@ -73,7 +73,7 @@ class PythonAiService
             return [
                 'success' => false,
                 'error_type' => 'api_transport_security',
-                'error' => "Configuration refusée : le serveur IA doit être appelé en HTTPS en production.",
+                'error' => "Le service de traitement intelligent rencontre actuellement une difficulté. Merci de contacter le support technique DC-KNOWING.",
                 'http_code' => 503,
             ];
         }
@@ -86,7 +86,7 @@ class PythonAiService
             return [
                 'success' => false,
                 'error_type' => 'api_not_configured',
-                'error' => "Aucune clé API IA active. Le Super Administrateur doit configurer un fournisseur dans le coffre-fort IA.",
+                'error' => "Le service de traitement intelligent rencontre actuellement une difficulté. Merci de contacter le support technique DC-KNOWING.",
                 'http_code' => 503,
             ];
         }
@@ -135,7 +135,9 @@ class PythonAiService
                 return [
                     'success' => false,
                     'error_type' => $errorType,
-                    'error' => $message ?: "Le fournisseur IA n'a pas pu analyser ce document.",
+                    'error' => $errorType === 'api_quota'
+                        ? "Le service de traitement intelligent a temporairement atteint sa capacité. Merci de contacter le support technique DC-KNOWING."
+                        : "Le service de traitement intelligent rencontre actuellement une difficulté. Merci de contacter le support technique DC-KNOWING.",
                     'http_code' => $status,
                 ];
             }
