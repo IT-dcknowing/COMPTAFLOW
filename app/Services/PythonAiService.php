@@ -159,6 +159,45 @@ class PythonAiService
         }
     }
 
+    public function testCredential(AiProviderCredential $credential): array
+    {
+        if (!$this->secureTransportAllowed()) {
+            return ['success' => false, 'message' => 'Le service de test est temporairement indisponible. Contactez le support technique DC-KNOWING.'];
+        }
+
+        try {
+            $response = Http::timeout(35)->withHeaders([
+                'X-AI-Provider' => $credential->provider,
+                'X-AI-Model' => $credential->model,
+                'X-AI-API-Key' => $credential->api_key,
+                'Accept' => 'application/json',
+            ])->post("{$this->baseUrl}/agent/chat", [
+                'message' => 'Réponds uniquement : connexion réussie.',
+                'client_id' => null,
+                'session_id' => 'superadmin-api-test',
+                'agent_type' => 'superviseur',
+            ]);
+
+            if ($response->failed()) {
+                Log::warning('Super Admin AI credential test failed', [
+                    'provider' => $credential->provider,
+                    'model' => $credential->model,
+                    'http_status' => $response->status(),
+                ]);
+                return ['success' => false, 'message' => 'La connexion au fournisseur n’a pas abouti. Vérifiez le fournisseur et le modèle, puis contactez le support technique si le problème persiste.'];
+            }
+
+            return ['success' => true, 'message' => 'Connexion réussie. Le fournisseur et le modèle répondent correctement.'];
+        } catch (\\Throwable $e) {
+            Log::warning('Super Admin AI credential test exception', [
+                'provider' => $credential->provider,
+                'model' => $credential->model,
+                'exception' => $e->getMessage(),
+            ]);
+            return ['success' => false, 'message' => 'Le service de test est momentanément indisponible. Contactez le support technique DC-KNOWING.'];
+        }
+    }
+
     public function calculatePayroll(array $data)
     {
         try {
