@@ -1,6 +1,6 @@
 {{-- Le sidebar superadmin utilise les mêmes styles que le sidebar utilisateur définis dans sidebar.blade.php --}}
 
-<div class="sidebar-new">
+<div class="sidebar-new" id="sidebar-navigation">
     <div class="sidebar-header">
         <div class="brand-container">
             <img src="data:image/png;base64,{{ trim(file_get_contents(public_path('assets/img/comptaflow-logo.png.b64'))) }}" alt="Logo officiel COMPTAFLOW" class="brand-logo-image" width="52" height="52" style="width:52px;height:52px;object-fit:contain;display:block;flex-shrink:0;">
