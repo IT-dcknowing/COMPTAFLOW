@@ -75,17 +75,6 @@ class PerformanceController extends Controller
 
         $exerciceId = $currentExercice ? $currentExercice->id : null;
 
-        // KPI 1: Total Revenus (Global)
-        $totalRevenue = EcritureComptable::where('company_id', $companyId)
-            ->where('statut', 'approved')
-            ->when($exerciceId, function($query) use ($exerciceId) {
-                return $query->where('exercices_comptables_id', $exerciceId);
-            })
-            ->whereHas('planComptable', function($query) {
-                $query->whereRaw('SUBSTRING(numero_de_compte, 1, 1) = ?', ['7']);
-            })
-            ->sum('credit');
-
         // KPI 2: Total Charges (Global)
         $totalExpenses = EcritureComptable::where('company_id', $companyId)
             ->where('statut', 'approved')
@@ -96,8 +85,6 @@ class PerformanceController extends Controller
                 $query->whereRaw('SUBSTRING(numero_de_compte, 1, 1) = ?', ['6']);
             })
             ->sum('debit');
-
-        $netResult = $totalRevenue - $totalExpenses;
 
         // Le chiffre d'affaires est isolé des autres produits de la classe 7.
         $turnover = EcritureComptable::where('company_id', $companyId)
@@ -119,13 +106,6 @@ class PerformanceController extends Controller
             ->whereHas('planComptable', fn ($query) => $query->where('numero_de_compte', 'like', '443%'))
             ->sum('credit');
 
-        $vatDeductible = EcritureComptable::where('company_id', $companyId)
-            ->where('statut', 'approved')
-            ->when($exerciceId, fn ($query) => $query->where('exercices_comptables_id', $exerciceId))
-            ->whereHas('planComptable', fn ($query) => $query->where('numero_de_compte', 'like', '445%'))
-            ->sum('debit');
-
-        $vatNetToPay = $vatCollected - $vatDeductible;
         $expenseRatio = $turnover > 0 ? round(($totalExpenses / $turnover) * 100, 1) : null;
 
         // KPI 5: Solde Trésorerie (filtré sur l'exercice actif uniquement)
@@ -190,14 +170,10 @@ class PerformanceController extends Controller
         $expenseChartData = $this->getGlobalExpenseChartData($companyId, $exerciceId);
 
         return [
-            'totalRevenue' => $totalRevenue,
             'turnover' => $turnover,
             'totalExpenses' => $totalExpenses,
-            'netResult' => $netResult,
             'salaryExpenses' => $salaryExpenses,
             'vatCollected' => $vatCollected,
-            'vatDeductible' => $vatDeductible,
-            'vatNetToPay' => $vatNetToPay,
             'expenseRatio' => $expenseRatio,
             'cashBalance' => $cashBalance,
             'clientCount' => $clientCount,
