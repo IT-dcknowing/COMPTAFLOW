@@ -292,7 +292,8 @@ class IaController extends Controller
     private function buildTiersContext(int $companyId): string
     {
         $tiers = PlanTiers::where('company_id', $companyId)
-            ->limit(100)
+            ->orderBy('numero_de_tiers')
+            ->limit(500)
             ->get(['intitule', 'type_de_tiers', 'numero_de_tiers']);
 
         if ($tiers->isEmpty()) {
