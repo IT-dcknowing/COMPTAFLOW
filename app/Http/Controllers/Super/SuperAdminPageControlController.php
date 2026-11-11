@@ -23,7 +23,8 @@ class SuperAdminPageControlController extends Controller
         foreach (Route::getRoutes() as $route) {
             $name = $route->getName();
             if (!$name || str_starts_with($name, 'superadmin.pages.') || str_starts_with($name, 'superadmin.ai-credentials.')) continue;
-            if (!in_array('GET', $route->methods(), true) || str_contains($route->uri(), '{')) continue;
+            if (!in_array('GET', $route->methods(), true)) continue;
+            if (str_contains($route->uri(), 'api/') || str_contains($name, '.api.') || str_contains($name, 'csrf')) continue;
             $uri = $route->uri();
             if (str_starts_with($uri, 'superadmin/')) continue;
 
