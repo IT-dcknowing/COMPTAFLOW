@@ -146,7 +146,7 @@ class IaController extends Controller
                     'error' => $publicError,
                     'support' => in_array($errorType, $apiFailureTypes, true) ? [
                         'email' => 'it.dcknowing@gmail.com',
-                        'whatsapp' => 'https://wa.me/225767131993',
+                        'whatsapp' => 'https://wa.me/2250767131993',
                         'phone_display' => '07 67 13 19 93',
                     ] : null,
                     'http_code' => $httpStatus,
