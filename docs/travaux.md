@@ -21,7 +21,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 | P1 | Administration `/admin` | Inventaire complet des pages et navigation ; cohérence et regroupement | À auditer |
 | P1 | Informations entreprise | Repenser la disposition et les groupes de champs de `/compagny_information` | À auditer |
 | P1 | Habilitations | Tableau utilisateurs × permissions, recherche, filtres, profils et sauvegarde lisible | À auditer |
-| P1 | Performance Super Admin | KPI CA, charges, trésorerie nette, salaires, postes de dépenses, TVA collectée/déductible, tendances et comparaisons ; remplacer le flux des dernières écritures | À auditer |
+| P1 | Performance Super Admin | KPI CA, charges, trésorerie nette, salaires, postes de dépenses, TVA collectée/déductible, tendances et comparaisons ; remplacer le flux des dernières écritures | Première refonte KPI réalisée ; vérification des comptes à poursuivre |
 | P1 | Dashboard comptable | Retirer les KPI identifiés comme inutiles sur `/dashboard-compta` (inventaire à faire avant suppression) | À auditer |
 | P1 | Reporting résultat | Présentation financière soignée type feuille Excel, totaux, sections, comparatifs, export | À auditer |
 | P1 | Notifications | Corriger la relation expéditeur nullable et toute autre donnée orpheline ; écran de maintenance propre en cas d'indisponibilité ; contact support et lien WhatsApp | À corriger |
@@ -58,6 +58,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
 - [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
 - [x] Rédiger la proposition cible de refonte analytique dans \`docs/proposition-refonte-analytique.md\`.
+- [x] Recomposer le dashboard Performance avec CA classe 70, charges classe 6, trésorerie nette classe 5, résultat, masse salariale classe 66, TVA collectée 443 et TVA déductible 445 ; supprimer le tableau des dernières écritures et corriger les libellés des postes de charges.
 - [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
 
 ## Constats techniques de l'audit initial
