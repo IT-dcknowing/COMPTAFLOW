@@ -215,8 +215,13 @@ class EcritureComptableController extends Controller
             $data['annee'] = date('Y', strtotime($exerciceActifScan->date_debut));
         }
 
-        $plansComptables = PlanComptable::select('id', 'numero_de_compte', 'intitule')->orderBy('numero_de_compte')->get();
-        $plansTiers = PlanTiers::select('id', 'numero_de_tiers', 'intitule', 'compte_general')->with('compte')->get();
+        // Cloisonnement multi-entreprise identique au scan groupé.
+        $plansComptables = PlanComptable::select('id', 'numero_de_compte', 'intitule')
+            ->where('company_id', $activeCompanyId)
+            ->orderBy('numero_de_compte')->get();
+        $plansTiers = PlanTiers::select('id', 'numero_de_tiers', 'intitule', 'compte_general')
+            ->where('company_id', $activeCompanyId)
+            ->with('compte')->get();
 
         $nextSaisieNumber = NumerotationSaisie::utilisateur($activeCompanyId, $user);
 
