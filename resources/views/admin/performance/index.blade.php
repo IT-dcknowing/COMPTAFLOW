@@ -132,8 +132,8 @@
                         <!-- KPI financiers : chiffres réels de l'exercice -->
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-5">
                             @foreach([
-                                ['Chiffre d’affaires', $totalRevenue ?? 0, 'fa-chart-line', 'blue', 'Produits comptabilisés · classe 7'],
-                                ['Charges engagées', $totalExpenses ?? 0, 'fa-arrow-trend-down', 'rose', 'Charges comptabilisées · classe 6'],
+                                ['Chiffre d’affaires', $turnover ?? 0, 'fa-chart-line', 'blue', 'Produits comptabilisés · classe 7'],
+                                ['Charges comptabilisées', $totalExpenses ?? 0, 'fa-arrow-trend-down', 'rose', 'Charges comptabilisées · classe 6'],
                                 ['Trésorerie nette', $cashBalance ?? 0, 'fa-vault', 'indigo', 'Solde net des comptes de trésorerie'],
                                 ['Résultat comptable', $netResult ?? 0, 'fa-scale-balanced', 'emerald', 'Produits moins charges']
                             ] as $kpi)
@@ -212,12 +212,12 @@
                                             <p class="text-[10px] text-slate-400 uppercase font-bold">Total Partenaires</p>
                                             <h4 class="text-2xl font-black mb-0">{{ ($clientCount ?? 0) + ($supplierCount ?? 0) }}</h4>
                                         </div>
-                                        <div class="p-3 bg-white/10 rounded-2xl text-emerald-400 font-bold text-xs">
+                                        <div class="p-3 bg-emerald-50 rounded-2xl text-emerald-700 font-bold text-xs">
                                             + {{ $clientCount ?? 0 }} Clients
                                         </div>
                                     </div>
                                     <div class="space-y-4">
-                                        <div class="p-3 bg-white/5 rounded-xl flex items-center justify-between border border-white/10">
+                                        <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
                                             <div class="flex items-center gap-3">
                                                 <i class="fas fa-user-tie text-blue-400"></i>
                                                 <span class="text-xs font-semibold">Fournisseurs</span>
