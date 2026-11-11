@@ -668,6 +668,41 @@ class EcritureComptableController extends Controller
                 return response()->json(['success' => false, 'error' => 'Impossible d\'enregistrer : L\'exercice est clôturé ou inexistant.'], 422);
             }
 
+            // Contrôle strict du tenant, de l'exercice, des comptes, tiers et journaux.
+            $exerciseContextId = session('current_exercice_id');
+            if ($exerciseContextId && (int) $exerciseContextId !== (int) $exerciceActif->id) {
+                return response()->json(['success' => false, 'error' => 'Le scan ne correspond pas à l’exercice actuellement sélectionné. Actualisez la page.'], 403);
+            }
+
+            foreach ($ecrituresRaw as $index => $line) {
+                $accountId = $line['plan_comptable_id'] ?? $line['compte_general'] ?? null;
+                $journalId = $line['code_journal_id'] ?? $line['journal_id'] ?? null;
+                $tierId = $line['plan_tiers_id'] ?? $line['compte_tiers'] ?? null;
+                $lineExerciseId = $line['exercices_comptables_id'] ?? $line['exercice_id'] ?? $line['id_exercice'] ?? $exerciceActif->id;
+
+                if (!PlanComptable::where('company_id', $activeCompanyId)->whereKey($accountId)->exists()) {
+                    return response()->json(['success' => false, 'error' => 'Un compte général de la pièce est invalide ou ne dépend pas de cette entreprise.'], 422);
+                }
+                if (!CodeJournal::where('company_id', $activeCompanyId)->whereKey($journalId)->exists()) {
+                    return response()->json(['success' => false, 'error' => 'Un journal de la pièce est invalide ou ne dépend pas de cette entreprise.'], 422);
+                }
+                if ($tierId && !PlanTiers::where('company_id', $activeCompanyId)->whereKey($tierId)->exists()) {
+                    return response()->json(['success' => false, 'error' => 'Un tiers de la pièce est invalide ou ne dépend pas de cette entreprise.'], 422);
+                }
+                if ((int) $lineExerciseId !== (int) $exerciceActif->id) {
+                    return response()->json(['success' => false, 'error' => 'Toutes les lignes du scan doivent appartenir à l’exercice sélectionné.'], 422);
+                }
+
+                try {
+                    $lineDate = \\Carbon\\Carbon::parse($line['date'] ?? now()->format('Y-m-d'));
+                } catch (\\Throwable $e) {
+                    return response()->json(['success' => false, 'error' => 'Une date de facture est invalide.'], 422);
+                }
+                if ($lineDate->lt(\\Carbon\\Carbon::parse($exerciceActif->date_debut)) || $lineDate->gt(\\Carbon\\Carbon::parse($exerciceActif->date_fin))) {
+                    return response()->json(['success' => false, 'error' => 'Une date de facture est hors de la période de l’exercice sélectionné.'], 422);
+                }
+            }
+
             // --- GROUP BY N_SAISIE ---
             $groups = [];
             foreach ($ecrituresRaw as $e) {
