@@ -136,6 +136,8 @@ class AnalyticalReportingService
             ->join('sections_analytiques as s', 'v.section_id', '=', 's.id')
             ->join('plan_comptables as pc', 'e.plan_comptable_id', '=', 'pc.id')
             ->where('s.company_id', $companyId)
+            ->where('e.company_id', $companyId)
+            ->where('pc.company_id', $companyId)
             ->where('e.statut', 'approved');
 
         if ($axeId) $query->where('s.axe_id', $axeId);
