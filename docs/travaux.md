@@ -78,7 +78,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - Le scan unitaire filtre désormais les plans comptables et tiers par entreprise.
 - Le prompt IA reçoit désormais jusqu'à 500 tiers de l'entreprise, triés par numéro. L'écran conserve toutefois la liste complète des tiers pour le rapprochement local.
 - Le coffre des clés IA est maintenant consommé par PythonAiService pour les appels de scan. Le scan prend le fournisseur et le modèle actifs, et transmet la clé chiffrée en base puis déchiffrée en mémoire au service Python via HTTPS.
-- Une clé Anthropic était codée en dur dans le dépôt Python. Le code de la branche dédiée a été remplacé par une lecture de `ANTHROPIC_API_KEY` depuis l'environnement ; cette correction ne révoque pas la clé déjà exposée dans l'historique Git. Révocation/rotation impérative avant déploiement.
+- Une clé Anthropic avait été inscrite dans un ancien commit Python. Elle a été révoquée par le propriétaire et n'est plus présente dans le code courant ; l'ancien commit reste dans l'historique Git.
 
 ## Constats analytiques initiaux
 - Six écrans / rapports identifiés : axes, sections, règles de ventilation, balance analytique, grand livre analytique et résultat analytique.
@@ -117,7 +117,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Clé Anthropic historique révoquée par le propriétaire ; le secret est absent du code courant. L'historique Git conserve le commit ancien, mais la clé n'est plus valide.
 - [x] Ajouter dans le Super Admin un écran de paramétrage des quotas Starter / Pro / Enterprise (factures par mois et par traitement groupé), désactivé par défaut.
 - [ ] Implémenter le compteur de consommation et l'application atomique des plafonds côté serveur avant d'activer réellement les quotas. Pour l'instant, aucun quota n'est appliqué.
-- [ ] Connecter le coffre Super Admin aux vrais secrets/fournisseurs du service Python ; aujourd'hui le coffre COMPTAFLOW et le moteur Python restent deux configurations distinctes.
+- [x] Connecter le coffre Super Admin au service Python : le fournisseur, le modèle et la clé active sont transmis via HTTPS à chaque analyse.
 - [ ] Vérifier les versions installées de `langchain-anthropic` et tester les blocs multimodaux image/PDF sur l'environnement cible.
 - [ ] Ajouter tests unitaires/API pour le schéma de réponse, les fichiers invalides, les erreurs 429/5xx et les accès multi-entreprises.
 - [ ] Tester avec de vraies factures anonymisées et comparer les écritures suggérées aux documents.
