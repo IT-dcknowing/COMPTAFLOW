@@ -835,10 +835,16 @@
                             <input type="checkbox" class="form-check-input row-has-tva" ${lineData.apply_tva && !isVatRow ? 'checked' : ''} ${isVatRow ? 'disabled' : ''}>
                         </td>
                         <td>
-                            <select class="form-select form-select-sm select2 row-tier">
-                                <option value="">Néant</option>
-                                ${TIERS_LIST.map(t => `<option value="${t.id}" ${t.id == matchedTierId ? 'selected' : ''}>[${t.numero_de_tiers}] ${t.intitule}</option>`).join('')}
-                            </select>
+                            <div class="input-group input-group-sm">
+                                <select class="form-select form-select-sm select2 row-tier">
+                                    <option value="">Néant</option>
+                                    ${TIERS_LIST.map(t => `<option value="${t.id}" ${t.id == matchedTierId ? 'selected' : ''}>[${t.numero_de_tiers}] ${t.intitule}</option>`).join('')}
+                                </select>
+                                <button type="button" class="btn btn-outline-primary" title="Créer un tiers"
+                                    onclick="window.currentTierSelect=this.parentElement.querySelector('.row-tier'); window.createQuickTier('${docId}')">
+                                    <i class="bx bx-plus"></i>
+                                </button>
+                            </div>
                         </td>
                         <td><input type="text" class="form-control form-control-sm row-lib" value="${lineData.intitule || identifiedTierName || ''}"></td>
                         <td><input type="number" class="form-control form-control-sm text-end row-debit" value="${cleanAmount(lineData.debit) || (lineData.type === 'DEBIT' ? cleanAmount(lineData.montant) : 0)}"></td>
@@ -1003,9 +1009,9 @@
             };
 
             window.createQuickTier = (docId) => {
-                const modalEl = document.getElementById('modalCenterCreateTier');
+                const modalEl = document.getElementById('createTiersModal');
                 if (!modalEl) return;
-                const modal = new bootstrap.Modal(modalEl);
+                const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
                 modal.show();
             };
 
@@ -1037,8 +1043,10 @@
                         };
                         TIERS_LIST.push(newTier);
                         document.querySelectorAll('.row-tier').forEach(sel => {
-                            const newOption = new Option(`[${res.numero_de_tiers}] ${res.intitule}`, res.id);
+                            const isCurrent = window.currentTierSelect === sel;
+                            const newOption = new Option(`[${res.numero_de_tiers}] ${res.intitule}`, res.id, isCurrent, isCurrent);
                             $(sel).append(newOption);
+                            if (isCurrent) $(sel).trigger('change');
                         });
                         const m = bootstrap.Modal.getInstance(document.getElementById('createTiersModal'));
                         if (m) m.hide();
