@@ -129,40 +129,29 @@
                         </div>
                         @endif
 
-                        <!-- KPI financiers : chiffres réels de l'exercice -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-5">
+                        {{-- Indicateurs de pilotage demandés : uniquement les cinq KPI utiles --}}
+                        <section aria-label="Indicateurs financiers de l'exercice" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 mb-8">
                             @foreach([
                                 ['Chiffre d’affaires', $turnover ?? 0, 'fa-chart-line', 'blue', 'Ventes comptabilisées · classe 70'],
-                                ['Charges comptabilisées', $totalExpenses ?? 0, 'fa-arrow-trend-down', 'rose', 'Charges comptabilisées · classe 6'],
-                                ['Trésorerie nette', $cashBalance ?? 0, 'fa-vault', 'indigo', 'Solde net des comptes de trésorerie'],
-                                ['Résultat comptable', $netResult ?? 0, 'fa-scale-balanced', 'emerald', 'Produits moins charges']
+                                ['Charges', $totalExpenses ?? 0, 'fa-arrow-trend-down', 'rose', 'Charges comptabilisées · classe 6'],
+                                ['Trésorerie nette', $cashBalance ?? 0, 'fa-vault', 'indigo', 'Solde des comptes de trésorerie · classe 5'],
+                                ['Masse salariale', $salaryExpenses ?? 0, 'fa-users', 'cyan', 'Charges de personnel · classe 66'],
+                                ['TVA collectée', $vatCollected ?? 0, 'fa-file-invoice-dollar', 'amber', 'TVA collectée · comptes 443']
                             ] as $kpi)
-                            <div class="glass-card p-5 border-l-4 border-l-{{ $kpi[3] }}-500">
+                            <article class="glass-card p-5 min-w-0">
                                 <div class="flex justify-between items-start gap-2">
-                                    <div><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ $kpi[0] }}</p>
-                                    <h3 class="text-2xl font-black text-slate-800 mt-2">{{ number_format($kpi[1], 0, ',', ' ') }} <span class="text-xs font-semibold text-slate-500">FCFA</span></h3></div>
-                                    <div class="p-3 bg-{{ $kpi[3] }}-50 text-{{ $kpi[3] }}-600 rounded-2xl"><i class="fas {{ $kpi[2] }} text-lg"></i></div>
-                                </div><p class="text-xs text-slate-500 mt-3 mb-0">{{ $kpi[4] }}</p>
-                            </div>
+                                    <div class="min-w-0">
+                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ $kpi[0] }}</p>
+                                        <h3 class="text-xl font-black text-slate-800 mt-2 break-words">{{ number_format($kpi[1], 0, ',', ' ') }} <span class="text-xs font-semibold text-slate-500">FCFA</span></h3>
+                                    </div>
+                                    <div class="shrink-0 p-3 bg-{{ $kpi[3] }}-50 text-{{ $kpi[3] }}-600 rounded-2xl">
+                                        <i class="fas {{ $kpi[2] }} text-lg"></i>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-3 mb-0">{{ $kpi[4] }}</p>
+                            </article>
                             @endforeach
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-                            @foreach([
-                                ['Masse salariale', $salaryExpenses ?? 0, 'fa-users', 'blue', 'Comptes de personnel · classe 66'],
-                                ['TVA collectée', $vatCollected ?? 0, 'fa-file-invoice-dollar', 'amber', 'Comptes 443 · crédit'],
-                                ['TVA déductible', $vatDeductible ?? 0, 'fa-receipt', 'cyan', 'Comptes 445 · débit'],
-                                ['TVA nette à reverser', $vatNetToPay ?? 0, 'fa-scale-balanced', 'violet', 'TVA collectée moins TVA déductible']
-                            ] as $kpi)
-                            <div class="glass-card p-5">
-                                <div class="flex justify-between items-start gap-2">
-                                    <div><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ $kpi[0] }}</p>
-                                    <h3 class="text-xl font-black text-slate-800 mt-2">{{ number_format($kpi[1], 0, ',', ' ') }} <span class="text-xs font-semibold text-slate-500">FCFA</span></h3></div>
-                                    <div class="p-3 bg-{{ $kpi[3] }}-50 text-{{ $kpi[3] }}-600 rounded-2xl"><i class="fas {{ $kpi[2] }} text-lg"></i></div>
-                                </div><p class="text-xs text-slate-500 mt-3 mb-0">{{ $kpi[4] }}</p>
-                            </div>
-                            @endforeach
-                        </div>
+                        </section>
 
                         <div class="glass-card p-4 mb-8 d-flex flex-wrap justify-content-between align-items-center gap-3">
                             <div><span class="text-xs text-slate-400 fw-bold text-uppercase">Structure des charges</span>
