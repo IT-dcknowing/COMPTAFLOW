@@ -1163,3 +1163,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Ancien sidebar (supprimé car doublon inutile) -->
 
+
+
+@if(isset($hiddenPageUris) && count($hiddenPageUris))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const hiddenPaths = @json($hiddenPageUris);
+    document.querySelectorAll('.sidebar-nav a[href]').forEach(function (link) {
+        try {
+            const path = new URL(link.href, window.location.origin).pathname.replace(/\\/$/, '');
+            if (hiddenPaths.includes(path)) link.style.display = 'none';
+        } catch (e) { /* lien non standard : on ne bloque pas le menu */ }
+    });
+});
+</script>
+@endif
