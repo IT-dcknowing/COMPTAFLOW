@@ -431,7 +431,12 @@
                 background: transparent;
             }
         }
-    </style>
+    
+:root{--brand-blue:#2458dc;--brand-yellow:#dbeafe;--bg-dark-gradient:radial-gradient(circle at 10% 20%,#18366f 0%,#101d3a 60%,#0b1429 100%)}
+.split-left-panel{background:var(--bg-dark-gradient)}.brand-icon{font-size:0!important;background:#fff!important;border:1px solid rgba(255,255,255,.3)!important;padding:5px!important;width:64px;height:64px;object-fit:contain}.brand-title{letter-spacing:-1px}.yellow-badge{background:#dbeafe;color:#1d4ed8;box-shadow:none}.login-card{border-radius:24px;box-shadow:0 24px 70px rgba(16,29,58,.09);border-color:#e4eaf4}.btn-submit-premium{background:#2458dc}.btn-submit-premium:hover{background:#183fba}.form-control:focus{border-color:#3978f6;box-shadow:0 0 0 4px rgba(36,88,220,.1)}
+@media(max-width:850px){.split-left-panel{width:38%;padding:2rem}.split-right-panel{width:62%;padding:1.5rem}.left-main-title{font-size:2rem}}
+@media(max-width:650px){.login-split-container{flex-direction:column}.split-left-panel{width:100%;min-height:245px;padding:28px 20px}.left-content{max-width:500px}.brand-logo-container{margin-bottom:1rem}.brand-icon{width:48px!important;height:48px!important}.left-main-title{font-size:1.6rem;margin-bottom:.6rem}.left-subtitle{font-size:.88rem}.yellow-badge{margin-bottom:.7rem}.split-right-panel{width:100%;padding:18px 14px 28px}.login-card{padding:1.5rem;max-width:520px}}
+</style>
     @include('components.echelle_affichage', ['echelle' => 0.8])
 </head>
 
@@ -454,7 +459,7 @@
         <div class="split-left-panel">
             <div class="left-content">
                 <div class="brand-logo-container">
-                    <i class="bx bx-cabinet brand-icon"></i>
+                    <img src="data:image/png;base64,{{ trim(file_get_contents(public_path('assets/img/comptaflow-logo.png.b64'))) }}" alt="Logo COMPTAFLOW" class="brand-icon" style="width:64px;height:64px;object-fit:contain;background:#fff;border-radius:16px;padding:5px;">
                     <span class="brand-title">Comptaflow</span>
                 </div>
                 <div class="yellow-badge">

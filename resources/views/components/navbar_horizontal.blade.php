@@ -19,6 +19,7 @@
     }
 
     .nav-h-brand {
+        min-width:52px!important;width:52px;margin-right:22px!important;flex:0 0 52px;
         display: flex;
         align-items: center;
         margin-right: 40px;
@@ -150,6 +151,10 @@
     .layout-page {
         transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out, max-width 0.3s ease-in-out !important;
     }
+    #sidebarToggleBtn { position:relative;z-index:1060;margin:0!important;flex:0 0 42px;width:42px!important;height:42px!important;box-shadow:0 3px 10px rgba(16,29,58,.08); }
+    #sidebarToggleBtn:focus-visible { outline:3px solid rgba(36,88,220,.35);outline-offset:3px; }
+    .navbar-horizontal { padding-left:18px!important;gap:0; }
+    .nav-h-links { align-items:center; }
     #sidebarToggleBtn:hover {
         background: #f1f5f9 !important;
         transform: scale(1.05);
@@ -159,8 +164,8 @@
 <div class="navbar-horizontal">
     <div class="nav-h-brand">
         <!-- Sidebar Toggle Button -->
-        <button id="sidebarToggleBtn" class="btn btn-icon btn-light rounded-circle me-3" style="border: 1px solid #e2e8f0; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; transition: all 0.2s;">
-            <i class="fa-solid fa-bars" id="sidebarToggleIcon"></i>
+        <button id="sidebarToggleBtn" type="button" class="btn btn-icon btn-light rounded-circle" aria-label="Fermer le menu latéral" aria-expanded="true" aria-controls="sidebar-navigation" title="Fermer ou ouvrir le menu" style="border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;background:white;transition:all .2s;">
+            <i class="fa-solid fa-bars" id="sidebarToggleIcon" aria-hidden="true"></i>
         </button>
 
     </div>
@@ -204,14 +209,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sidebar toggle logic
     const toggleBtn = document.getElementById('sidebarToggleBtn');
     const isSidebarCollapsed = localStorage.getItem('flowcompta_sidebar_collapsed') === 'true';
-    if (isSidebarCollapsed) {
-        document.body.classList.add('sidebar-collapsed');
-    }
+    const toggleIcon = document.getElementById('sidebarToggleIcon');
+    const syncSidebarToggle = () => {
+        const collapsed = document.body.classList.contains('sidebar-collapsed');
+        if (toggleBtn) {
+            toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+            toggleBtn.setAttribute('aria-label', collapsed ? 'Ouvrir le menu latéral' : 'Fermer le menu latéral');
+            toggleBtn.setAttribute('title', collapsed ? 'Ouvrir le menu' : 'Fermer le menu');
+        }
+        if (toggleIcon) {
+            toggleIcon.classList.toggle('fa-bars', collapsed);
+            toggleIcon.classList.toggle('fa-xmark', !collapsed);
+        }
+    };
+    if (isSidebarCollapsed) document.body.classList.add('sidebar-collapsed');
+    syncSidebarToggle();
     if (toggleBtn) {
         toggleBtn.addEventListener('click', function() {
             document.body.classList.toggle('sidebar-collapsed');
             const collapsed = document.body.classList.contains('sidebar-collapsed');
-            localStorage.setItem('flowcompta_sidebar_collapsed', collapsed);
+            localStorage.setItem('flowcompta_sidebar_collapsed', String(collapsed));
+            syncSidebarToggle();
         });
     }
 
