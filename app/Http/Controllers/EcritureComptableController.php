@@ -503,7 +503,7 @@ class EcritureComptableController extends Controller
 
             if ($request->plan_analytique || $request->input('plan_analytique')) {
                 $ventilations = $request->input('ventilations', []);
-                $validationError = $this->validateVentilations($ventilations);
+                $validationError = $this->validateVentilations($ventilations, $activeCompanyId);
                 if ($validationError) {
                     return response()->json([
                         'success' => false,
@@ -632,7 +632,6 @@ class EcritureComptableController extends Controller
     public function storeMultiple(Request $request)
     {
         \Illuminate\Support\Facades\Log::info('EcritureComptableController@storeMultiple called', [
-            'request' => $request->all(),
             'user_id' => auth()->id()
         ]);
         try {
@@ -757,7 +756,7 @@ class EcritureComptableController extends Controller
                         if (is_string($ventilations)) {
                             $ventilations = json_decode($ventilations, true) ?? [];
                         }
-                        $validationError = $this->validateVentilations($ventilations);
+                        $validationError = $this->validateVentilations($ventilations, $activeCompanyId);
                         if ($validationError) {
                             return response()->json([
                                 'success' => false,
@@ -1622,14 +1621,21 @@ class EcritureComptableController extends Controller
         }
     }
 
-    private function validateVentilations($ventilations)
+    private function validateVentilations($ventilations, $companyId)
     {
         if (empty($ventilations)) {
             return "L'écriture analytique doit comporter au moins une ventilation.";
         }
 
-        $sectionIds = collect($ventilations)->pluck('section_id')->all();
-        $sections = \App\Models\SectionAnalytique::whereIn('id', $sectionIds)->get()->keyBy('id');
+        if (!$companyId) {
+            return "Entreprise active introuvable pour valider les ventilations.";
+        }
+
+        $sectionIds = collect($ventilations)->pluck('section_id')->filter()->unique()->values()->all();
+        $sections = \App\Models\SectionAnalytique::where('company_id', $companyId)
+            ->whereIn('id', $sectionIds)
+            ->get()
+            ->keyBy('id');
 
         // Group ventilations by axis
         $groupedByAxe = [];
@@ -1649,7 +1655,7 @@ class EcritureComptableController extends Controller
         foreach ($groupedByAxe as $axeId => $percentages) {
             $sum = array_sum($percentages);
             if (abs($sum - 100) > 0.05) {
-                $axe = \App\Models\AxeAnalytique::find($axeId);
+                $axe = \App\Models\AxeAnalytique::where('company_id', $companyId)->find($axeId);
                 $axeName = $axe ? $axe->libelle : "inconnu";
                 return "Le total des pourcentages pour l'axe '{$axeName}' doit être égal à 100%. Actuellement : " . round($sum, 2) . "%.";
             }
