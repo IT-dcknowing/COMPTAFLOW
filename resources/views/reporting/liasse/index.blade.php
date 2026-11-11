@@ -22,13 +22,73 @@
         background-attachment: fixed;
     }
 
+    /* La liasse est une feuille de travail : elle doit utiliser toute la largeur disponible. */
+    .content-wrapper {
+        padding: .75rem !important;
+    }
+    .content-wrapper > .container-xxl {
+        width: 100% !important;
+        max-width: none !important;
+        padding-left: .5rem !important;
+        padding-right: .5rem !important;
+    }
     .liasse-container {
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 100px);
-        gap: 1.25rem;
+        width: 100%;
+        max-width: none;
+        height: calc(100vh - 150px);
+        min-height: 680px;
+        min-width: 0;
+        gap: 1rem;
         overflow: visible !important;
-        padding-bottom: 1rem;
+        padding-bottom: .5rem;
+    }
+    .excel-canvas {
+        min-width: 0;
+        min-height: 0;
+        width: 100%;
+    }
+    .canvas-body {
+        min-width: 0;
+        width: 100%;
+    }
+    #pageContent {
+        width: 100%;
+        min-width: 0;
+    }
+    #pageContent table {
+        width: 100% !important;
+        max-width: none !important;
+    }
+    @media (max-width: 991.98px) {
+        .liasse-container {
+            height: auto;
+            min-height: 75vh;
+        }
+        .toolbar-premium {
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
+        }
+        .toolbar-premium > div:first-child {
+            flex-wrap: wrap;
+            gap: .75rem;
+        }
+        .summary-pills {
+            margin-left: 0;
+            flex-wrap: wrap;
+        }
+        .excel-canvas {
+            min-height: 70vh;
+        }
+        .canvas-header {
+            flex-wrap: wrap;
+            gap: .75rem;
+        }
+        .canvas-header > div {
+            flex-wrap: wrap;
+        }
     }
 
     .toolbar-premium {
