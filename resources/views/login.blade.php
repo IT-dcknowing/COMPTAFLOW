@@ -436,6 +436,49 @@
 .split-left-panel{background:var(--bg-dark-gradient)}.brand-icon{font-size:0!important;background:#fff!important;border:1px solid rgba(255,255,255,.3)!important;padding:5px!important;width:64px;height:64px;object-fit:contain}.brand-title{letter-spacing:-1px}.yellow-badge{background:#dbeafe;color:#1d4ed8;box-shadow:none}.login-card{border-radius:24px;box-shadow:0 24px 70px rgba(16,29,58,.09);border-color:#e4eaf4}.btn-submit-premium{background:#2458dc}.btn-submit-premium:hover{background:#183fba}.form-control:focus{border-color:#3978f6;box-shadow:0 0 0 4px rgba(36,88,220,.1)}
 @media(max-width:850px){.split-left-panel{width:38%;padding:2rem}.split-right-panel{width:62%;padding:1.5rem}.left-main-title{font-size:2rem}}
 @media(max-width:650px){.login-split-container{flex-direction:column}.split-left-panel{width:100%;min-height:245px;padding:28px 20px}.left-content{max-width:500px}.brand-logo-container{margin-bottom:1rem}.brand-icon{width:48px!important;height:48px!important}.left-main-title{font-size:1.6rem;margin-bottom:.6rem}.left-subtitle{font-size:.88rem}.yellow-badge{margin-bottom:.7rem}.split-right-panel{width:100%;padding:18px 14px 28px}.login-card{padding:1.5rem;max-width:520px}}
+
+/* Identité COMPTAFLOW — connexion inspirée de l'expérience Selflow */
+:root{--brand-blue:#1554c8;--brand-yellow:#f5b916;--cf-navy:#061d49}
+.split-left-panel{width:50.5%;align-items:stretch;justify-content:space-between;padding:48px clamp(28px,4vw,64px);background:linear-gradient(145deg,#10459f 0%,#092e73 48%,#03183f 100%)}
+.split-left-panel:before{width:340px;height:340px;top:16%;left:22%;background:rgba(55,128,255,.28);filter:blur(95px)}
+.split-left-panel:after{width:340px;height:340px;bottom:4%;right:2%;background:rgba(0,8,35,.32);filter:blur(90px)}
+.left-content{width:100%;max-width:720px;height:100%;display:flex;flex-direction:column;text-align:left;justify-content:space-between}
+.login-hero-copy{position:relative;z-index:3;max-width:590px}
+.hero-kicker{display:inline-flex;align-items:center;gap:8px;color:#cfe0ff;font-size:.72rem;font-weight:800;letter-spacing:.14em;margin-bottom:18px}
+.left-main-title{font-size:clamp(2.1rem,3.3vw,3.15rem);line-height:1.08;letter-spacing:-1.4px;margin:0;color:#fff}
+.left-main-title em{font-style:italic;color:#fff}
+.left-subtitle{font-size:.95rem;color:#d5e3ff;max-width:490px;margin-top:12px}
+.comptaflow-3d-scene{position:relative;z-index:2;width:100%;max-width:600px;margin:-8px auto -10px;display:flex;align-items:center;justify-content:center}
+.cf-3d-art{display:block;width:min(100%,570px);height:auto;overflow:visible;filter:drop-shadow(0 20px 22px rgba(0,8,35,.2))}
+.scene-note{position:absolute;color:#f4f8ff;font-size:.65rem;font-weight:800;letter-spacing:.08em;display:flex;align-items:center;gap:9px}
+.scene-note-top{right:3%;top:5%}.scene-note-top span{width:34px;height:34px;border-top:2px dashed #fff;border-right:2px dashed #fff;border-radius:0 28px 0 0;transform:rotate(24deg)}
+.scene-note-bottom{left:0;bottom:1%}.scene-note-bottom span{width:34px;height:34px;border-left:2px dashed #fff;border-bottom:2px dashed #fff;border-radius:0 0 0 25px;transform:rotate(-10deg)}
+.login-hero-foot{position:relative;z-index:3;margin-top:12px}
+.login-hero-foot h2{font-family:'Outfit',sans-serif;font-size:1.7rem;font-weight:800;margin:0 0 4px;color:#fff}
+.login-hero-foot p{margin:0;color:#d5e3ff;font-size:.92rem}
+.split-right-panel{width:49.5%;padding:44px clamp(24px,4vw,68px);background-color:#f5f8fd;background-image:linear-gradient(rgba(28,79,156,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(28,79,156,.055) 1px,transparent 1px);background-size:40px 40px}
+.login-right-content{width:100%;max-width:480px;margin:auto}
+.login-brand-top{display:flex;align-items:center;justify-content:center;gap:11px;margin:0 auto 22px;color:#0a347d;text-decoration:none;font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:800;letter-spacing:.01em}
+.login-brand-top img{width:48px;height:48px;object-fit:contain;display:block;background:transparent;border:0;border-radius:0;padding:0;box-shadow:none}
+.login-brand-top:hover{color:#1554c8}
+.login-card{max-width:100%;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none}
+.login-back-row{display:flex;justify-content:flex-start;margin:0 0 22px}
+.login-back-link{display:inline-flex;align-items:center;gap:9px;padding:9px 14px;border-radius:10px;border:1px solid #d6e1f2;background:rgba(255,255,255,.82);color:#24436f;font-size:.82rem;font-weight:700;text-decoration:none;box-shadow:0 3px 10px rgba(18,47,92,.05);transition:all .2s ease}
+.login-back-link i{font-size:1.05rem}
+.login-back-link:hover{background:#fff;border-color:#9eb8e6;color:#1554c8;transform:translateX(-2px);box-shadow:0 7px 18px rgba(18,47,92,.1)}
+.card-header-title{font-size:clamp(1.8rem,2.5vw,2.15rem);color:#0b3478;margin-bottom:.45rem}
+.card-header-subtitle{color:#62748f;margin-bottom:1.6rem}
+.custom-tabs-container{background:#eaf0fa;border:1px solid #dce6f5;padding:4px;margin-bottom:1.5rem}
+.tab-btn.active{color:#0e3d91;box-shadow:0 3px 9px rgba(18,47,92,.1)}
+.form-label{color:#263d62}.form-control{background:rgba(255,255,255,.82);border-color:#bdcce2;min-height:46px}.form-control:focus{background:#fff;border-color:#1554c8}
+.btn-submit-premium{background:linear-gradient(100deg,#1554c8,#071f4d);border-radius:10px;min-height:48px;box-shadow:0 7px 18px rgba(21,84,200,.18)}
+.btn-submit-premium:hover{background:linear-gradient(100deg,#0d45ad,#06183e)}
+.btn-submit-premium-green{border-radius:10px;min-height:48px}
+.btn-google-premium{background:rgba(255,255,255,.9);border-color:#d3deee;min-height:46px}
+.auth-footer-text{margin-top:1.3rem}.customer-support{color:#496487}.legal-notice{margin-top:1.2rem;color:#71819a}
+@media(max-width:991px){.split-left-panel{display:flex;width:42%;padding:34px 26px}.split-right-panel{width:58%;padding:32px 26px}.left-main-title{font-size:2.1rem}.comptaflow-3d-scene{margin:8px auto}.login-hero-foot h2{font-size:1.35rem}}
+@media(max-width:700px){.login-split-container{flex-direction:column}.split-left-panel{width:100%;min-height:440px;padding:30px 24px}.left-content{min-height:380px}.left-main-title{font-size:2rem}.comptaflow-3d-scene{max-width:420px;margin:8px auto}.login-hero-foot h2{font-size:1.3rem}.split-right-panel{width:100%;padding:28px 20px 36px}.login-right-content{max-width:500px}.login-brand-top{margin-bottom:16px}.login-brand-top img{width:42px;height:42px}.login-card{padding:0}.login-back-row{margin-bottom:18px}}
+@media(max-width:420px){.split-left-panel{min-height:400px;padding:25px 18px}.left-content{min-height:350px}.left-main-title{font-size:1.75rem}.scene-note{font-size:.55rem}.split-right-panel{padding:24px 16px 30px}.card-header-title{font-size:1.7rem}}
 </style>
     @include('components.echelle_affichage', ['echelle' => 0.8])
 </head>
@@ -458,34 +501,69 @@
         <!-- Left Panel: Brand & Value Prop -->
         <div class="split-left-panel">
             <div class="left-content">
-                <div class="brand-logo-container">
-                    <img src="data:image/png;base64,{{ trim(file_get_contents(public_path('assets/img/comptaflow-logo.png.b64'))) }}" alt="Logo COMPTAFLOW" class="brand-icon" style="width:64px;height:64px;object-fit:contain;background:#fff;border-radius:16px;padding:5px;">
-                    <span class="brand-title">Comptaflow</span>
+                <div class="login-hero-copy">
+                    <span class="hero-kicker"><i class="bx bx-check-shield"></i> GESTION & PILOTAGE</span>
+                    <h1 class="left-main-title">Avec ComptaFlow,<br>pilotez vos finances<br><em>en toute clarté</em></h1>
+                    <p class="left-subtitle">Votre comptabilité, vos équipes et vos performances réunies dans un seul espace.</p>
                 </div>
-                <div class="yellow-badge">
-                    La gestion comptable simplifiée
+                <div class="comptaflow-3d-scene" role="img" aria-label="Illustration 3D du logo COMPTAFLOW sur deux tuiles bleues">
+                    <svg class="cf-3d-art" viewBox="0 0 640 470" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <defs>
+                            <linearGradient id="cf-tile-front" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4c91ff"/><stop offset=".48" stop-color="#1760d8"/><stop offset="1" stop-color="#07317e"/></linearGradient>
+                            <linearGradient id="cf-tile-side" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#164caa"/><stop offset="1" stop-color="#061e51"/></linearGradient>
+                            <linearGradient id="cf-tile-back" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#367ce7"/><stop offset="1" stop-color="#092d70"/></linearGradient>
+                            <linearGradient id="cf-white" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#dbe9ff"/></linearGradient>
+                            <filter id="cf-shadow" x="-40%" y="-40%" width="180%" height="190%"><feGaussianBlur stdDeviation="15"/></filter>
+                            <filter id="cf-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+                        </defs>
+                        <ellipse cx="330" cy="398" rx="235" ry="34" fill="#001b4b" opacity=".45" filter="url(#cf-shadow)"/>
+                        <g transform="translate(48 186) rotate(-13 128 120)">
+                            <rect x="0" y="17" width="250" height="225" rx="42" fill="#041b49" opacity=".55"/>
+                            <rect x="0" y="0" width="250" height="225" rx="42" fill="url(#cf-tile-back)" stroke="#6aa8ff" stroke-opacity=".45" stroke-width="3"/>
+                            <g transform="translate(54 66)" fill="url(#cf-white)">
+                                <rect width="34" height="34" rx="9"/><rect x="47" width="34" height="34" rx="9"/><rect x="94" width="34" height="34" rx="9"/>
+                                <rect y="48" width="34" height="34" rx="9"/><rect x="47" y="48" width="34" height="34" rx="9" fill="#ffbd16"/><rect x="94" y="48" width="34" height="34" rx="9"/>
+                            </g>
+                        </g>
+                        <g transform="translate(208 45) rotate(-12 190 190)">
+                            <rect x="0" y="26" width="386" height="386" rx="68" fill="#041b49" opacity=".62"/>
+                            <rect x="0" y="0" width="386" height="386" rx="68" fill="url(#cf-tile-front)" stroke="#8fc0ff" stroke-opacity=".72" stroke-width="4"/>
+                            <path d="M27 24 Q190 -5 350 24" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="5"/>
+                            <g transform="translate(66 76)" fill="none" stroke="url(#cf-white)" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M182 23a119 119 0 1 0 0 210" stroke-width="31"/>
+                                <path d="M193 44a93 93 0 1 0 0 168" stroke="#1760d8" stroke-width="13"/>
+                                <path d="M126 82v103m52-103v103" stroke-width="29"/>
+                                <path d="M235 81q35 44 0 88M259 57q55 67 0 136M282 34q76 91 0 182" stroke-width="16"/>
+                            </g>
+                            <path d="M40 340 Q190 382 343 335" fill="none" stroke="#001d57" stroke-opacity=".5" stroke-width="7"/>
+                        </g>
+                    </svg>
+                    <div class="scene-note scene-note-top">COMPTABILITÉ <span></span></div>
+                    <div class="scene-note scene-note-bottom"><span></span> PILOTAGE · ANALYTIQUE · GESTION</div>
                 </div>
-                <h1 class="left-main-title">
-                    Pilotez votre comptabilité avec précision
-                </h1>
-                <p class="left-subtitle">
-                    La plateforme moderne pour vos écritures comptables, journaux de saisie, déclarations de TVA et ventilations analytiques.
-                </p>
+                <div class="login-hero-foot">
+                    <h2>Vos chiffres, en perspective.</h2>
+                    <p>Une vision claire pour décider et avancer.</p>
+                </div>
             </div>
         </div>
 
         <!-- Right Panel: Auth Forms -->
         <div class="split-right-panel">
-            <div class="login-card">
-
+            <div class="login-right-content">
+                <a class="login-brand-top" href="{{ route('landing.index') }}">
+                    <img src="data:image/png;base64,{{ trim(file_get_contents(public_path('assets/img/comptaflow-logo.png.b64'))) }}" alt="Logo officiel COMPTAFLOW">
+                    <span>COMPTAFLOW</span>
+                </a>
+                <div class="login-card">
                 <!-- Bouton retour accueil -->
-                <div class="mb-4">
-                    <a href="{{ route('landing.index') }}" class="btn btn-sm btn-label-secondary rounded-pill">
-                        <i class="bx bx-arrow-back me-1"></i> Retour à l'accueil
+                <div class="login-back-row">
+                    <a href="{{ route('landing.index') }}" class="login-back-link">
+                        <i class="bx bx-arrow-back"></i><span>Retour à l'accueil</span>
                     </a>
                 </div>
 
-                <h2 class="card-header-title">Connexion</h2>
+                <h2 class="card-header-title">Heureux de vous revoir !</h2>
                 <p class="card-header-subtitle">Connectez-vous pour accéder à votre dashboard</p>
 
                 <!-- Tabs Controller (Kept Functional) -->
@@ -592,6 +670,7 @@
 
                 <div class="legal-notice">
                     En vous connectant, vous acceptez nos <a href="#" class="text-secondary text-decoration-underline">Conditions</a> et notre <a href="#" class="text-secondary text-decoration-underline">Politique de confidentialité</a>
+                </div>
                 </div>
             </div>
         </div>
