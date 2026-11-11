@@ -8,6 +8,6 @@
 <p>Notre équipe technique intervient actuellement afin de rétablir le service dans les meilleures conditions. Cette page sera de nouveau disponible très rapidement.</p>
 <div class="sorry">Nous sommes sincèrement désolés pour ce désagrément et vous remercions de votre compréhension.</div>
 <p><strong>Besoin d'assistance ?</strong><br>Contactez le support technique DC-KNOWING.</p>
-<div class="contacts"><a href="mailto:it.dcknowing@gmail.com">✉ it.dcknowing@gmail.com</a><a class="secondary" href="https://wa.me/225767131993" target="_blank" rel="noopener noreferrer">WhatsApp · 07 67 13 19 93</a></div>
+<div class="contacts"><a href="mailto:it.dcknowing@gmail.com">✉ it.dcknowing@gmail.com</a><a class="secondary" href="https://wa.me/2250767131993" target="_blank" rel="noopener noreferrer">WhatsApp · 07 67 13 19 93</a></div>
 <div class="small">Merci de votre confiance · DC-KNOWING</div>
 </main></body></html>
