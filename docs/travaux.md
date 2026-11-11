@@ -48,6 +48,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Première version du centre Super Admin (catalogue de routes par sections, règles globales/entreprise, gestion initiale des clés IA chiffrées).
 - [x] Protection serveur des routes masquées (règle entreprise prioritaire sur la règle globale, Super Admin exempté).
 - [x] Corriger l'affichage des notifications lorsque le compte expéditeur a été supprimé (relation nullable).
+- [x] Ajouter une page d'erreur 500 publique, sans détails techniques, avec e-mail du support et lien WhatsApp.
 - [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
 - [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
 - [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
