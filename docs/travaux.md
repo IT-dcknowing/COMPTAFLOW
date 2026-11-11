@@ -56,6 +56,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Masquer les exceptions techniques retournées par les endpoints d'enregistrement unitaire et groupé.
 - [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
 - [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
+- [x] Rédiger la proposition cible de refonte analytique dans \`docs/proposition-refonte-analytique.md\`.
 - [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
 
 ## Constats techniques de l'audit initial
@@ -67,6 +68,11 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - Le scan groupé enregistre les écritures dans une transaction, mais son ancienne réponse d'exception exposait le message technique : elle renvoie maintenant un message générique et journalise l'exception côté serveur.
 - Le scan unitaire filtre désormais les plans comptables et tiers par entreprise.
 - Le stockage des clés IA créé dans cette première version n'est pas encore consommé par `PythonAiService` ni raccordé à `VertexAiService`. L'écran prépare la gouvernance des clés, mais le routage effectif des appels par fournisseur/modèle reste à développer.
+
+## Constats analytiques initiaux
+- Six écrans / rapports identifiés : axes, sections, règles de ventilation, balance analytique, grand livre analytique et résultat analytique.
+- Les contrôleurs de création de sections et de règles utilisent certaines validations \`exists\` sans restriction explicite à l'entreprise active ; le contrôle tenant doit être renforcé.
+- Le service de reporting joint écritures et sections ; vérifier que les deux côtés de la jointure sont systématiquement limités à l'entreprise et à l'exercice avant de publier des KPI consolidés.
 
 ## Décisions / éléments à confirmer pendant l'audit
 - Inventaire exact des sections et pages à partir des routes et des menus (ne pas se limiter aux exemples).
