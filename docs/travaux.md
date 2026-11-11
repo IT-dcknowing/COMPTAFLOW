@@ -60,6 +60,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Rédiger la proposition cible de refonte analytique dans \`docs/proposition-refonte-analytique.md\`.
 - [x] Recomposer le dashboard Performance avec CA classe 70, charges classe 6, trésorerie nette classe 5, résultat, masse salariale classe 66, TVA collectée 443 et TVA déductible 445 ; supprimer le tableau des dernières écritures et corriger les libellés des postes de charges.
 - [x] Retirer les quatre KPI de \`/dashboard-compta\` et conserver un bandeau de contexte de l'exercice actif.
+- [x] Renforcer les validations tenant des axes/sections/règles analytiques et filtrer les rapports analytiques sur entreprise pour les écritures et comptes.
 - [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
 
 ## Constats techniques de l'audit initial
@@ -74,7 +75,8 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 
 ## Constats analytiques initiaux
 - Six écrans / rapports identifiés : axes, sections, règles de ventilation, balance analytique, grand livre analytique et résultat analytique.
-- Les contrôleurs de création de sections et de règles utilisent certaines validations \`exists\` sans restriction explicite à l'entreprise active ; le contrôle tenant doit être renforcé.
+- Les contrôleurs de création/modification de sections et de règles utilisaient certaines validations \`exists\` sans restriction explicite à l'entreprise active ; les contrôles tenant ont été ajoutés sur axes, sections, comptes et sections de ventilation.
+- Les rapports balance et résultat analytiques ne filtraient pas explicitement les écritures et comptes par entreprise dans leurs jointures ; les filtres tenant ont été ajoutés.
 - Le service de reporting joint écritures et sections ; vérifier que les deux côtés de la jointure sont systématiquement limités à l'entreprise et à l'exercice avant de publier des KPI consolidés.
 
 ## Décisions / éléments à confirmer pendant l'audit
