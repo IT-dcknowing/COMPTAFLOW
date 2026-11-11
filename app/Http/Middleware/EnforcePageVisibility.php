@@ -37,6 +37,19 @@ class EnforcePageVisibility
             abort(404);
         }
 
+        // Les liens des sidebars sont masqués eux aussi (en complément du contrôle serveur).
+        $globalHidden = SuperAdminPageRule::whereNull('company_id')->where('is_visible', false)->get()->keyBy('route_name');
+        $companyRules = $companyId
+            ? SuperAdminPageRule::where('company_id', $companyId)->get()->keyBy('route_name')
+            : collect();
+        $hiddenNames = $globalHidden->keys()->diff($companyRules->filter(fn ($r) => $r->is_visible)->keys())
+            ->merge($companyRules->filter(fn ($r) => !$r->is_visible)->keys())->unique();
+
+        $hiddenUris = $hiddenNames->map(fn ($name) => Route::getRoutes()->getByName($name)?->uri())
+            ->filter(fn ($uri) => $uri && !str_contains($uri, '{'))
+            ->map(fn ($uri) => '/'.ltrim($uri, '/'))->values()->all();
+        View::share('hiddenPageUris', $hiddenUris);
+
         return $next($request);
     }
 }
