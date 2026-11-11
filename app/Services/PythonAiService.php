@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Models\AiProviderCredential;
 
 class PythonAiService
 {
@@ -49,8 +50,27 @@ class PythonAiService
      */
     public function analyzeInvoice($file, ?string $prompt = null)
     {
+        $credential = AiProviderCredential::where('is_active', true)
+            ->orderByDesc('updated_at')
+            ->first();
+
+        if (!$credential) {
+            return [
+                'success' => false,
+                'error_type' => 'api_not_configured',
+                'error' => "Aucune clé API IA active. Le Super Administrateur doit configurer un fournisseur dans le coffre-fort IA.",
+                'http_code' => 503,
+            ];
+        }
+
         try {
-            $response = Http::timeout(120)
+            $response = Http::timeout(180)
+                ->withHeaders([
+                    'X-AI-Provider' => $credential->provider,
+                    'X-AI-Model' => $credential->model,
+                    'X-AI-API-Key' => $credential->api_key,
+                    'Accept' => 'application/json',
+                ])
                 ->attach(
                     'fichier',
                     file_get_contents($file->getRealPath()),
@@ -62,29 +82,53 @@ class PythonAiService
                 ], fn ($value) => $value !== null && $value !== ''));
 
             if ($response->failed()) {
-                Log::error("Python AI Facture Error: " . $response->body());
+                $body = $response->json() ?? [];
+                $detail = $body['detail'] ?? [];
+                $upstreamCode = is_array($detail) ? ($detail['code'] ?? null) : null;
+                $message = is_array($detail) ? ($detail['message'] ?? null) : (is_string($detail) ? $detail : null);
+                $status = $response->status();
+
+                $errorType = match ($upstreamCode) {
+                    'AI_QUOTA_EXCEEDED' => 'api_quota',
+                    'AI_API_KEY_INVALID' => 'api_key',
+                    'AI_API_NOT_CONFIGURED' => 'api_not_configured',
+                    'AI_PROVIDER_UNSUPPORTED' => 'api_provider',
+                    'DOCUMENT_UNREADABLE' => 'document_unreadable',
+                    default => $status === 429 ? 'api_quota' : ($status === 422 ? 'document_unreadable' : 'api_unavailable'),
+                };
+
+                Log::warning('Python AI invoice request failed', [
+                    'provider' => $credential->provider,
+                    'model' => $credential->model,
+                    'http_status' => $status,
+                    'error_type' => $errorType,
+                ]);
+
                 return [
                     'success' => false,
-                    'error' => "Le service d'analyse a refusé la demande.",
-                    'http_code' => $response->status(),
+                    'error_type' => $errorType,
+                    'error' => $message ?: "Le fournisseur IA n'a pas pu analyser ce document.",
+                    'http_code' => $status,
                 ];
             }
 
             return ['success' => true, 'data' => $response->json()];
 
-        } catch (\Exception $e) {
-            Log::error("Python AI Facture Exception: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error("Python AI Facture Exception", [
+                'provider' => $credential->provider,
+                'model' => $credential->model,
+                'exception' => $e->getMessage(),
+            ]);
             return [
                 'success' => false,
-                'error' => "Le service d'analyse est momentanément indisponible.",
+                'error_type' => 'api_unavailable',
+                'error' => "Le service d'analyse est momentanément indisponible. Vérifiez la connexion au serveur IA.",
                 'http_code' => 503,
             ];
         }
     }
 
-    /**
-     * Calcule la paie via l'agent RH.
-     */
     public function calculatePayroll(array $data)
     {
         try {
