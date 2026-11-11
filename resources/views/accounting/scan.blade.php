@@ -768,8 +768,10 @@
 
                             return responseData;
                         } catch (e) {
-                            if (e.message === "SERVICE_SUPPORT" || e.message.includes('503') || e.message.includes('429') || e.message.toLowerCase().includes('quota')) {
-                                throw new Error("Le service de traitement intelligent rencontre actuellement une difficulté. Nous vous prions de contacter le support technique DC-KNOWING pour obtenir de l'assistance. Nous sommes désolés pour ce désagrément.");
+                            if (e.message === "SERVICE_SUPPORT" || e.message.includes('503') || e.message.includes('429') || e.message.toLowerCase().includes('quota') || e.message === 'Failed to fetch') {
+                                const supportError = new Error("Le service de traitement intelligent rencontre actuellement une difficulté. Nous vous prions de contacter le support technique DC-KNOWING pour obtenir de l'assistance. Nous sommes désolés pour ce désagrément.");
+                                supportError.isSupportError = true;
+                                throw supportError;
                             }
                             throw e;
                         }
@@ -812,7 +814,8 @@
 
                     renderTable(result);
                 } catch (e) {
-                    if (window.Swal) await Swal.fire({icon:'warning',title:'Analyse non aboutie',html:'<div class="text-start"><p>'+e.message+'</p><p class="mb-1"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a></p><p><a href="https://wa.me/2250767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></p></div>',confirmButtonText:'Compris',confirmButtonColor:'#2456bd'});
+                    const contactHtml = e.isSupportError ? '<p class="mb-1"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a></p><p><a href="https://wa.me/2250767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></p>' : '';
+                    if (window.Swal) await Swal.fire({icon:'warning',title:'Analyse non aboutie',html:'<div class="text-start"><p>'+e.message+'</p>'+contactHtml+'</div>',confirmButtonText:'Compris',confirmButtonColor:'#2456bd'});
                     else alert(e.message);
                     resetUI();
                 } finally { 
