@@ -26,7 +26,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 | P1 | Reporting résultat | Présentation financière soignée type feuille Excel, totaux, sections, comparatifs, export | À auditer |
 | P1 | Notifications | Corriger la relation expéditeur nullable et toute autre donnée orpheline ; écran de maintenance propre en cas d'indisponibilité ; contact support et lien WhatsApp | À corriger |
 | P2 | Rapprochement bancaire | Refonte UI sans présumer que le workflow métier est terminé ; distinguer clairement étapes disponibles/en cours | À auditer |
-| P1 | Liasses SN et SMT | Diagnostiquer CSS/conteneur/zoom/tableau qui réduit la feuille ; rétablir une feuille pleine largeur/écran et vérifier responsive | À auditer |
+| P1 | Liasses SN et SMT | Rétablir une feuille pleine largeur/écran et vérifier responsive | Conteneur et feuille AJAX forcés en pleine largeur ; ajustements responsive intégrés ; validation navigateur restante |
 
 ## Règles techniques et de sécurité
 
