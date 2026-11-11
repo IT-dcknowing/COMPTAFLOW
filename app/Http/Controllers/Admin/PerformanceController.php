@@ -99,6 +99,13 @@ class PerformanceController extends Controller
 
         $netResult = $totalRevenue - $totalExpenses;
 
+        // Le chiffre d'affaires est isolé des autres produits de la classe 7.
+        $turnover = EcritureComptable::where('company_id', $companyId)
+            ->where('statut', 'approved')
+            ->when($exerciceId, fn ($query) => $query->where('exercices_comptables_id', $exerciceId))
+            ->whereHas('planComptable', fn ($query) => $query->where('numero_de_compte', 'like', '70%'))
+            ->sum('credit');
+
         // KPI de pilotage supplémentaires selon le plan SYSCOHADA.
         $salaryExpenses = EcritureComptable::where('company_id', $companyId)
             ->where('statut', 'approved')
@@ -119,7 +126,7 @@ class PerformanceController extends Controller
             ->sum('debit');
 
         $vatNetToPay = $vatCollected - $vatDeductible;
-        $expenseRatio = $totalRevenue > 0 ? round(($totalExpenses / $totalRevenue) * 100, 1) : null;
+        $expenseRatio = $turnover > 0 ? round(($totalExpenses / $turnover) * 100, 1) : null;
 
         // KPI 4: Écritures du mois (Global)
         $monthlyEntries = EcritureComptable::where('company_id', $companyId)
@@ -191,6 +198,7 @@ class PerformanceController extends Controller
 
         return [
             'totalRevenue' => $totalRevenue,
+            'turnover' => $turnover,
             'totalExpenses' => $totalExpenses,
             'netResult' => $netResult,
             'monthlyEntries' => $monthlyEntries,
