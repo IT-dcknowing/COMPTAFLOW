@@ -121,6 +121,12 @@
     .container-p-y, .content-wrapper, .layout-page {
         overflow: visible !important;
     }
+    .bulk-scan-hero{background:#fff;border:1px solid #e5ebf4;border-radius:20px;box-shadow:0 6px 20px rgba(20,48,90,.045)}
+    .bulk-scan-hero .hero-kicker{font-size:.72rem;letter-spacing:.08em;font-weight:800;color:#2456bd}
+    .queue-item{border-radius:12px}
+    .document-card{border-radius:16px!important;overflow:hidden;box-shadow:0 5px 18px rgba(20,48,90,.045)}
+    .scan-support-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .scan-support-actions a{font-weight:700;text-decoration:none}
 </style>
 
 <body>
@@ -136,10 +142,11 @@
                         <!-- Header -->
                         <div class="row mb-4">
                             <div class="col-12">
-                                <div class="d-flex align-items-center justify-content-between bg-white p-4 rounded-3 shadow-sm" style="overflow: visible !important;">
+                                <div class="bulk-scan-hero d-flex flex-wrap align-items-center justify-content-between gap-3 p-4" style="overflow: visible !important;">
                                     <div>
+                                        <div class="hero-kicker mb-2">TRAITEMENT MULTIDOCUMENT</div>
                                         <h4 class="mb-1 fw-bold text-dark"><i class="fa-solid fa-copy me-2 text-primary"></i>Centre de Scan Groupé</h4>
-                                        <p class="text-muted mb-0">Importez plusieurs factures (Photos ou PDF) et laissez l'IA générer les écritures pour vous.</p>
+                                        <p class="text-muted mb-0">Importez plusieurs factures, contrôlez chaque proposition et choisissez celles à enregistrer.</p>
                                     </div>
                                     <div class="d-flex gap-2">
                                         <button class="btn btn-outline-secondary" id="btnReset">
@@ -486,7 +493,9 @@
 
                     const data = await response.json();
                     if (!response.ok) {
-                        throw new Error(data.error || "Erreur serveur: " + response.status);
+                        const error = new Error(data.error || "Le document n'a pas pu être traité.");
+                        error.scanErrorType = data.error_type || 'unknown';
+                        throw error;
                     }
                     if (data.success) {
                         item.data = data.data;
@@ -501,14 +510,19 @@
                     }
                 } catch (error) {
                     console.error("Process Error:", error);
-                    item.errorMessage = error.message || "Le serveur n'a pas pu analyser ce document.";
+                    item.errorType = error.scanErrorType || 'unknown';
+                    const supportFailure = ['api_quota','api_key','api_not_configured','api_provider','api_transport_security','api_unavailable'].includes(item.errorType)
+                        || error.message.includes('429') || error.message.includes('503') || error.message.toLowerCase().includes('quota');
+                    item.errorMessage = supportFailure
+                        ? "Le service de traitement intelligent rencontre actuellement une difficulté. Nous vous prions de contacter le support technique DC-KNOWING pour obtenir de l'assistance. Nous sommes désolés pour ce désagrément."
+                        : (item.errorType === 'exercise_mismatch'
+                            ? (error.message || "Cette facture ne correspond pas à l'exercice sélectionné. Changez d'exercice puis relancez le scan.")
+                            : item.errorType === 'not_invoice'
+                                ? "Ce document ne semble pas être une facture. Aucune écriture ne sera créée."
+                                : item.errorType === 'document_unreadable'
+                                    ? "Le document est illisible. Importez un scan plus net ou le PDF original."
+                                    : (error.message || "Le serveur n'a pas pu analyser ce document."));
                     let errMsg = item.errorMessage;
-                    
-                    if (error.message.includes('429')) {
-                        errMsg = 'Quota atteint (attente...)';
-                        queueEl.querySelector('.status-icon').innerHTML = '<i class="bx bx-timer text-warning fs-4"></i>';
-                        // Les tentatives avec temporisation sont déjà effectuées ci-dessus.
-                    }
 
                     item.status = 'error';
                     queueEl.classList.replace('processing', 'error');
@@ -570,7 +584,9 @@
                             <button class="btn btn-sm btn-light text-danger" onclick="window.removeDocument('${docId}')"><i class="bx bx-trash"></i></button>
                         </div>
                         <div class="card-body">
-                            <div class="alert alert-danger mb-0 small"><strong>Échec du scan :</strong> <span class="scan-error-message"></span></div>
+                            <div class="alert alert-danger mb-0 small"><strong>Échec du scan :</strong> <span class="scan-error-message"></span>
+                                <div class="scan-support-actions"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a><a href="https://wa.me/225767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></div>
+                            </div>
                         </div>
                     `;
                     const messageNode = card.querySelector('.scan-error-message');
