@@ -61,11 +61,11 @@ class SectionAnalytiqueController extends Controller
 
     public function update(Request $request, $id)
     {
-        $section = SectionAnalytique::where('company_id', $companyId)->findOrFail($id);
         $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
+        $section = SectionAnalytique::where('company_id', $companyId)->findOrFail($id);
 
         $request->validate([
-            'axe_id' => 'required|exists:axes_analytiques,id',
+            'axe_id' => ['required', Rule::exists('axes_analytiques', 'id')->where('company_id', $companyId)],
             'code' => 'required|string|max:20',
             'libelle' => 'required|string|max:255'
         ]);
