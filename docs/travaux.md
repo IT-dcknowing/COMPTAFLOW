@@ -49,9 +49,20 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Protection serveur des routes masquées (règle entreprise prioritaire sur la règle globale, Super Admin exempté).
 - [x] Corriger l'affichage des notifications lorsque le compte expéditeur a été supprimé (relation nullable).
 - [x] Ajouter une page d'erreur 500 publique, sans détails techniques, avec e-mail du support et lien WhatsApp.
+- [x] Premier audit des deux contrôleurs d'affichage du scan et du traitement IA.
+- [x] Corriger un défaut de cloisonnement : le scan unitaire chargeait les plans comptables et tiers sans filtre d'entreprise ; filtres tenant ajoutés.
+- [x] Supprimer l'exposition des chemins et lignes PHP dans les erreurs JSON du traitement IA.
 - [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
 - [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
 - [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
+
+## Constats techniques de l'audit initial
+- Le scan unitaire `/ecriture-scan` et le scan groupé `/bulk-scan` utilisent deux vues distinctes : `accounting.scan` et `accounting.bulk_scan`.
+- Les deux écrans sont servis par `EcritureComptableController`; le traitement IA passe par `IaController::traiterFacture` et `PythonAiService::analyzeInvoice`.
+- Dans `IaController`, le contexte du plan comptable, des tiers et des mappings est construit, et un prompt est généré, mais cet ensemble n'est pas transmis à `PythonAiService::analyzeInvoice` : ce service n'envoie actuellement que le fichier au service Python distant. Il faut confirmer le contrat de l'API distante avant de corriger ce point.
+- Aucune vérification explicite du forfait/quotas de scan n'apparaît dans la méthode Laravel `traiterFacture` ni dans les routes IA consultées. Le respect des tiers ne peut donc pas être certifié sans audit du service Python et du système d'abonnement ; c'est un point bloquant à vérifier avant de déclarer le scan conforme.
+- Le scan groupé filtre les plans comptables et tiers par entreprise ; le scan unitaire ne le faisait pas. Le filtrage tenant a été ajouté à ce dernier.
+- Le stockage des clés IA créé dans cette première version n'est pas encore consommé par `PythonAiService` ni raccordé à `VertexAiService`. L'écran prépare la gouvernance des clés, mais le routage effectif des appels par fournisseur/modèle reste à développer.
 
 ## Décisions / éléments à confirmer pendant l'audit
 - Inventaire exact des sections et pages à partir des routes et des menus (ne pas se limiter aux exemples).
