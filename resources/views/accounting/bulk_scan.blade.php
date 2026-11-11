@@ -725,15 +725,16 @@
                 
                 // --- ROBUST SUPPLIER LOOKUP ---
                 let supplierAccId = '';
-                const supplierName = (data.fournisseur || "").toUpperCase().trim();
-                const tier = TIERS_LIST.find(t => t.intitule.toUpperCase().includes(supplierName));
+                const supplierName = (data.tiers || data.fournisseur || "").toUpperCase().trim();
+                const tier = supplierName
+                    ? TIERS_LIST.find(t => (t.intitule || "").toUpperCase().includes(supplierName))
+                    : null;
                 if (tier) {
-                    // Try to find the associated general account (usually account 40xxx)
-                    const genAcc = GEN_ACCOUNTS.find(a => a.id == tier.compte_collectif_id);
+                    // PlanTiers.compte_general contient l'identifiant du compte collectif.
+                    const genAcc = GEN_ACCOUNTS.find(a => a.id == tier.compte_general);
                     if (genAcc) supplierAccId = genAcc.id;
-                    else supplierAccId = window.findBestAccount(tier.compte_collectif_num, 'FOURNISSEUR');
                 } else {
-                    supplierAccId = window.findBestAccount(data.fournisseur, 'FOURNISSEUR') || '';
+                    supplierAccId = window.findBestAccount(supplierName, 'FOURNISSEUR') || '';
                 }
 
                 // --- AUTO BALANCE CHARGE ---
@@ -824,7 +825,7 @@
                         <td>
                             <select class="form-select form-select-sm select2 row-tier">
                                 <option value="">Néant</option>
-                                ${TIERS_LIST.map(t => `<option value="${t.id}" ${t.id == matchedTierId ? 'selected' : ''}>[${t.compte_collectif_num}] ${t.intitule}</option>`).join('')}
+                                ${TIERS_LIST.map(t => `<option value="${t.id}" ${t.id == matchedTierId ? 'selected' : ''}>[${t.numero_de_tiers}] ${t.intitule}</option>`).join('')}
                             </select>
                         </td>
                         <td><input type="text" class="form-control form-control-sm row-lib" value="${lineData.intitule || identifiedTierName || ''}"></td>
