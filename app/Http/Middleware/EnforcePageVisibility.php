@@ -23,7 +23,7 @@ class EnforcePageVisibility
             return $next($request);
         }
 
-        if (!Schema::hasTable('superadmin_page_rules')) {
+        if (!Schema::hasTable('super_admin_page_rules')) {
             return $next($request);
         }
 
