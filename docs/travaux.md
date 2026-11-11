@@ -13,10 +13,10 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 
 | Priorité | Groupe / périmètre | Travaux prévus | État |
 |---|---|---|---|
-| P0 | Super Admin — visibilité des pages | Inventaire des routes/pages par section ; masquage global ou par entreprise ; activation/désactivation ; motif/commentaire ; contrôle serveur des accès et navigation cohérente | À faire |
-| P0 | Super Admin — clés API IA | Fournisseurs/maisons, modèles, clés chiffrées, activation, clé par fournisseur/modèle, test de connexion, permissions et journalisation | À faire |
-| P0 | Scan groupé `/bulk-scan` | Audit UI + contrôleur + services IA/OCR + tiers + écritures créées + règles d'exercice + paramétrage fournisseur/modèle ; refonte visuelle | Audit technique réalisé ; correctifs tenant et rapprochement tiers appliqués ; quotas et refonte UI restants |
-| P0 | Scan unitaire `/ecriture-scan` | Comparaison avec le scan groupé ; cohérence métier et UX ; conservation du parcours une facture | Audit technique réalisé ; transmission du prompt corrigée ; quotas et refonte UI restants |
+| P0 | Super Admin — visibilité des pages | Catalogue filtrable par section ; masquage global ou sur plusieurs entreprises ; exceptions visibles et supprimables ; contrôle serveur des accès | Interface et règles enregistrées sur la branche ; tests de déploiement restants |
+| P0 | Super Admin — clés API IA | Fournisseurs/maisons, modèles, clés chiffrées, activation, test de connexion et journalisation sans exposer les secrets | Interface, coffre chiffré et bouton de test ajoutés ; clé propriétaire et test réel restants |
+| P0 | Scan groupé `/bulk-scan` | Audit métier, contrôles tenant/exercice, erreurs explicites et refonte claire du parcours | Audit et correctifs serveur réalisés ; interface harmonisée et support intégré ; validation réelle des documents restante |
+| P0 | Scan unitaire `/ecriture-scan` | Parcours une facture, contrôle avant validation, erreurs explicites et interface harmonisée | Audit, contrôles exercice et interface harmonisée ; validation réelle des documents restante |
 | P1 | Analytique `/analytique` | Refonte axes, sections, ventilations, rapports ; centres de coûts, marges, répartitions, écarts et indicateurs analytiques | À auditer |
 | P1 | Administration `/admin` | Inventaire complet des pages et navigation ; cohérence et regroupement | À auditer |
 | P1 | Informations entreprise | Repenser la disposition et les groupes de champs de `/compagny_information` | À auditer |
@@ -60,8 +60,8 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Transmettre le prompt métier de Laravel au service Python et préserver le statut HTTP 429 du fournisseur.
 - [x] Ajouter le contrôle entreprise lors de la résolution de l'exercice sur l'affichage et le chargement AJAX des liasses SN/SMT.
 - [x] Masquer les exceptions techniques retournées par les endpoints d'enregistrement unitaire et groupé.
-- [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
-- [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
+- [x] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
+- [x] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA, avec test de connexion fournisseur.
 - [x] Rédiger la proposition cible de refonte analytique dans \`docs/proposition-refonte-analytique.md\`.
 - [x] Recomposer le dashboard Performance avec CA classe 70, charges classe 6, trésorerie nette classe 5, résultat, masse salariale classe 66, TVA collectée 443 et TVA déductible 445 ; supprimer le tableau des dernières écritures et corriger les libellés des postes de charges.
 - [x] Retirer les quatre KPI de \`/dashboard-compta\` et conserver un bandeau de contexte de l'exercice actif.
@@ -79,6 +79,18 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - Le prompt IA reçoit désormais jusqu'à 500 tiers de l'entreprise, triés par numéro. L'écran conserve toutefois la liste complète des tiers pour le rapprochement local.
 - Le coffre des clés IA est maintenant consommé par PythonAiService pour les appels de scan. Le scan prend le fournisseur et le modèle actifs, et transmet la clé chiffrée en base puis déchiffrée en mémoire au service Python via HTTPS.
 - Une clé Anthropic avait été inscrite dans un ancien commit Python. Elle a été révoquée par le propriétaire et n'est plus présente dans le code courant ; l'ancien commit reste dans l'historique Git.
+
+## Livraison interface Super Admin et SCAN — 11 novembre 2026
+- [x] Centre Super Admin visible dans la navigation système, avec onglets pages, fournisseurs IA et quotas.
+- [x] Catalogue de pages par sections avec recherche, règle générale et sélection multiple d'entreprises.
+- [x] Exceptions par entreprise affichées et supprimables individuellement ; règle entreprise prioritaire sur la règle globale.
+- [x] Formulaire fournisseur avec Google Gemini prérempli, modèle Gemini 2.5 Flash-Lite, stockage chiffré Laravel et activation exclusive.
+- [x] Bouton de test de connexion par fournisseur, avec retour utilisateur sans exposer la clé ni les détails internes.
+- [x] Interface des quotas Starter / Pro / Enterprise préparée, désactivée par défaut comme demandé ; aucun quota n'est appliqué.
+- [x] Refonte claire du scan unitaire et du scan groupé ; distinction des factures non conformes, documents illisibles et exercices incompatibles.
+- [x] Erreurs de quota/configuration API remplacées par une orientation vers le support technique DC-KNOWING : it.dcknowing@gmail.com et WhatsApp 07 67 13 19 93.
+- [ ] Rendu visuel navigateur, tests PHP/Laravel, tests d'intégration Python et validation de vrais documents à exécuter après installation des dépendances et migrations.
+- [ ] Fusionner les PR dans main après passage des vérifications ; aucun déploiement de production effectué.
 
 ## Constats analytiques initiaux
 - Six écrans / rapports identifiés : axes, sections, règles de ventilation, balance analytique, grand livre analytique et résultat analytique.
@@ -123,7 +135,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [ ] Tester avec de vraies factures anonymisées et comparer les écritures suggérées aux documents.
 - [ ] Refaire les interfaces SCAN après validation fonctionnelle.
 
-**Statut sécurité :** aucune branche SCAN n'est fusionnée ni déployée. La clé doit être révoquée avant toute mise en service de la version corrigée.
+**Statut sécurité :** la clé exposée a été révoquée par le propriétaire ; elle n'est plus présente dans le code courant. L'ancien commit reste dans l'historique Git. Les corrections actuelles ne sont ni fusionnées ni déployées.
 
 
 ## Compléments demandés — fournisseur API, erreurs et exercice (11 novembre 2026)
@@ -151,10 +163,10 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - Le niveau gratuit de Google peut utiliser les prompts et fichiers soumis pour améliorer ses produits et permettre une revue humaine. Utiliser uniquement des factures fictives ou anonymisées pour les essais gratuits.
 
 ### Restant avant déploiement
-- [ ] Créer la clé Google AI Studio du propriétaire et l'enregistrer dans le Super Admin.
+- [ ] Créer la clé Google AI Studio du propriétaire et l'enregistrer dans le Super Admin (action nécessitant le compte Google du propriétaire).
 - [ ] Installer requirements-ai.txt dans l'environnement Python (notamment google-genai) puis redémarrer le service.
-- [ ] Exécuter les migrations COMPTAFLOW.
-- [ ] Tester des factures PDF et images réelles anonymisées, un document non-facture, un scan illisible, une clé invalide et un quota épuisé.
+- [ ] Exécuter les migrations COMPTAFLOW sur un environnement de test puis en production après validation.
+- [ ] Tester des factures PDF et images anonymisées, un document non-facture, un scan illisible, une clé invalide et un quota épuisé.
 - [ ] Vérifier les erreurs 401/403/429 et la communication HTTPS en environnement cible.
 - [ ] Implémenter le compteur de quotas et la limitation serveur avant d'activer l'interrupteur des quotas.
-- [ ] Refaire les interfaces SCAN après validation du fonctionnement.
+- [x] Refaire les interfaces SCAN unitaire et groupé dans la charte claire COMPTAFLOW, avec messages adaptés et contacts du support.
