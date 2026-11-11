@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\SectionAnalytique;
 use App\Models\AxeAnalytique;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\Rule;
 
 class SectionAnalytiqueController extends Controller
 {
