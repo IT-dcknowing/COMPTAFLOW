@@ -112,6 +112,17 @@ class SuperAdminPageControlController extends Controller
         return back()->with('success', 'Statut de la configuration IA mis à jour.');
     }
 
+
+    public function testCredential(AiProviderCredential $credential)
+    {
+        if (!app()->environment('local', 'testing') && !str_starts_with(config('services.python_ai.url', 'https://dc-knowing.com/agent'), 'https://')) {
+            return response()->json(['success' => false, 'message' => 'Le service de test est temporairement indisponible. Contactez le support technique DC-KNOWING.'], 503);
+        }
+
+        $result = app(\\App\\Services\\PythonAiService::class)->testCredential($credential);
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
     public function saveScanSettings(Request $request)
     {
         $data = $request->validate([
