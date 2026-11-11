@@ -132,6 +132,8 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Le scan Laravel sélectionne la seule configuration IA active du coffre Super Admin ; l'enregistrement/activation d'un fournisseur désactive les autres configurations.
 - [x] Les clés restent chiffrées par le cast Laravel encrypted du modèle AiProviderCredential. Elles ne sont jamais renvoyées dans la vue.
 - [x] La clé, le fournisseur et le modèle sont transmis au service Python dans des en-têtes de requête HTTPS ; les logs applicatifs n'enregistrent pas la clé ni le corps complet de la requête.
+- [x] Les appels chat des agents Python utilisent également le fournisseur actif du coffre Super Admin ; aucune clé Anthropic d'environnement n'est requise.
+- [x] En production, le service Laravel refuse de transmettre une clé IA si l'URL du moteur Python n'est pas en HTTPS.
 - [x] Le moteur Python accepte Google Gemini (SDK google-genai) et Anthropic avec la configuration fournie par COMPTAFLOW.
 - [x] Le code Python courant ne contient plus de clé API. La clé Anthropic historique a été révoquée par le propriétaire.
 - [x] Réponses d'erreur distinguées : quota API, clé invalide, API non configurée/indisponible, fichier illisible, document non-facture.
