@@ -1017,12 +1017,12 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
 
 
     // Centre Super Admin : visibilité des pages et paramètres IA
-    Route::get('/superadmin/controle-pages', [\\App\\Http\\Controllers\\Super\\SuperAdminPageControlController::class, 'index'])->name('superadmin.pages.index');
-    Route::post('/superadmin/controle-pages/regles', [\\App\\Http\\Controllers\\Super\\SuperAdminPageControlController::class, 'savePageRules'])->name('superadmin.pages.rules.store');
-    Route::delete('/superadmin/controle-pages/regles/{rule}', [\\App\\Http\\Controllers\\Super\\SuperAdminPageControlController::class, 'deletePageRule'])->name('superadmin.pages.rules.delete');
-    Route::post('/superadmin/cles-ia', [\\App\\Http\\Controllers\\Super\\SuperAdminPageControlController::class, 'storeCredential'])->name('superadmin.ai-credentials.store');
-    Route::post('/superadmin/cles-ia/{credential}/activer', [\\App\\Http\\Controllers\\Super\\SuperAdminPageControlController::class, 'toggleCredential'])->name('superadmin.ai-credentials.toggle');
-    Route::delete('/superadmin/cles-ia/{credential}', [\\App\\Http\\Controllers\\Super\\SuperAdminPageControlController::class, 'deleteCredential'])->name('superadmin.ai-credentials.delete');
+    Route::get('/superadmin/controle-pages', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'index'])->name('superadmin.pages.index');
+    Route::post('/superadmin/controle-pages/regles', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'savePageRules'])->name('superadmin.pages.rules.store');
+    Route::delete('/superadmin/controle-pages/regles/{rule}', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'deletePageRule'])->name('superadmin.pages.rules.delete');
+    Route::post('/superadmin/cles-ia', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'storeCredential'])->name('superadmin.ai-credentials.store');
+    Route::post('/superadmin/cles-ia/{credential}/activer', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'toggleCredential'])->name('superadmin.ai-credentials.toggle');
+    Route::delete('/superadmin/cles-ia/{credential}', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'deleteCredential'])->name('superadmin.ai-credentials.delete');
 
     // Gestion des Packs/Abonnements
     Route::get('/activation', [SubscriptionController::class, 'showPricing'])->name('pricing.show');
