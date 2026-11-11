@@ -53,6 +53,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Corriger un défaut de cloisonnement : le scan unitaire chargeait les plans comptables et tiers sans filtre d'entreprise ; filtres tenant ajoutés.
 - [x] Supprimer l'exposition des chemins et lignes PHP dans les erreurs JSON du traitement IA.
 - [x] Renforcer la validation du lot scanné : comptes, tiers, journaux et exercice doivent appartenir à l'entreprise et à l'exercice sélectionnés.
+- [x] Ajouter le contrôle entreprise lors de la résolution de l'exercice sur l'affichage et le chargement AJAX des liasses SN/SMT.
 - [x] Masquer les exceptions techniques retournées par les endpoints d'enregistrement unitaire et groupé.
 - [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
 - [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
