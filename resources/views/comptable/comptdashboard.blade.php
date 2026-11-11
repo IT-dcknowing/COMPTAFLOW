@@ -71,86 +71,15 @@
                             <p class="text-base font-medium text-slate-500">Bienvenue, voici l'état actuel de votre exercice comptable.</p>
                         </div>
 
-                        <!-- Section Statistiques (KPIs) -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-                            <div class="glass-card p-5 border-l-4 border-l-blue-700">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Écritures du mois</p>
-                                        <h3 class="text-2xl font-black text-slate-800 mt-1">{{ number_format($monthlyEntries ?? 0, 0, ',', ' ') }}</h3>
-                                    </div>
-                                    <div class="p-3 bg-blue-50 text-blue-700 rounded-2xl">
-                                        <i class="fas fa-pen-nib text-lg"></i>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-green-600 mt-4 font-bold">
-                                    <i class="fas fa-arrow-up mr-1"></i> Synthèse mensuelle
-                                </p>
+                        @if(isset($exerciceEnCours) && $exerciceEnCours)
+                        <div class="glass-card p-4 mb-6 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <div><span class="text-xs text-slate-400 fw-bold text-uppercase">Exercice comptable actif</span>
+                                <div class="fw-bold text-slate-800">{{ $exerciceEnCours->intitule }}</div>
+                                <small class="text-slate-500">{{ \\Carbon\\Carbon::parse($exerciceEnCours->date_debut)->format('d/m/Y') }} au {{ \\Carbon\\Carbon::parse($exerciceEnCours->date_fin)->format('d/m/Y') }}</small>
                             </div>
-
-                            <div class="glass-card p-5 border-l-4 border-l-indigo-600">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Solde Trésorerie</p>
-                                        <h3 class="text-2xl font-black text-slate-800 mt-1">
-                                            {{ number_format($cashBalance ?? 0, 0, ',', ' ') }} <span class="text-sm font-medium">FCFA</span>
-                                        </h3>
-                                    </div>
-                                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-                                        <i class="fas fa-wallet text-lg"></i>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-slate-500 mt-4 italic">Mise à jour en temps réel</p>
-                            </div>
-
-                            <div class="glass-card p-5 border-l-4 border-l-emerald-500">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tiers Actifs</p>
-                                        <h3 class="text-2xl font-black text-slate-800 mt-1">{{ ($clientCount ?? 0) + ($supplierCount ?? 0) }}</h3>
-                                    </div>
-                                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-                                        <i class="fas fa-users text-lg"></i>
-                                    </div>
-                                </div>
-                                <div class="flex gap-2 mt-4 text-[10px] font-bold uppercase">
-                                    <span class="text-blue-600">{{ $clientCount ?? 0 }} Clients</span>
-                                    <span class="text-slate-300">|</span>
-                                    <span class="text-orange-600">{{ $supplierCount ?? 0 }} Fourn.</span>
-                                </div>
-                            </div>
-
-                            <div class="glass-card p-5 border-l-4 border-l-slate-800">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Exercice en cours</p>
-                                        @if(isset($exerciceEnCours) && $exerciceEnCours)
-                                            <h3 class="text-2xl font-black text-slate-800 mt-1">
-                                                {{ \Carbon\Carbon::parse($exerciceEnCours->date_debut)->format('Y') }}
-                                                @if(\Carbon\Carbon::parse($exerciceEnCours->date_debut)->format('Y') != \Carbon\Carbon::parse($exerciceEnCours->date_fin)->format('Y'))
-                                                    - {{ \Carbon\Carbon::parse($exerciceEnCours->date_fin)->format('Y') }}
-                                                @endif
-                                            </h3>
-                                        @endif
-                                    </div>
-                                    <div class="p-3 bg-slate-100 text-slate-800 rounded-2xl">
-                                        <i class="fas fa-calendar-check text-lg"></i>
-                                    </div>
-                                </div>
-                                @if(isset($exerciceEnCours) && $exerciceEnCours)
-                                    <div class="flex items-center gap-2 mt-4">
-                                        <div class="w-2.5 h-2.5 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></div>
-                                        <p class="text-xs text-blue-700 font-bold uppercase tracking-wider">Activé</p>
-                                    </div>
-                                    <p class="text-[10px] text-slate-500 mt-1 font-medium italic">
-                                        du {{ \Carbon\Carbon::parse($exerciceEnCours->date_debut)->translatedFormat('d/m/Y') }}
-                                        au {{ \Carbon\Carbon::parse($exerciceEnCours->date_fin)->translatedFormat('d/m/Y') }}
-                                    </p>
-                                @else
-                                    <p class="text-xs text-red-600 mt-4 font-bold italic">Aucun exercice actif</p>
-                                @endif
-                            </div>
+                            <span class="badge bg-success-subtle text-success px-3 py-2">Actif</span>
                         </div>
+                        @endif
 
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
