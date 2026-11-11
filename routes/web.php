@@ -1023,6 +1023,7 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
     Route::post('/superadmin/cles-ia', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'storeCredential'])->name('superadmin.ai-credentials.store');
     Route::post('/superadmin/cles-ia/{credential}/activer', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'toggleCredential'])->name('superadmin.ai-credentials.toggle');
     Route::delete('/superadmin/cles-ia/{credential}', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'deleteCredential'])->name('superadmin.ai-credentials.delete');
+    Route::post('/superadmin/quotas-scan', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'saveScanSettings'])->name('superadmin.scan-quotas.store');
 
     // Gestion des Packs/Abonnements
     Route::get('/activation', [SubscriptionController::class, 'showPricing'])->name('pricing.show');
