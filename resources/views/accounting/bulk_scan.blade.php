@@ -463,15 +463,28 @@
                         formData.append('journal_code', journal.code_journal);
                     }
                     
-                    const response = await fetch("{{ route('ia.traiter') }}", {
-                        method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
-                        body: formData
-                    });
+                    let response = null;
+                    for (let attempt = 0; attempt <= 5; attempt++) {
+                        response = await fetch("{{ route('ia.traiter') }}", {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                            body: formData
+                        });
 
-                    if (!response.ok) throw new Error("Erreur serveur: " + response.status);
+                        if (![429, 503].includes(response.status) || attempt === 5) break;
+
+                        const waitMs = Math.min(Math.pow(2, attempt) * (response.status === 429 ? 2000 : 3000), 30000);
+                        const waitSeconds = Math.ceil(waitMs / 1000);
+                        queueEl.querySelector('.status-text').innerText =
+                            (response.status === 429 ? 'Quota IA atteint' : 'Service IA surchargé') +
+                            ' — nouvel essai dans ' + waitSeconds + ' s';
+                        await new Promise(resolve => setTimeout(resolve, waitMs));
+                    }
 
                     const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || "Erreur serveur: " + response.status);
+                    }
                     if (data.success) {
                         item.data = data.data;
                         item.status = 'success';
@@ -490,8 +503,7 @@
                     if (error.message.includes('429')) {
                         errMsg = 'Quota atteint (attente...)';
                         queueEl.querySelector('.status-icon').innerHTML = '<i class="bx bx-timer text-warning fs-4"></i>';
-                        // On pourrait relancer après un délai, mais le backend fait déjà 5 tentatives.
-                        // On affiche donc un message explicite.
+                        // Les tentatives avec temporisation sont déjà effectuées ci-dessus.
                     }
 
                     item.status = 'error';
