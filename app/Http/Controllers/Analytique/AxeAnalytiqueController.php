@@ -73,7 +73,7 @@ class AxeAnalytiqueController extends Controller
 
     public function update(Request $request, $id)
     {
-        $axe = AxeAnalytique::findOrFail($id);
+        $axe = AxeAnalytique::where('company_id', $companyId)->findOrFail($id);
         $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
 
         $request->validate([
@@ -109,7 +109,8 @@ class AxeAnalytiqueController extends Controller
 
     public function destroy($id)
     {
-        $axe = AxeAnalytique::findOrFail($id);
+        $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
+        $axe = AxeAnalytique::where('company_id', $companyId)->findOrFail($id);
         
         $hasSections = \App\Models\SectionAnalytique::where('axe_id', $id)->exists();
         if ($hasSections) {
