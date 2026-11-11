@@ -1017,10 +1017,15 @@
                     body: JSON.stringify(data) 
                 }).then(r => r.json()).then(res => {
                     if (res.success) {
-                        const newTier = { id: res.id, numero_de_tiers: res.numero_de_tiers, intitule: res.intitule, compte_collectif_num: res.compte_collectif_num };
+                        const newTier = {
+                            id: res.id,
+                            numero_de_tiers: res.numero_de_tiers,
+                            intitule: res.intitule,
+                            compte_general: data.compte_general
+                        };
                         TIERS_LIST.push(newTier);
                         document.querySelectorAll('.row-tier').forEach(sel => {
-                            const newOption = new Option(`[${res.compte_collectif_num}] ${res.intitule}`, res.id);
+                            const newOption = new Option(`[${res.numero_de_tiers}] ${res.intitule}`, res.id);
                             $(sel).append(newOption);
                         });
                         const m = bootstrap.Modal.getInstance(document.getElementById('createTiersModal'));
