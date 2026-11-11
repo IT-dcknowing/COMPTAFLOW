@@ -694,11 +694,11 @@ class EcritureComptableController extends Controller
                 }
 
                 try {
-                    $lineDate = \\Carbon\\Carbon::parse($line['date'] ?? now()->format('Y-m-d'));
-                } catch (\\Throwable $e) {
+                    $lineDate = \Carbon\Carbon::parse($line['date'] ?? now()->format('Y-m-d'));
+                } catch (\Throwable $e) {
                     return response()->json(['success' => false, 'error' => 'Une date de facture est invalide.'], 422);
                 }
-                if ($lineDate->lt(\\Carbon\\Carbon::parse($exerciceActif->date_debut)) || $lineDate->gt(\\Carbon\\Carbon::parse($exerciceActif->date_fin))) {
+                if ($lineDate->lt(\Carbon\Carbon::parse($exerciceActif->date_debut)) || $lineDate->gt(\Carbon\Carbon::parse($exerciceActif->date_fin))) {
                     return response()->json(['success' => false, 'error' => 'Une date de facture est hors de la période de l’exercice sélectionné.'], 422);
                 }
             }
