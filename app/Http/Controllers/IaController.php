@@ -105,7 +105,7 @@ class IaController extends Controller
             $planComptableContext = $this->buildPlanComptableContext($companyId);
             $tiersContext = $this->buildTiersContext($companyId);
             $mappingsContext = $this->buildMappingsContext($companyId);
-            $companyName = Company::find($companyId)->raison_sociale ?? 'Mon Entreprise';
+            $companyName = Company::whereKey($companyId)->value('raison_sociale') ?: 'Mon Entreprise';
 
             \Illuminate\Support\Facades\Log::info("Contexte métier récupéré");
 
@@ -131,11 +131,16 @@ class IaController extends Controller
                     'json_brut' => json_encode(['details' => $result['details'] ?? [], 'msg' => $errorMsg]),
                 ]);
 
+                $upstreamStatus = (int) ($result['http_code'] ?? 502);
+                $safeStatus = $upstreamStatus === 429 ? 429 : 502;
+
                 return response()->json([
                     'success' => false,
-                    'error' => "Erreur IA: " . $errorMsg,
-                    'http_code' => $result['http_code'] ?? 500
-                ], 500);
+                    'error' => $safeStatus === 429
+                        ? "Le quota du service d'analyse est temporairement atteint. Veuillez patienter avant de réessayer."
+                        : "Le service d'analyse est momentanément indisponible. Veuillez réessayer dans quelques instants.",
+                    'http_code' => $safeStatus,
+                ], $safeStatus);
             }
 
 
