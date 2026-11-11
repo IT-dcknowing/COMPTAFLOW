@@ -178,10 +178,10 @@ class IaController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
+            // Ne jamais exposer chemins, lignes, trace ou détails internes dans la réponse HTTP.
             return response()->json([
-                'error' => "Erreur Serveur (500) : " . $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
+                'success' => false,
+                'error' => "Le service d'analyse des factures est momentanément indisponible. Veuillez réessayer dans quelques instants ou contacter le support technique DC-KNOWING.",
             ], 500);
         }
 
