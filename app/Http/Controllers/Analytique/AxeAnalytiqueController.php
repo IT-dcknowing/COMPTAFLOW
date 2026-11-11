@@ -124,7 +124,10 @@ class AxeAnalytiqueController extends Controller
 
     public function getSectionsByAxe($id)
     {
-        $sections = \App\Models\SectionAnalytique::where('axe_id', $id)
+        $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
+        $axe = AxeAnalytique::where('company_id', $companyId)->findOrFail($id);
+        $sections = \App\Models\SectionAnalytique::where('company_id', $companyId)
+            ->where('axe_id', $axe->id)
             ->orderBy('code')
             ->get(['id', 'code', 'libelle']);
 
