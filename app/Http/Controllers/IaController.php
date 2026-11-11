@@ -119,8 +119,9 @@ class IaController extends Controller
             $result = $this->pythonAiService->analyzeInvoice($image, $prompt);
             
             if (!$result['success']) {
-                $errorMsg = $result['error'] ?? 'Erreur inconnue API Python';
-                
+                $errorMsg = $result['error'] ?? 'Le service IA n’a pas pu traiter le document.';
+                $errorType = $result['error_type'] ?? 'api_unavailable';
+
                 IaLog::create([
                     'company_id' => $companyId,
                     'user_id' => $user->id,
@@ -128,19 +129,18 @@ class IaController extends Controller
                     'image_nom' => $image->getClientOriginalName(),
                     'status' => 'error',
                     'erreur_message' => substr($errorMsg, 0, 250),
-                    'json_brut' => json_encode(['details' => $result['details'] ?? [], 'msg' => $errorMsg]),
+                    'json_brut' => json_encode(['error_type' => $errorType, 'message' => $errorMsg]),
                 ]);
 
-                $upstreamStatus = (int) ($result['http_code'] ?? 502);
-                $safeStatus = $upstreamStatus === 429 ? 429 : 502;
+                $httpStatus = (int) ($result['http_code'] ?? 502);
+                $httpStatus = in_array($httpStatus, [422, 429, 503], true) ? $httpStatus : 502;
 
                 return response()->json([
                     'success' => false,
-                    'error' => $safeStatus === 429
-                        ? "Le quota du service d'analyse est temporairement atteint. Veuillez patienter avant de réessayer."
-                        : "Le service d'analyse est momentanément indisponible. Veuillez réessayer dans quelques instants.",
-                    'http_code' => $safeStatus,
-                ], $safeStatus);
+                    'error_type' => $errorType,
+                    'error' => $errorMsg,
+                    'http_code' => $httpStatus,
+                ], $httpStatus);
             }
 
 
@@ -154,6 +154,66 @@ class IaController extends Controller
             }
 
             $data = $result['data'];
+
+            if (($data['statut_lecture'] ?? null) === 'illisible') {
+                return response()->json([
+                    'success' => false,
+                    'error_type' => 'document_unreadable',
+                    'error' => $data['analyse'] ?? "Le document est illisible. Importez un scan plus net ou le PDF original.",
+                ], 422);
+            }
+
+            if (($data['est_facture'] ?? true) === false) {
+                return response()->json([
+                    'success' => false,
+                    'error_type' => 'not_invoice',
+                    'error' => $data['explication_rejet'] ?? "Ce document ne semble pas être une facture. Aucune écriture ne sera créée.",
+                ], 422);
+            }
+
+            // Refuser dès l'analyse toute facture datée hors de l'exercice courant.
+            if (!empty($data['date'])) {
+                try {
+                    $invoiceDate = \Carbon\Carbon::parse($data['date'])->startOfDay();
+                } catch (\Throwable $dateError) {
+                    return response()->json([
+                        'success' => false,
+                        'error_type' => 'document_unreadable',
+                        'error' => "La date de la facture n'a pas pu être lue correctement. Vérifiez le document avant de continuer.",
+                    ], 422);
+                }
+
+                $exerciseQuery = \App\Models\ExerciceComptable::where('company_id', $companyId);
+                $exerciseContextId = session('current_exercice_id');
+                $exercise = $exerciseContextId
+                    ? (clone $exerciseQuery)->whereKey($exerciseContextId)->first()
+                    : (clone $exerciseQuery)->where('is_active', true)->first();
+
+                if (!$exercise) {
+                    $exercise = (clone $exerciseQuery)->where('cloturer', false)->orderByDesc('date_debut')->first();
+                }
+
+                if (!$exercise) {
+                    return response()->json([
+                        'success' => false,
+                        'error_type' => 'exercise_missing',
+                        'error' => "Aucun exercice comptable ouvert n'est sélectionné. Sélectionnez un exercice avant de scanner cette facture.",
+                    ], 422);
+                }
+
+                $exerciseStart = \Carbon\Carbon::parse($exercise->date_debut)->startOfDay();
+                $exerciseEnd = \Carbon\Carbon::parse($exercise->date_fin)->endOfDay();
+                if ($invoiceDate->lt($exerciseStart) || $invoiceDate->gt($exerciseEnd)) {
+                    return response()->json([
+                        'success' => false,
+                        'error_type' => 'exercise_mismatch',
+                        'error' => "La facture est datée du ".$invoiceDate->format('d/m/Y').", hors de l'exercice ".$exercise->intitule." (".$exerciseStart->format('d/m/Y')." au ".$exerciseEnd->format('d/m/Y')."). Aucune écriture ne sera enregistrée. Changez l'exercice comptable dans le sélecteur, puis relancez le scan.",
+                        'invoice_date' => $invoiceDate->toDateString(),
+                        'exercise_id' => $exercise->id,
+                    ], 422);
+                }
+            }
+
             $json_brut = json_encode($data);
 
             // Log du succès
