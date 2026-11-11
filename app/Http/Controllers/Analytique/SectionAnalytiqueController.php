@@ -33,7 +33,7 @@ class SectionAnalytiqueController extends Controller
         $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
 
         $request->validate([
-            'axe_id' => 'required|exists:axes_analytiques,id',
+            'axe_id' => ['required', Rule::exists('axes_analytiques', 'id')->where('company_id', $companyId)],
             'code' => 'required|string|max:20',
             'libelle' => 'required|string|max:255'
         ]);
@@ -60,7 +60,7 @@ class SectionAnalytiqueController extends Controller
 
     public function update(Request $request, $id)
     {
-        $section = SectionAnalytique::findOrFail($id);
+        $section = SectionAnalytique::where('company_id', $companyId)->findOrFail($id);
         $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
 
         $request->validate([
@@ -91,7 +91,8 @@ class SectionAnalytiqueController extends Controller
 
     public function destroy($id)
     {
-        $section = SectionAnalytique::findOrFail($id);
+        $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
+        $section = SectionAnalytique::where('company_id', $companyId)->findOrFail($id);
 
         $hasVentilations = \App\Models\VentilationAnalytique::where('section_id', $id)->exists();
         $hasRules = \App\Models\RegleVentilation::where('section_id', $id)->exists();
