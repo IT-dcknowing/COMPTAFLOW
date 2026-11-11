@@ -214,7 +214,14 @@
                 transform: translateY(-10px);
             }
         }
-    </style>
+    
+:root{--cf-blue:#2458dc;--cf-navy:#101d3a;--cf-line:#e4eaf3}
+body{background:linear-gradient(135deg,#f4f7fc 0%,#eef3ff 50%,#f9fbff 100%);font-family:"Public Sans",sans-serif;color:#17233d}.bg-blob{opacity:.12;filter:blur(95px)}.container{position:relative;z-index:1}
+.cf-register-brand{display:flex;justify-content:center;align-items:center;gap:12px;margin:0 auto 28px;font-weight:800;font-size:21px;color:var(--cf-navy);letter-spacing:-.5px}.cf-register-brand img{width:54px;height:54px;object-fit:contain}
+.container>.text-center{background:rgba(255,255,255,.7);border:1px solid #e5ebf5;border-radius:24px;padding:28px 24px;margin-bottom:26px!important;box-shadow:0 14px 40px rgba(22,43,82,.04)}.container>.text-center h1{font-family:"Manrope","Public Sans",sans-serif;font-weight:800;letter-spacing:-1px}.container>.text-center .text-primary{color:var(--cf-blue)!important}
+.glass-panel{background:#fff!important;border:1px solid var(--cf-line)!important;border-radius:22px!important;box-shadow:0 24px 65px rgba(22,43,82,.08)!important;padding:clamp(20px,4vw,38px)!important}.section-title{font-weight:800;color:var(--cf-navy);letter-spacing:-.4px}.form-control,.form-select{border:1px solid #dce4f0!important;border-radius:11px!important;min-height:46px;box-shadow:none!important}.form-control:focus,.form-select:focus{border-color:var(--cf-blue)!important;box-shadow:0 0 0 4px rgba(36,88,220,.09)!important}.btn-primary{background:var(--cf-blue)!important;border-color:var(--cf-blue)!important}.btn{font-weight:700}
+@media(max-width:600px){body.py-5{padding-top:18px!important;padding-bottom:18px!important}.container>.text-center{padding:20px 14px}.container>.text-center h1{font-size:1.65rem}.glass-panel{padding:18px!important}}
+</style>
     @include('components.echelle_affichage', ['echelle' => 0.8])
 </head>
 
@@ -225,6 +232,7 @@
 
     <div class="container" style="max-width: {{ $type === 'cabinet' ? '750px' : '900px' }};">
 
+        <a class="cf-register-brand" href="{{ route('landing.index') }}"><img src="data:image/png;base64,{{ trim(file_get_contents(public_path('assets/img/comptaflow-logo.png.b64'))) }}" alt="Logo COMPTAFLOW"><span>COMPTAFLOW</span></a>
         <div class="text-center mb-5">
             <div class="d-flex justify-content-center gap-2 mb-4">
                 <a href="{{ route('landing.index') }}" class="btn btn-label-secondary btn-sm rounded-pill">
