@@ -129,82 +129,46 @@
                         </div>
                         @endif
 
-                        <!-- Section Statistiques Globales (KPIs) -->
+                        <!-- KPI financiers : chiffres réels de l'exercice -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-5">
+                            @foreach([
+                                ['Chiffre d’affaires', $totalRevenue ?? 0, 'fa-chart-line', 'blue', 'Produits comptabilisés · classe 7'],
+                                ['Charges engagées', $totalExpenses ?? 0, 'fa-arrow-trend-down', 'rose', 'Charges comptabilisées · classe 6'],
+                                ['Trésorerie nette', $cashBalance ?? 0, 'fa-vault', 'indigo', 'Solde net des comptes de trésorerie'],
+                                ['Résultat comptable', $netResult ?? 0, 'fa-scale-balanced', 'emerald', 'Produits moins charges']
+                            ] as $kpi)
+                            <div class="glass-card p-5 border-l-4 border-l-{{ $kpi[3] }}-500">
+                                <div class="flex justify-between items-start gap-2">
+                                    <div><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ $kpi[0] }}</p>
+                                    <h3 class="text-2xl font-black text-slate-800 mt-2">{{ number_format($kpi[1], 0, ',', ' ') }} <span class="text-xs font-semibold text-slate-500">FCFA</span></h3></div>
+                                    <div class="p-3 bg-{{ $kpi[3] }}-50 text-{{ $kpi[3] }}-600 rounded-2xl"><i class="fas {{ $kpi[2] }} text-lg"></i></div>
+                                </div><p class="text-xs text-slate-500 mt-3 mb-0">{{ $kpi[4] }}</p>
+                            </div>
+                            @endforeach
+                        </div>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-                            <div class="glass-card p-5 border-l-4 border-l-blue-700">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Activité Mensuelle</p>
-                                        <h3 class="text-2xl font-black text-slate-800 mt-1">{{ number_format($monthlyEntries ?? 0, 0, ',', ' ') }}</h3>
-                                    </div>
-                                    <div class="p-3 bg-blue-50 text-blue-700 rounded-2xl">
-                                        <i class="fas fa-chart-line text-lg"></i>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-green-600 mt-4 font-bold">
-                                    <i class="fas fa-users mr-1"></i> Toutes saisies confondues
-                                </p>
+                            @foreach([
+                                ['Masse salariale', $salaryExpenses ?? 0, 'fa-users', 'blue', 'Comptes de personnel · classe 66'],
+                                ['TVA collectée', $vatCollected ?? 0, 'fa-file-invoice-dollar', 'amber', 'Comptes 443 · crédit'],
+                                ['TVA déductible', $vatDeductible ?? 0, 'fa-receipt', 'cyan', 'Comptes 445 · débit'],
+                                ['TVA nette à reverser', $vatNetToPay ?? 0, 'fa-scale-balanced', 'violet', 'TVA collectée moins TVA déductible']
+                            ] as $kpi)
+                            <div class="glass-card p-5">
+                                <div class="flex justify-between items-start gap-2">
+                                    <div><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ $kpi[0] }}</p>
+                                    <h3 class="text-xl font-black text-slate-800 mt-2">{{ number_format($kpi[1], 0, ',', ' ') }} <span class="text-xs font-semibold text-slate-500">FCFA</span></h3></div>
+                                    <div class="p-3 bg-{{ $kpi[3] }}-50 text-{{ $kpi[3] }}-600 rounded-2xl"><i class="fas {{ $kpi[2] }} text-lg"></i></div>
+                                </div><p class="text-xs text-slate-500 mt-3 mb-0">{{ $kpi[4] }}</p>
                             </div>
+                            @endforeach
+                        </div>
 
-                            <div class="glass-card p-5 border-l-4 border-l-indigo-600">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Trésorerie Globale</p>
-                                        <h3 class="text-2xl font-black text-slate-800 mt-1">
-                                            {{ number_format($cashBalance ?? 0, 0, ',', ' ') }} <span class="text-sm font-medium">FCFA</span>
-                                        </h3>
-                                    </div>
-                                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-                                        <i class="fas fa-vault text-lg"></i>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-slate-500 mt-4 italic">Solde consolidé</p>
-                            </div>
-
-                            <div class="glass-card p-5 border-l-4 border-l-emerald-500">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Revenus vs Charges</p>
-                                        <h3 class="text-2xl font-black text-slate-800 mt-1">
-                                            {{ number_format(($totalRevenue ?? 0) - ($totalExpenses ?? 0), 0, ',', ' ') }}
-                                        </h3>
-                                    </div>
-                                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-                                        <i class="fas fa-scale-balanced text-lg"></i>
-                                    </div>
-                                </div>
-                                <div class="flex gap-2 mt-4 text-[10px] font-bold uppercase">
-                                    <span class="text-blue-600">{{ number_format($totalRevenue ?? 0, 0, ',', ' ') }} Rev.</span>
-                                    <span class="text-slate-300">|</span>
-                                    <span class="text-red-600">{{ number_format($totalExpenses ?? 0, 0, ',', ' ') }} Chg.</span>
-                                </div>
-                            </div>
-
-                            <div class="glass-card p-5 border-l-4 border-l-slate-800">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Exercice Actif</p>
-                                        @if(isset($exerciceEnCours) && $exerciceEnCours)
-                                            <h3 class="text-xl font-black text-slate-800 mt-1">{{ $exerciceEnCours->intitule }}</h3>
-                                            <p class="text-xs text-slate-500 mt-1 mb-0">
-                                                {{ \Carbon\Carbon::parse($exerciceEnCours->date_debut)->format('d/m/Y') }}
-                                                → {{ \Carbon\Carbon::parse($exerciceEnCours->date_fin)->format('d/m/Y') }}
-                                            </p>
-                                        @else
-                                            <h3 class="text-2xl font-black text-slate-800 mt-1">{{ $exerciceYear ?? date('Y') }}</h3>
-                                        @endif
-                                    </div>
-                                    <div class="p-3 bg-slate-100 text-slate-800 rounded-2xl">
-                                        <i class="fas fa-calendar-alt text-lg"></i>
-                                    </div>
-                                </div>
-                                <div class="mt-4">
-                                    <div class="w-full bg-slate-100 rounded-full h-1.5 mb-1">
-                                        <div class="bg-indigo-600 h-1.5 rounded-full transition-all duration-700" style="width: {{ $exerciceProgress ?? 0 }}%"></div>
-                                    </div>
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase">Progression : {{ $exerciceProgress ?? 0 }}%</p>
-                                </div>
-                            </div>
+                        <div class="glass-card p-4 mb-8 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                            <div><span class="text-xs text-slate-400 fw-bold text-uppercase">Structure des charges</span>
+                                <div class="fw-bold text-slate-800">Les principaux postes de dépenses sont détaillés ci-dessous.</div></div>
+                            <div class="text-end"><span class="text-xs text-slate-400">Charges / chiffre d’affaires</span>
+                                <div class="h4 mb-0 fw-black text-primary">{{ $expenseRatio !== null ? number_format($expenseRatio, 1, ',', ' ').' %' : 'Non calculable' }}</div></div>
                         </div>
 
                         <!-- Graphiques & Activités -->
@@ -228,50 +192,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Dernières Écritures (Vue Admin avec Utilisateur) -->
-                                <div class="glass-card p-6">
-                                    <div class="flex items-center justify-between mb-6">
-                                        <h3 class="text-lg font-bold text-slate-800">Flux d'Écritures Collaborateurs</h3>
-                                        <a href="{{ route('accounting_entry_list') }}" class="text-sm text-blue-700 font-bold hover:underline">Auditer</a>
-                                    </div>
-                                    <div class="table-responsive">
-                                        <table class="table table-borderless table-hover align-middle mb-0">
-                                            <thead class="text-[10px] uppercase font-bold text-slate-400 border-b">
-                                                <tr>
-                                                    <th>Collaborateur</th>
-                                                    <th>Description</th>
-                                                    <th>Date</th>
-                                                    <th class="text-end">Montant</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="text-sm">
-                                                @forelse($recentEntries ?? [] as $entry)
-                                                <tr>
-                                                    <td>
-                                                        <div class="flex items-center gap-2">
-                                                            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 uppercase border border-white shadow-sm">
-                                                                {{ substr($entry['user_name'] ?? 'U', 0, 2) }}
-                                                            </div>
-                                                            <span class="font-semibold text-slate-700">{{ $entry['user_name'] ?? 'Système' }}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td class="max-w-[200px] truncate text-slate-500">{{ $entry['description'] }}</td>
-                                                    <td class="text-slate-400 text-xs">{{ $entry['date'] }}</td>
-                                                    <td class="text-end">
-                                                        <span class="font-black {{ $entry['type'] == 'income' ? 'text-green-600' : 'text-slate-800' }}">
-                                                            {{ number_format($entry['amount'], 0, ',', ' ') }}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                                @empty
-                                                <tr>
-                                                    <td colspan="4" class="text-center py-6 text-slate-400 italic">Aucune écriture récente</td>
-                                                </tr>
-                                                @endforelse
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
                             </div>
 
                             <!-- Sidebar Droite : Distribution & Tiers -->
@@ -285,8 +205,8 @@
                                     </div>
                                 </div>
 
-                                <div class="glass-card p-6 bg-slate-900 text-white border-none">
-                                    <h3 class="text-base font-bold mb-4">Portefeuille Tiers</h3>
+                                <div class="glass-card p-6">
+                                    <h3 class="text-base font-bold text-slate-800 mb-4">Portefeuille Tiers</h3>
                                     <div class="flex justify-between items-center mb-6">
                                         <div>
                                             <p class="text-[10px] text-slate-400 uppercase font-bold">Total Partenaires</p>
