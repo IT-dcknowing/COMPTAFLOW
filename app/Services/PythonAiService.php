@@ -47,12 +47,19 @@ class PythonAiService
     /**
      * Analyse une facture (fichier uploadé).
      */
-    public function analyzeInvoice($file)
+    public function analyzeInvoice($file, ?string $prompt = null)
     {
         try {
             $response = Http::timeout(120)
-                ->attach('fichier', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
-                ->post("{$this->baseUrl}/agent/facture");
+                ->attach(
+                    'fichier',
+                    file_get_contents($file->getRealPath()),
+                    $file->getClientOriginalName(),
+                    ['Content-Type' => $file->getMimeType()]
+                )
+                ->post("{$this->baseUrl}/agent/facture", array_filter([
+                    'prompt' => $prompt,
+                ], fn ($value) => $value !== null && $value !== ''));
 
             if ($response->failed()) {
                 Log::error("Python AI Facture Error: " . $response->body());
