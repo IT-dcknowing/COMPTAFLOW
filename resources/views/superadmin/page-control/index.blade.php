@@ -30,6 +30,7 @@
 <ul class="nav nav-pills mb-3" role="tablist">
 <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pages-tab" type="button">Pages de l'application</button></li>
 <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#ia-tab" type="button">Fournisseurs & clés API IA</button></li>
+<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#quotas-tab" type="button">Quotas SCAN</button></li>
 </ul>
 <div class="tab-content">
 <div class="tab-pane fade show active" id="pages-tab">
@@ -59,6 +60,7 @@
 @endforeach
 </div>
 <div class="tab-pane fade" id="ia-tab">
+<div class="alert alert-info border-0 mb-3"><strong>API gratuite conseillée pour les essais :</strong> Google AI Studio · Gemini 2.5 Flash-Lite. Créez une clé sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>, puis enregistrez-la ici. Modèle : <code>gemini-2.5-flash-lite</code>. N’utilisez que des factures fictives ou anonymisées sur le niveau gratuit : Google indique que les contenus soumis au service gratuit peuvent être utilisés pour améliorer ses produits et examinés par des personnes.</div>
 <div class="row g-4">
 <div class="col-xl-5"><div class="card border-0 shadow-sm"><div class="card-header bg-white"><h5 class="mb-0">Ajouter un fournisseur / modèle</h5></div><div class="card-body">
 <form method="POST" action="{{ route('superadmin.ai-credentials.store') }}">@csrf
@@ -74,6 +76,26 @@
 @foreach($credentials as $credential)<div class="key-card mb-3"><div class="d-flex justify-content-between gap-3 align-items-start"><div><div class="fw-bold">{{ $credential->provider }} <span class="text-primary">/</span> {{ $credential->model }}</div><div class="small text-muted">Clé enregistrée · {{ $credential->updated_at?->format('d/m/Y H:i') }}</div>@if($credential->notes)<p class="small mb-0 mt-2">{{ $credential->notes }}</p>@endif</div><span class="badge bg-{{ $credential->is_active?'success':'secondary' }}">{{ $credential->is_active?'Active':'Inactive' }}</span></div>
 <div class="d-flex gap-2 mt-3"><form method="POST" action="{{ route('superadmin.ai-credentials.toggle',$credential) }}">@csrf<button class="btn btn-sm btn-outline-primary">{{ $credential->is_active?'Désactiver':'Activer' }}</button></form><form method="POST" action="{{ route('superadmin.ai-credentials.delete',$credential) }}" onsubmit="return confirm('Supprimer cette configuration IA ?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Supprimer</button></form></div></div>@endforeach
 </div></div>
+<div class="tab-pane fade" id="quotas-tab">
+<div class="alert alert-info border-0"><strong>Contrôle désactivé par défaut.</strong> Aucun plafond n'est appliqué tant que cette option reste désactivée. Les valeurs ci-dessous sont préparées pour une configuration ultérieure.</div>
+<div class="card border-0 shadow-sm"><div class="card-header bg-white"><h5 class="mb-0">Paramétrage des quotas de factures</h5></div><div class="card-body">
+<form method="POST" action="{{ route('superadmin.scan-quotas.store') }}">@csrf
+<div class="form-check form-switch mb-4">
+<input class="form-check-input" type="checkbox" role="switch" id="quotas_enabled" name="quotas_enabled" value="1" {{ $scanSettings->quotas_enabled ? 'checked' : '' }}>
+<label class="form-check-label fw-bold" for="quotas_enabled">Activer le contrôle des quotas de scan</label>
+</div>
+<div class="table-responsive"><table class="table table-bordered align-middle">
+<thead class="table-light"><tr><th>Forfait</th><th>Factures / mois</th><th>Factures / traitement groupé</th></tr></thead><tbody>
+@foreach(['Starter','Pro','Enterprise'] as $pack)
+<tr><th>{{ $pack }}</th>
+<td><input type="number" min="1" class="form-control" name="limits[{{ $pack }}][monthly]" value="{{ data_get($scanSettings->limits, $pack.'.monthly') }}" placeholder="Sans limite"></td>
+<td><input type="number" min="1" class="form-control" name="limits[{{ $pack }}][batch]" value="{{ data_get($scanSettings->limits, $pack.'.batch') }}" placeholder="Sans limite"></td>
+</tr>
+@endforeach
+</tbody></table></div>
+<p class="small text-muted">Laissez une valeur vide pour ne pas définir de plafond sur cette dimension. L'application des limites et du compteur de consommation sera activée dans une étape ultérieure.</p>
+<button class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Enregistrer les paramètres</button>
+</form></div></div></div>
 </div>
 </div>
 </div></div></div></div>
