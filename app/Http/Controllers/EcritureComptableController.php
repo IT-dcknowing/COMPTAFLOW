@@ -624,7 +624,8 @@ class EcritureComptableController extends Controller
 
         }
         catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            Log::error('Échec enregistrement écriture', ['company_id' => $activeCompanyId ?? null, 'exception' => $e]);
+            return response()->json(['success' => false, 'message' => 'Une erreur est survenue pendant l’enregistrement. Veuillez réessayer ou contacter le support.'], 500);
         }
     }
 
@@ -910,7 +911,8 @@ class EcritureComptableController extends Controller
         }
         catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            Log::error('Échec enregistrement du lot de scan', ['company_id' => $activeCompanyId ?? null, 'exception' => $e]);
+            return response()->json(['success' => false, 'error' => 'Une erreur est survenue pendant la création des écritures. Aucune information technique ne peut être affichée.'], 500);
         }
     }
 
