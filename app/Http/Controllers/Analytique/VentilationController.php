@@ -35,9 +35,9 @@ class VentilationController extends Controller
         $companyId = Session::get('current_company_id') ?? auth()->user()->company_id;
 
         $request->validate([
-            'plan_comptable_id' => 'required|exists:plan_comptables,id',
+            'plan_comptable_id' => ['required', Rule::exists('plan_comptables', 'id')->where('company_id', $companyId)],
             'ventilations' => 'required|array',
-            'ventilations.*.section_id' => 'required|exists:sections_analytiques,id',
+            'ventilations.*.section_id' => ['required', Rule::exists('sections_analytiques', 'id')->where('company_id', $companyId)],
             'ventilations.*.pourcentage' => 'required|numeric|min:0.01|max:100',
         ]);
 
