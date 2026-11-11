@@ -57,21 +57,25 @@ class SuperAdminPageControlController extends Controller
         $data = $request->validate([
             'route_name' => ['required', 'string', 'max:190'],
             'scope' => ['required', Rule::in(['global', 'company'])],
-            'company_id' => ['nullable', 'required_if:scope,company', 'exists:companies,id'],
+            'company_ids' => ['nullable', 'array', 'required_if:scope,company', 'min:1'],
+            'company_ids.*' => ['required', 'integer', 'distinct', 'exists:companies,id'],
             'is_visible' => ['required', 'boolean'],
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        SuperAdminPageRule::updateOrCreate([
-            'route_name' => $data['route_name'],
-            'company_id' => $data['scope'] === 'global' ? null : $data['company_id'],
-        ], [
-            'is_visible' => $data['is_visible'],
-            'reason' => $data['reason'] ?? null,
-            'updated_by' => $request->user()->id,
-        ]);
+        $companyIds = $data['scope'] === 'global' ? [null] : $data['company_ids'];
+        foreach ($companyIds as $companyId) {
+            SuperAdminPageRule::updateOrCreate([
+                'route_name' => $data['route_name'],
+                'company_id' => $companyId,
+            ], [
+                'is_visible' => $data['is_visible'],
+                'reason' => $data['reason'] ?? null,
+                'updated_by' => $request->user()->id,
+            ]);
+        }
 
-        return back()->with('success', 'La règle de visibilité a été enregistrée.');
+        return back()->with('success', 'Les règles de visibilité ont été enregistrées pour '.count($companyIds).' périmètre(s).');
     }
 
     public function deletePageRule(SuperAdminPageRule $rule)
