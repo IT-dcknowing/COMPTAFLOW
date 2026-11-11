@@ -243,8 +243,10 @@ class PlanTiersController extends Controller
 
             return redirect()->back()->with('success', 'Plan Tiers créé avec succès')->with('reload', true);
         } catch (\Exception $e) {
-            logger()->error('Erreur dans PlanTiersController@store: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Échec de création du plan tiers', [
+                'company_id' => $currentCompanyId ?? null,
+                'user_id' => Auth::id(),
+                'exception' => $e,
             ]);
             
             // Vérifier si c'est une requête AJAX
