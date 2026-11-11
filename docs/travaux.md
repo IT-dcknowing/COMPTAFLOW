@@ -76,6 +76,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - Le scan groupé filtre les plans comptables et tiers à l'affichage, mais son endpoint d'enregistrement de lot ne revalidait pas systématiquement chaque compte, tiers, journal et exercice transmis. Des contrôles tenant/exercice/date ont été ajoutés avant création.
 - Le scan groupé enregistre les écritures dans une transaction, mais son ancienne réponse d'exception exposait le message technique : elle renvoie maintenant un message générique et journalise l'exception côté serveur.
 - Le scan unitaire filtre désormais les plans comptables et tiers par entreprise.
+- Le prompt IA reçoit désormais jusqu'à 500 tiers de l'entreprise, triés par numéro. L'écran conserve toutefois la liste complète des tiers pour le rapprochement local.
 - Le stockage des clés IA créé dans cette première version n'est pas encore consommé par `PythonAiService`. Le scan actuel utilise le service Python distant et Claude (Anthropic), pas `VertexAiService`/Gemini. Le routage effectif par fournisseur/modèle et le branchement du coffre de clés restent à développer.
 - Une clé Anthropic était codée en dur dans le dépôt Python. Le code de la branche dédiée a été remplacé par une lecture de `ANTHROPIC_API_KEY` depuis l'environnement ; cette correction ne révoque pas la clé déjà exposée dans l'historique Git. Révocation/rotation impérative avant déploiement.
 
@@ -87,7 +88,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 
 ## Décisions / éléments à confirmer pendant l'audit
 - Inventaire exact des sections et pages à partir des routes et des menus (ne pas se limiter aux exemples).
-- Règles précises des quotas par tiers du module scan et unité de consommation.
+- Règles précises des quotas par forfait du module scan et unité de consommation.
 - Fournisseurs IA et modèles déjà configurés dans le projet, variables d'environnement et stockage actuel.
 - Liste exacte des KPI à retirer de `/dashboard-compta`, après lecture de la page et de ses usages.
 
@@ -101,6 +102,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Valider les ventilations analytiques uniquement contre les sections et axes de l'entreprise active.
 - [x] Valider le compte collectif d'un tiers dans le périmètre de l'entreprise à la création et à la modification.
 - [x] Aligner le scan groupé sur le vrai schéma de réponse et les champs du modèle PlanTiers.
+- [x] Rendre accessible la création manuelle d'un nouveau tiers depuis les lignes du scan groupé ; l'IA ne crée jamais un tiers sans confirmation de l'utilisateur.
 - [x] Ajouter des tentatives progressives côté scan groupé sur les réponses 429/503 ; cela ne remplace pas le quota métier par forfait.
 - [x] Externaliser l'URL du service Python dans la configuration Laravel.
 
