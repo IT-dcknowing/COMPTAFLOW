@@ -12,6 +12,20 @@
 .page-actions{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
 .page-actions input,.page-actions select{min-width:120px}
 .key-card{border:1px solid #e2eaf5;border-radius:14px;padding:16px;background:#fff}
+.superadmin-workspace{background:#f6f8fc;border:1px solid #e7edf6;border-radius:18px;padding:18px}
+.page-control-hero{box-shadow:0 8px 24px rgba(28,67,130,.06)}
+.control-stat{background:#fff;border:1px solid #e5ebf4;border-radius:14px;padding:14px 16px;min-width:150px}
+.control-stat strong{display:block;font-size:1.35rem;color:#173f86}
+.page-filter{max-width:420px;border-radius:12px}
+.nav-pills .nav-link{border:1px solid #e4eaf3;background:#fff;color:#52627a;margin-right:7px;font-weight:700}
+.nav-pills .nav-link.active{background:#2456bd;color:#fff;border-color:#2456bd;box-shadow:0 5px 14px rgba(36,86,189,.16)}
+.page-section{box-shadow:0 4px 14px rgba(28,67,130,.035)}
+.page-section summary:hover{background:#f7faff}
+.page-rule-row{transition:background .15s}
+.page-rule-row:hover{background:#f3f7ff}
+.key-card.is-active{border-color:#b8d4ff;background:#f8fbff}
+.superadmin-section-title{font-weight:800;color:#172b4d}
+@media(max-width:800px){.superadmin-workspace{padding:10px}.control-stat{flex:1 1 130px}}
 @media(max-width:800px){.page-rule-row{grid-template-columns:1fr}.page-actions{align-items:stretch}.page-actions>*{flex:1 1 130px}}
 </style>
 <body>
@@ -25,7 +39,11 @@
 <div class="page-control-hero mb-4">
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
 <div><span class="badge bg-primary-subtle text-primary mb-2">SUPER ADMIN · CONFIGURATION</span><h3 class="mb-1 fw-bold">Visibilité des pages & clés IA</h3><p class="text-muted mb-0">Contrôlez les fonctionnalités disponibles, globalement ou entreprise par entreprise.</p></div>
-<div class="d-flex gap-2"><span class="badge bg-white text-primary border p-2">{{ collect($sections)->sum(fn($items)=>count($items)) }} pages détectées</span><span class="badge bg-white text-success border p-2">{{ $credentials->count() }} modèles IA</span></div>
+<div class="d-flex flex-wrap gap-2">
+<div class="control-stat"><span class="small text-muted">Pages répertoriées</span><strong>{{ collect($sections)->sum(fn($items)=>count($items)) }}</strong></div>
+<div class="control-stat"><span class="small text-muted">Configurations IA</span><strong>{{ $credentials->count() }}</strong></div>
+<div class="control-stat"><span class="small text-muted">Entreprises</span><strong>{{ $companies->count() }}</strong></div>
+</div>
 </div></div>
 <ul class="nav nav-pills mb-3" role="tablist">
 <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pages-tab" type="button">Pages de l'application</button></li>
@@ -34,13 +52,17 @@
 </ul>
 <div class="tab-content">
 <div class="tab-pane fade show active" id="pages-tab">
+<div class="superadmin-workspace mb-3"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+<div><div class="superadmin-section-title">Catalogue des fonctionnalités</div><div class="small text-muted">Recherchez une page, choisissez la portée de la règle et précisez le motif de masquage.</div></div>
+<input type="search" id="pageFilter" class="form-control page-filter" placeholder="Rechercher une page, une section ou une route…">
+</div></div>
 <div class="alert alert-info border-0"><strong>Règle de priorité :</strong> une règle définie pour une entreprise remplace la règle générale. Sans règle spécifique, la règle générale s'applique. Une page masquée est aussi bloquée côté serveur.</div>
 @foreach($sections as $section=>$pages)
 @if(count($pages))
-<details class="page-section mb-3" open><summary><span>{{ $section }} <small class="text-muted fw-normal">({{ count($pages) }} pages)</small></span><i class="fa-solid fa-chevron-down"></i></summary>
+<details class="page-section mb-3" open data-page-section><summary><span>{{ $section }} <small class="text-muted fw-normal">({{ count($pages) }} pages)</small></span><i class="fa-solid fa-chevron-down"></i></summary>
 @foreach($pages as $routeName=>$page)
 @php($globalRule=$rules->get('global',collect())->firstWhere('route_name',$routeName))
-<div class="page-rule-row">
+<div class="page-rule-row" data-page-item data-search="{{ strtolower($section.' '.$page['label'].' '.$page['uri'].' '.$routeName) }}">
 <div><div class="fw-semibold">{{ $page['label'] }}</div><div class="page-route">{{ $page['uri'] }} · <code>{{ $routeName }}</code></div>
 @if($globalRule)<small class="text-{{ $globalRule->is_visible?'success':'danger' }}">Règle générale : {{ $globalRule->is_visible?'Visible':'Masquée' }}</small>@else<small class="text-muted">Règle générale : visibilité par défaut</small>@endif
 </div>
@@ -73,7 +95,7 @@
 </div></div></div>
 <div class="col-xl-7"><h5 class="fw-bold mb-3">Modèles configurés</h5>
 @if($credentials->isEmpty())<div class="card border-0 bg-light p-4 text-center text-muted">Aucun fournisseur IA configuré pour le moment.</div>@endif
-@foreach($credentials as $credential)<div class="key-card mb-3"><div class="d-flex justify-content-between gap-3 align-items-start"><div><div class="fw-bold">{{ $credential->provider }} <span class="text-primary">/</span> {{ $credential->model }}</div><div class="small text-muted">Clé enregistrée · {{ $credential->updated_at?->format('d/m/Y H:i') }}</div>@if($credential->notes)<p class="small mb-0 mt-2">{{ $credential->notes }}</p>@endif</div><span class="badge bg-{{ $credential->is_active?'success':'secondary' }}">{{ $credential->is_active?'Active':'Inactive' }}</span></div>
+@foreach($credentials as $credential)<div class="key-card mb-3 {{ $credential->is_active ? 'is-active' : '' }}"><div class="d-flex justify-content-between gap-3 align-items-start"><div><div class="fw-bold">{{ $credential->provider }} <span class="text-primary">/</span> {{ $credential->model }}</div><div class="small text-muted">Clé enregistrée · {{ $credential->updated_at?->format('d/m/Y H:i') }}</div>@if($credential->notes)<p class="small mb-0 mt-2">{{ $credential->notes }}</p>@endif</div><span class="badge bg-{{ $credential->is_active?'success':'secondary' }}">{{ $credential->is_active?'Active':'Inactive' }}</span></div>
 <div class="d-flex gap-2 mt-3"><form method="POST" action="{{ route('superadmin.ai-credentials.toggle',$credential) }}">@csrf<button class="btn btn-sm btn-outline-primary">{{ $credential->is_active?'Désactiver':'Activer' }}</button></form><form method="POST" action="{{ route('superadmin.ai-credentials.delete',$credential) }}" onsubmit="return confirm('Supprimer cette configuration IA ?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Supprimer</button></form></div></div>@endforeach
 </div></div>
 <div class="tab-pane fade" id="quotas-tab">
@@ -99,4 +121,25 @@
 </div>
 </div>
 </div></div></div></div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+ const filter=document.getElementById('pageFilter');
+ if(filter) filter.addEventListener('input',function(){
+  const term=this.value.trim().toLocaleLowerCase('fr');
+  document.querySelectorAll('[data-page-section]').forEach(section=>{
+   let visible=0;
+   section.querySelectorAll('[data-page-item]').forEach(item=>{
+    const match=!term||(item.dataset.search||'').includes(term);
+    item.classList.toggle('d-none',!match); if(match) visible++;
+   });
+   section.classList.toggle('d-none',visible===0); if(term&&visible)section.open=true;
+  });
+ });
+ document.querySelectorAll('select[name="scope"]').forEach(select=>{
+  const company=select.form.querySelector('[name="company_id"]');
+  const sync=()=>{company.disabled=select.value!=='company';company.required=select.value==='company';};
+  select.addEventListener('change',sync);sync();
+ });
+});
+</script>
 </body></html>
