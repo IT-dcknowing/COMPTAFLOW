@@ -15,8 +15,8 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 |---|---|---|---|
 | P0 | Super Admin — visibilité des pages | Inventaire des routes/pages par section ; masquage global ou par entreprise ; activation/désactivation ; motif/commentaire ; contrôle serveur des accès et navigation cohérente | À faire |
 | P0 | Super Admin — clés API IA | Fournisseurs/maisons, modèles, clés chiffrées, activation, clé par fournisseur/modèle, test de connexion, permissions et journalisation | À faire |
-| P0 | Scan groupé `/bulk-scan` | Audit UI + contrôleur + services IA/OCR + tiers + écritures créées + règles d'exercice + paramétrage fournisseur/modèle ; refonte visuelle | À auditer |
-| P0 | Scan unitaire `/ecriture-scan` | Comparaison avec le scan groupé ; cohérence métier et UX ; conservation du parcours une facture | À auditer |
+| P0 | Scan groupé `/bulk-scan` | Audit UI + contrôleur + services IA/OCR + tiers + écritures créées + règles d'exercice + paramétrage fournisseur/modèle ; refonte visuelle | Audit technique réalisé ; correctifs tenant et rapprochement tiers appliqués ; quotas et refonte UI restants |
+| P0 | Scan unitaire `/ecriture-scan` | Comparaison avec le scan groupé ; cohérence métier et UX ; conservation du parcours une facture | Audit technique réalisé ; transmission du prompt corrigée ; quotas et refonte UI restants |
 | P1 | Analytique `/analytique` | Refonte axes, sections, ventilations, rapports ; centres de coûts, marges, répartitions, écarts et indicateurs analytiques | À auditer |
 | P1 | Administration `/admin` | Inventaire complet des pages et navigation ; cohérence et regroupement | À auditer |
 | P1 | Informations entreprise | Repenser la disposition et les groupes de champs de `/compagny_information` | À auditer |
@@ -50,9 +50,14 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Corriger l'affichage des notifications lorsque le compte expéditeur a été supprimé (relation nullable).
 - [x] Ajouter une page d'erreur 500 publique, sans détails techniques, avec e-mail du support et lien WhatsApp.
 - [x] Premier audit des deux contrôleurs d'affichage du scan et du traitement IA.
+- [x] Remonter jusqu'au dépôt Python distant : identifier le contrat `/agent/facture`, le modèle réellement configuré et la fonction d'analyse documentaire.
 - [x] Corriger un défaut de cloisonnement : le scan unitaire chargeait les plans comptables et tiers sans filtre d'entreprise ; filtres tenant ajoutés.
 - [x] Supprimer l'exposition des chemins et lignes PHP dans les erreurs JSON du traitement IA.
 - [x] Renforcer la validation du lot scanné : comptes, tiers, journaux et exercice doivent appartenir à l'entreprise et à l'exercice sélectionnés.
+- [x] Cloisonner les sections/axes analytiques utilisés dans les ventilations envoyées avec les écritures.
+- [x] Cloisonner le compte général lié à un tiers lors de la création et de la modification du tiers.
+- [x] Corriger le rapprochement automatique du tiers dans le scan groupé (`tiers`, `compte_general`, `numero_de_tiers`).
+- [x] Transmettre le prompt métier de Laravel au service Python et préserver le statut HTTP 429 du fournisseur.
 - [x] Ajouter le contrôle entreprise lors de la résolution de l'exercice sur l'affichage et le chargement AJAX des liasses SN/SMT.
 - [x] Masquer les exceptions techniques retournées par les endpoints d'enregistrement unitaire et groupé.
 - [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
@@ -66,12 +71,13 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 ## Constats techniques de l'audit initial
 - Le scan unitaire `/ecriture-scan` et le scan groupé `/bulk-scan` utilisent deux vues distinctes : `accounting.scan` et `accounting.bulk_scan`.
 - Les deux écrans sont servis par `EcritureComptableController`; le traitement IA passe par `IaController::traiterFacture` et `PythonAiService::analyzeInvoice`.
-- Dans `IaController`, le contexte du plan comptable, des tiers et des mappings est construit, et un prompt est généré, mais cet ensemble n'est pas transmis à `PythonAiService::analyzeInvoice` : ce service n'envoie actuellement que le fichier au service Python distant. Il faut confirmer le contrat de l'API distante avant de corriger ce point.
-- Aucune vérification explicite du forfait/quotas de scan n'apparaît dans la méthode Laravel `traiterFacture` ni dans les routes IA consultées. Le respect des tiers ne peut donc pas être certifié sans audit du service Python et du système d'abonnement ; c'est un point bloquant à vérifier avant de déclarer le scan conforme.
+- Dans le dépôt Python distant, `/agent/facture` acceptait le fichier mais `analyser_document` ignorait les octets du document et ne transmettait au modèle que le nom du fichier dans un prompt texte. La réponse ne respectait pas non plus le schéma `ecriture` attendu par les vues Laravel. Un correctif est préparé dans une branche séparée pour envoyer le contenu PDF/image au modèle et renvoyer le schéma comptable attendu.
+- Aucune vérification explicite du forfait/quotas de scan n'apparaît dans `traiterFacture`, les routes IA ou le modèle d'abonnement consulté. `AppSubscription` suit des abonnements et dates, mais ne définit pas de compteur/limite de scans par pack. Les quotas par forfait restent donc non implémentés et bloquants avant mise en production.
 - Le scan groupé filtre les plans comptables et tiers à l'affichage, mais son endpoint d'enregistrement de lot ne revalidait pas systématiquement chaque compte, tiers, journal et exercice transmis. Des contrôles tenant/exercice/date ont été ajoutés avant création.
 - Le scan groupé enregistre les écritures dans une transaction, mais son ancienne réponse d'exception exposait le message technique : elle renvoie maintenant un message générique et journalise l'exception côté serveur.
 - Le scan unitaire filtre désormais les plans comptables et tiers par entreprise.
-- Le stockage des clés IA créé dans cette première version n'est pas encore consommé par `PythonAiService` ni raccordé à `VertexAiService`. L'écran prépare la gouvernance des clés, mais le routage effectif des appels par fournisseur/modèle reste à développer.
+- Le stockage des clés IA créé dans cette première version n'est pas encore consommé par `PythonAiService`. Le scan actuel utilise le service Python distant et Claude (Anthropic), pas `VertexAiService`/Gemini. Le routage effectif par fournisseur/modèle et le branchement du coffre de clés restent à développer.
+- Une clé Anthropic était codée en dur dans le dépôt Python. Le code de la branche dédiée a été remplacé par une lecture de `ANTHROPIC_API_KEY` depuis l'environnement ; cette correction ne révoque pas la clé déjà exposée dans l'historique Git. Révocation/rotation impérative avant déploiement.
 
 ## Constats analytiques initiaux
 - Six écrans / rapports identifiés : axes, sections, règles de ventilation, balance analytique, grand livre analytique et résultat analytique.
@@ -84,3 +90,34 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - Règles précises des quotas par tiers du module scan et unité de consommation.
 - Fournisseurs IA et modèles déjà configurés dans le projet, variables d'environnement et stockage actuel.
 - Liste exacte des KPI à retirer de `/dashboard-compta`, après lecture de la page et de ses usages.
+
+
+## Audit approfondi du SCAN — 11 novembre 2026
+
+### Dépôt COMPTAFLOW — branche `superadmin/masquage-pages-et-cles-ia`
+- [x] Transmettre le prompt métier construit par Laravel au service Python.
+- [x] Préserver le statut HTTP du fournisseur IA afin que le 429 soit distingué d'une indisponibilité générique.
+- [x] Ne plus journaliser le contenu complet des requêtes de création de lots.
+- [x] Valider les ventilations analytiques uniquement contre les sections et axes de l'entreprise active.
+- [x] Valider le compte collectif d'un tiers dans le périmètre de l'entreprise à la création et à la modification.
+- [x] Aligner le scan groupé sur le vrai schéma de réponse et les champs du modèle PlanTiers.
+- [x] Externaliser l'URL du service Python dans la configuration Laravel.
+
+### Dépôt Python — branche `scan/analyse-factures`
+- [x] Retirer la clé API du code source courant et la remplacer par `ANTHROPIC_API_KEY` lue depuis l'environnement.
+- [x] Ajouter `.env.example` pour documenter `ANTHROPIC_API_KEY` et `ANTHROPIC_MODEL`.
+- [x] Faire accepter un prompt métier à `/agent/facture`.
+- [x] Transmettre le contenu réel PDF/image au modèle au lieu de ne lui envoyer que le nom du fichier.
+- [x] Structurer la réponse selon le schéma comptable attendu par COMPTAFLOW.
+
+### Restant impérativement à faire avant déploiement
+- [ ] Révoquer la clé Anthropic exposée dans l'historique Git et créer une nouvelle clé.
+- [ ] Définir les quotas exacts de scans par forfait (volume, période, traitement unitaire/groupe, comportement au dépassement).
+- [ ] Brancher les limites côté serveur avant chaque appel IA, avec contrôle atomique pour éviter les dépassements en concurrence.
+- [ ] Connecter le coffre Super Admin aux vrais secrets/fournisseurs du service Python ; aujourd'hui le coffre COMPTAFLOW et le moteur Python restent deux configurations distinctes.
+- [ ] Vérifier les versions installées de `langchain-anthropic` et tester les blocs multimodaux image/PDF sur l'environnement cible.
+- [ ] Ajouter tests unitaires/API pour le schéma de réponse, les fichiers invalides, les erreurs 429/5xx et les accès multi-entreprises.
+- [ ] Tester avec de vraies factures anonymisées et comparer les écritures suggérées aux documents.
+- [ ] Refaire les interfaces SCAN après validation fonctionnelle.
+
+**Statut sécurité :** aucune branche SCAN n'est fusionnée ni déployée. La clé doit être révoquée avant toute mise en service de la version corrigée.
