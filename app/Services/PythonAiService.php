@@ -24,8 +24,18 @@ class PythonAiService
         $sessionId = $sessionId ?? session()->getId();
         $clientId = $clientId ?? (Auth::check() ? Auth::user()->company_id : null);
 
+        $credential = AiProviderCredential::where('is_active', true)->orderByDesc('updated_at')->first();
+        if (!$credential) {
+            return ['success' => false, 'error' => "Aucune clé API IA active. Configurez un fournisseur dans le Super Admin."];
+        }
+
         try {
-            $response = Http::timeout(120)->post("{$this->baseUrl}/agent/chat", [
+            $response = Http::timeout(120)->withHeaders([
+                'X-AI-Provider' => $credential->provider,
+                'X-AI-Model' => $credential->model,
+                'X-AI-API-Key' => $credential->api_key,
+                'Accept' => 'application/json',
+            ])->post("{$this->baseUrl}/agent/chat", [
                 'message' => $message,
                 'client_id' => $clientId,
                 'session_id' => $sessionId,
