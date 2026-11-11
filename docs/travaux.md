@@ -72,7 +72,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - Le scan unitaire `/ecriture-scan` et le scan groupé `/bulk-scan` utilisent deux vues distinctes : `accounting.scan` et `accounting.bulk_scan`.
 - Les deux écrans sont servis par `EcritureComptableController`; le traitement IA passe par `IaController::traiterFacture` et `PythonAiService::analyzeInvoice`.
 - Dans le dépôt Python distant, `/agent/facture` acceptait le fichier mais `analyser_document` ignorait les octets du document et ne transmettait au modèle que le nom du fichier dans un prompt texte. La réponse ne respectait pas non plus le schéma `ecriture` attendu par les vues Laravel. Un correctif est préparé dans une branche séparée pour envoyer le contenu PDF/image au modèle et renvoyer le schéma comptable attendu.
-- Aucune vérification explicite du forfait/quotas de scan n'apparaît dans `traiterFacture`, les routes IA ou le modèle d'abonnement consulté. `AppSubscription` suit des abonnements et dates, mais ne définit pas de compteur/limite de scans par pack. Les quotas par forfait restent donc non implémentés et bloquants avant mise en production.
+- Aucune vérification explicite du forfait/quotas de scan n'apparaît dans `traiterFacture`, les routes IA ou le modèle d'abonnement consulté. `AppSubscription` suit des abonnements et dates, mais ne définit pas de compteur/limite de scans par pack. Les quotas par forfait restent volontairement désactivés et non appliqués, conformément à la demande actuelle. Leurs plafonds sont préparés dans le Super Admin ; le compteur ne sera nécessaire que lorsque l'option sera activée.
 - Le scan groupé filtre les plans comptables et tiers à l'affichage, mais son endpoint d'enregistrement de lot ne revalidait pas systématiquement chaque compte, tiers, journal et exercice transmis. Des contrôles tenant/exercice/date ont été ajoutés avant création.
 - Le scan groupé enregistre les écritures dans une transaction, mais son ancienne réponse d'exception exposait le message technique : elle renvoie maintenant un message générique et journalise l'exception côté serveur.
 - Le scan unitaire filtre désormais les plans comptables et tiers par entreprise.
@@ -128,12 +128,12 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 ### Restant impérativement à faire avant déploiement
 - [x] Clé Anthropic historique révoquée par le propriétaire ; le secret est absent du code courant. L'historique Git conserve le commit ancien, mais la clé n'est plus valide.
 - [x] Ajouter dans le Super Admin un écran de paramétrage des quotas Starter / Pro / Enterprise (factures par mois et par traitement groupé), désactivé par défaut.
-- [ ] Implémenter le compteur de consommation et l'application atomique des plafonds côté serveur avant d'activer réellement les quotas. Pour l'instant, aucun quota n'est appliqué.
+- [ ] En cas d'activation future des quotas par le Super Admin, implémenter le compteur de consommation et l'application atomique des plafonds côté serveur. Pour l'instant, aucun quota n'est appliqué.
 - [x] Connecter le coffre Super Admin au service Python : le fournisseur, le modèle et la clé active sont transmis via HTTPS à chaque analyse.
 - [ ] Vérifier les versions installées de `langchain-anthropic` et tester les blocs multimodaux image/PDF sur l'environnement cible.
 - [ ] Ajouter tests unitaires/API pour le schéma de réponse, les fichiers invalides, les erreurs 429/5xx et les accès multi-entreprises.
 - [ ] Tester avec de vraies factures anonymisées et comparer les écritures suggérées aux documents.
-- [ ] Refaire les interfaces SCAN après validation fonctionnelle.
+- [x] Refaire les interfaces SCAN unitaire et groupé dans la charte claire COMPTAFLOW.
 
 **Statut sécurité :** la clé exposée a été révoquée par le propriétaire ; elle n'est plus présente dans le code courant. L'ancien commit reste dans l'historique Git. Les corrections actuelles ne sont ni fusionnées ni déployées.
 
@@ -168,5 +168,5 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [ ] Exécuter les migrations COMPTAFLOW sur un environnement de test puis en production après validation.
 - [ ] Tester des factures PDF et images anonymisées, un document non-facture, un scan illisible, une clé invalide et un quota épuisé.
 - [ ] Vérifier les erreurs 401/403/429 et la communication HTTPS en environnement cible.
-- [ ] Implémenter le compteur de quotas et la limitation serveur avant d'activer l'interrupteur des quotas.
+- [ ] Si les quotas doivent être activés ultérieurement, implémenter le compteur de consommation et la limitation serveur avant d'autoriser l'activation effective.
 - [x] Refaire les interfaces SCAN unitaire et groupé dans la charte claire COMPTAFLOW, avec messages adaptés et contacts du support.
