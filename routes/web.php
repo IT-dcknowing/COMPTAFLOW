@@ -1022,6 +1022,7 @@ Route::middleware(['auth', 'superadmin'])->group(function () {
     Route::delete('/superadmin/controle-pages/regles/{rule}', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'deletePageRule'])->name('superadmin.pages.rules.delete');
     Route::post('/superadmin/cles-ia', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'storeCredential'])->name('superadmin.ai-credentials.store');
     Route::post('/superadmin/cles-ia/{credential}/activer', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'toggleCredential'])->name('superadmin.ai-credentials.toggle');
+    Route::post('/superadmin/cles-ia/{credential}/tester', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'testCredential'])->name('superadmin.ai-credentials.test');
     Route::delete('/superadmin/cles-ia/{credential}', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'deleteCredential'])->name('superadmin.ai-credentials.delete');
     Route::post('/superadmin/quotas-scan', [\App\Http\Controllers\Super\SuperAdminPageControlController::class, 'saveScanSettings'])->name('superadmin.scan-quotas.store');
 
