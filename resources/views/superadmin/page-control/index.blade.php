@@ -64,14 +64,20 @@
 @php($globalRule=$rules->get('global',collect())->firstWhere('route_name',$routeName))
 <div class="page-rule-row" data-page-item data-search="{{ strtolower($section.' '.$page['label'].' '.$page['uri'].' '.$routeName) }}">
 <div><div class="fw-semibold">{{ $page['label'] }}</div><div class="page-route">{{ $page['uri'] }} · <code>{{ $routeName }}</code></div>
-@if($globalRule)<small class="text-{{ $globalRule->is_visible?'success':'danger' }}">Règle générale : {{ $globalRule->is_visible?'Visible':'Masquée' }}</small>@else<small class="text-muted">Règle générale : visibilité par défaut</small>@endif
+@if($globalRule)<small class="d-block text-{{ $globalRule->is_visible?'success':'danger' }}">Règle générale : {{ $globalRule->is_visible?'Visible':'Masquée' }} @if($globalRule->reason) · {{ $globalRule->reason }} @endif</small>@else<small class="d-block text-muted">Règle générale : visibilité par défaut</small>@endif
+@foreach($rules as $scopeId=>$scopeRules)
+@if($scopeId !== 'global' && ($companyRule=$scopeRules->firstWhere('route_name',$routeName)))
+@php($ruleCompany=$companies->firstWhere('id',(int)$scopeId))
+@if($ruleCompany)<small class="d-block {{ $companyRule->is_visible?'text-success':'text-danger' }}">{{ $ruleCompany->company_name }} : {{ $companyRule->is_visible?'Visible':'Masquée' }} <form class="d-inline" method="POST" action="{{ route('superadmin.pages.rules.delete',$companyRule) }}">@csrf @method('DELETE')<button class="btn btn-link btn-sm p-0 text-muted" title="Supprimer cette règle">×</button></form></small>@endif
+@endif
+@endforeach
 </div>
 <form class="page-actions" method="POST" action="{{ route('superadmin.pages.rules.store') }}">@csrf
 <input type="hidden" name="route_name" value="{{ $routeName }}">
-<select name="scope" class="form-select form-select-sm" onchange="this.form.querySelector('[name=company_id]').required=this.value==='company';this.form.querySelector('[name=company_id]').disabled=this.value!=='company'">
-<option value="global">Toute l'application</option><option value="company">Entreprise ciblée</option></select>
-<select name="company_id" class="form-select form-select-sm" disabled>
-<option value="">Choisir l'entreprise</option>@foreach($companies as $company)<option value="{{ $company->id }}">{{ $company->company_name }}</option>@endforeach</select>
+<select name="scope" class="form-select form-select-sm">
+<option value="global">Toute l'application</option><option value="company">Une ou plusieurs entreprises</option></select>
+<select name="company_ids[]" class="form-select form-select-sm" multiple size="1" disabled title="Maintenez Ctrl pour sélectionner plusieurs entreprises">
+@foreach($companies as $company)<option value="{{ $company->id }}">{{ $company->company_name }}</option>@endforeach</select>
 <select name="is_visible" class="form-select form-select-sm"><option value="0">Masquer</option><option value="1">Afficher</option></select>
 <input name="reason" class="form-control form-control-sm" placeholder="Motif / précision (facultatif)">
 <button class="btn btn-sm btn-primary" type="submit"><i class="fa-solid fa-floppy-disk me-1"></i>Appliquer</button>
@@ -136,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
  });
  document.querySelectorAll('select[name="scope"]').forEach(select=>{
-  const company=select.form.querySelector('[name="company_id"]');
+  const company=select.form.querySelector('[name="company_ids[]"]');
   const sync=()=>{company.disabled=select.value!=='company';company.required=select.value==='company';};
   select.addEventListener('change',sync);sync();
  });
