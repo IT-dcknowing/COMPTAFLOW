@@ -224,9 +224,6 @@
                                             </div>
                                             <span class="text-xs font-black">{{ $supplierCount ?? 0 }}</span>
                                         </div>
-                                        <button class="w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-xs font-bold transition">
-                                            Gérer Plan Tiers
-                                        </button>
                                     </div>
                                 </div>
                             </div>
