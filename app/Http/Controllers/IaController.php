@@ -135,10 +135,20 @@ class IaController extends Controller
                 $httpStatus = (int) ($result['http_code'] ?? 502);
                 $httpStatus = in_array($httpStatus, [422, 429, 503], true) ? $httpStatus : 502;
 
+                $apiFailureTypes = ['api_quota', 'api_key', 'api_not_configured', 'api_provider', 'api_transport_security', 'api_unavailable'];
+                $publicError = in_array($errorType, $apiFailureTypes, true)
+                    ? "Le service de traitement intelligent rencontre actuellement une difficulté. Nous vous prions de contacter le support technique DC-KNOWING pour obtenir de l'assistance. Nous sommes désolés pour ce désagrément."
+                    : $errorMsg;
+
                 return response()->json([
                     'success' => false,
                     'error_type' => $errorType,
-                    'error' => $errorMsg,
+                    'error' => $publicError,
+                    'support' => in_array($errorType, $apiFailureTypes, true) ? [
+                        'email' => 'it.dcknowing@gmail.com',
+                        'whatsapp' => 'https://wa.me/225767131993',
+                        'phone_display' => '07 67 13 19 93',
+                    ] : null,
                     'http_code' => $httpStatus,
                 ], $httpStatus);
             }
