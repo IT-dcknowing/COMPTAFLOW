@@ -1,7 +1,7 @@
 # COMPTAFLOW — Suivi du chantier de modernisation
 
 > Dépôt de travail : `IT-dcknowing/COMPTAFLOW`  
-> Branche de suivi initiale : `superadmin/masquage-pages-et-cles-ia`  
+> Branche de livraison intégrée : `main`  
 > Règle : une branche française par groupe fonctionnel, revue puis fusionnée dans `main`.  
 > Mise à jour : 11 novembre 2026.
 
@@ -13,15 +13,15 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 
 | Priorité | Groupe / périmètre | Travaux prévus | État |
 |---|---|---|---|
-| P0 | Super Admin — visibilité des pages | Catalogue filtrable par section ; masquage global ou sur plusieurs entreprises ; exceptions visibles et supprimables ; contrôle serveur des accès | Interface et règles enregistrées sur la branche ; tests de déploiement restants |
-| P0 | Super Admin — clés API IA | Fournisseurs/maisons, modèles, clés chiffrées, activation, test de connexion et journalisation sans exposer les secrets | Interface, coffre chiffré et bouton de test ajoutés ; clé propriétaire et test réel restants |
-| P0 | Scan groupé `/bulk-scan` | Audit métier, contrôles tenant/exercice, erreurs explicites et refonte claire du parcours | Audit et correctifs serveur réalisés ; interface harmonisée et support intégré ; validation réelle des documents restante |
-| P0 | Scan unitaire `/ecriture-scan` | Parcours une facture, contrôle avant validation, erreurs explicites et interface harmonisée | Audit, contrôles exercice et interface harmonisée ; validation réelle des documents restante |
+| P0 | Super Admin — visibilité des pages | Catalogue filtrable par section ; masquage global ou sur plusieurs entreprises ; exceptions visibles et supprimables ; contrôle serveur des accès | Fusionné dans `main` ; migrations et vérification en environnement restent à faire |
+| P0 | Super Admin — clés API IA | Fournisseurs/maisons, modèles, clés chiffrées, activation, test de connexion et journalisation sans exposer les secrets | Fusionné dans `main` ; clé propriétaire et test réel restants |
+| P0 | Scan groupé `/bulk-scan` | Audit métier, contrôles tenant/exercice, erreurs explicites et refonte claire du parcours | Fusionné dans `main` ; validation réelle des documents restante |
+| P0 | Scan unitaire `/ecriture-scan` | Parcours une facture, contrôle avant validation, erreurs explicites et interface harmonisée | Fusionné dans `main` ; validation réelle des documents restante |
 | P1 | Analytique `/analytique` | Refonte axes, sections, ventilations, rapports ; centres de coûts, marges, répartitions, écarts et indicateurs analytiques | À auditer |
 | P1 | Administration `/admin` | Inventaire complet des pages et navigation ; cohérence et regroupement | À auditer |
 | P1 | Informations entreprise | Repenser la disposition et les groupes de champs de `/compagny_information` | À auditer |
 | P1 | Habilitations | Tableau utilisateurs × permissions, recherche, filtres, profils et sauvegarde lisible | À auditer |
-| P1 | Performance Super Admin | KPI CA, charges, trésorerie nette, salaires, postes de dépenses, TVA collectée/déductible, tendances et comparaisons ; remplacer le flux des dernières écritures | Première refonte KPI réalisée ; vérification des comptes à poursuivre |
+| P1 | Performance Super Admin | KPI CA, charges, trésorerie nette, salaires, postes de dépenses, TVA collectée/déductible, tendances et comparaisons ; remplacer le flux des dernières écritures | KPI de pilotage fusionnés dans `main` ; vérification des comptes à poursuivre |
 | P1 | Dashboard comptable | Retirer les KPI identifiés comme inutiles sur `/dashboard-compta` (inventaire à faire avant suppression) | À auditer |
 | P1 | Reporting résultat | Présentation financière soignée type feuille Excel, totaux, sections, comparatifs, export | À auditer |
 | P1 | Notifications | Corriger la relation expéditeur nullable et toute autre donnée orpheline ; écran de maintenance propre en cas d'indisponibilité ; contact support et lien WhatsApp | À corriger |
@@ -66,7 +66,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Recomposer le dashboard Performance avec CA classe 70, charges classe 6, trésorerie nette classe 5, résultat, masse salariale classe 66, TVA collectée 443 et TVA déductible 445 ; supprimer le tableau des dernières écritures et corriger les libellés des postes de charges.
 - [x] Retirer les quatre KPI de \`/dashboard-compta\` et conserver un bandeau de contexte de l'exercice actif.
 - [x] Renforcer les validations tenant des axes/sections/règles analytiques et filtrer les rapports analytiques sur entreprise pour les écritures et comptes.
-- [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
+- [x] Fusionner les livraisons SCAN/Super Admin dans `main` du dépôt COMPTAFLOW et le moteur Python dans `main` du dépôt DC-KNOWING-AGENT-IA (11/11/2026).
 
 ## Constats techniques de l'audit initial
 - Le scan unitaire `/ecriture-scan` et le scan groupé `/bulk-scan` utilisent deux vues distinctes : `accounting.scan` et `accounting.bulk_scan`.
@@ -90,7 +90,8 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Refonte claire du scan unitaire et du scan groupé ; distinction des factures non conformes, documents illisibles et exercices incompatibles.
 - [x] Erreurs de quota/configuration API remplacées par une orientation vers le support technique DC-KNOWING : it.dcknowing@gmail.com et WhatsApp 07 67 13 19 93.
 - [ ] Rendu visuel navigateur, tests PHP/Laravel, tests d'intégration Python et validation de vrais documents à exécuter après installation des dépendances et migrations.
-- [ ] Fusionner les PR dans main après passage des vérifications ; aucun déploiement de production effectué.
+- [x] Intégration Git effectuée dans `main` (COMPTAFLOW : `235c765e6dc65dcc8ef7d6122bee9bc098a8981e` ; Python : `e4f9b4b7ad75039be948211d53fd2854d17d10d6`).
+- [ ] Déployer sur les serveurs web et Python, exécuter les migrations et les tests de bout en bout. Aucun accès de déploiement/SSH n'est disponible dans cette session.
 
 ## Constats analytiques initiaux
 - Six écrans / rapports identifiés : axes, sections, règles de ventilation, balance analytique, grand livre analytique et résultat analytique.
@@ -107,7 +108,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 
 ## Audit approfondi du SCAN — 11 novembre 2026
 
-### Dépôt COMPTAFLOW — branche `superadmin/masquage-pages-et-cles-ia`
+### Dépôt COMPTAFLOW — intégré dans `main`
 - [x] Transmettre le prompt métier construit par Laravel au service Python.
 - [x] Préserver le statut HTTP du fournisseur IA afin que le 429 soit distingué d'une indisponibilité générique.
 - [x] Ne plus journaliser le contenu complet des requêtes de création de lots.
@@ -118,7 +119,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [x] Ajouter des tentatives progressives côté scan groupé sur les réponses 429/503 ; cela ne remplace pas le quota métier par forfait.
 - [x] Externaliser l'URL du service Python dans la configuration Laravel.
 
-### Dépôt Python — branche `scan/analyse-factures`
+### Dépôt Python — intégré dans `main`
 - [x] Retirer la clé Anthropic révoquée du code source courant ; aucun secret fournisseur n'est conservé dans les fichiers Python suivis.
 - [x] Le fichier .env.example ne contient plus de variable de secret fournisseur ; les clés sont gérées dans le coffre chiffré Super Admin.
 - [x] Faire accepter un prompt métier à `/agent/facture`.
@@ -135,7 +136,7 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [ ] Tester avec de vraies factures anonymisées et comparer les écritures suggérées aux documents.
 - [x] Refaire les interfaces SCAN unitaire et groupé dans la charte claire COMPTAFLOW.
 
-**Statut sécurité :** la clé exposée a été révoquée par le propriétaire ; elle n'est plus présente dans le code courant. L'ancien commit reste dans l'historique Git. Les corrections actuelles ne sont ni fusionnées ni déployées.
+**Statut sécurité :** la clé exposée a été révoquée par le propriétaire ; elle n'est plus présente dans le code courant. L'ancien commit reste dans l'historique Git. Les corrections sont fusionnées dans `main`, mais pas encore déployées sur les serveurs.
 
 
 ## Compléments demandés — fournisseur API, erreurs et exercice (11 novembre 2026)
@@ -170,3 +171,12 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [ ] Vérifier les erreurs 401/403/429 et la communication HTTPS en environnement cible.
 - [ ] Si les quotas doivent être activés ultérieurement, implémenter le compteur de consommation et la limitation serveur avant d'autoriser l'activation effective.
 - [x] Refaire les interfaces SCAN unitaire et groupé dans la charte claire COMPTAFLOW, avec messages adaptés et contacts du support.
+
+
+## Intégration Git — 11 novembre 2026
+- [x] COMPTAFLOW : intégration de la branche de travail dans `main`, commit `235c765e6dc65dcc8ef7d6122bee9bc098a8981e`.
+- [x] DC-KNOWING-AGENT-IA : intégration de la branche de travail dans `main`, commit `e4f9b4b7ad75039be948211d53fd2854d17d10d6`.
+- [x] Les PR existantes ont été fusionnées et sont closes ; aucune PR ouverte ne reste nécessaire pour ces livraisons.
+- [ ] Déploiement de COMPTAFLOW et du service Python : nécessite l'accès à l'hébergement et aux commandes de déploiement, non fourni par la connexion GitHub.
+- [ ] Le dépôt miroir `guysergekouassi/COMPTAFLOW` est en retard de 59 commits par rapport au dépôt de référence au moment du contrôle. Sa synchronisation n'a pas été forcée pour ne pas écraser ses propres changements.
+- [ ] Les contrôles GitHub ne retournent aucun workflow CI ni statut de commit configuré pour ces deux livraisons ; tests applicatifs non certifiés.
