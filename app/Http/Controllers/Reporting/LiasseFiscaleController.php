@@ -93,8 +93,11 @@ class LiasseFiscaleController extends Controller
             return redirect()->route('exercice_comptable')->with('error', 'Veuillez sélectionner un exercice actif.');
         }
 
-        $exercice = ExerciceComptable::find($exerciceId);
-        $pages    = $this->getPages($regime);
+        $exercice = ExerciceComptable::where('company_id', $companyId)->find($exerciceId);
+        if (!$exercice) {
+            return redirect()->route('exercice_comptable')->with('error', 'L’exercice sélectionné est introuvable pour cette entreprise.');
+        }
+        $pages = $this->getPages($regime);
 
         return view('reporting.liasse.index', compact('pages', 'exercice', 'regime'));
     }
@@ -121,8 +124,11 @@ class LiasseFiscaleController extends Controller
 
         if (!$exerciceId) return response()->json(['error' => 'Aucun exercice trouvé'], 404);
 
-        $exercice = ExerciceComptable::find($exerciceId);
-        $company  = \App\Models\Company::find($companyId);
+        $exercice = ExerciceComptable::where('company_id', $companyId)->find($exerciceId);
+        if (!$exercice) {
+            return response()->json(['error' => 'Exercice introuvable pour cette entreprise.'], 404);
+        }
+        $company = \App\Models\Company::find($companyId);
 
         // Universal data fetching through getPageData (which delegates to SMT if needed)
         $data = $service->getPageData($exerciceId, $pageInfo['code']);
