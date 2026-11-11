@@ -14,12 +14,12 @@ class EnforcePageVisibility
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() || auth()->user()->isSuperAdmin()) {
+        if (!auth()->check()) {
             return $next($request);
         }
 
         $routeName = $request->route()?->getName();
-        if (!$routeName || str_starts_with($routeName, 'superadmin.pages.') || str_starts_with($routeName, 'superadmin.ai-credentials.')) {
+        if (!$routeName || str_starts_with($routeName, 'superadmin.')) {
             return $next($request);
         }
 
