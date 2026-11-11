@@ -498,7 +498,8 @@
                     }
                 } catch (error) {
                     console.error("Process Error:", error);
-                    let errMsg = 'Échec';
+                    item.errorMessage = error.message || "Le serveur n'a pas pu analyser ce document.";
+                    let errMsg = item.errorMessage;
                     
                     if (error.message.includes('429')) {
                         errMsg = 'Quota atteint (attente...)';
@@ -566,11 +567,11 @@
                             <button class="btn btn-sm btn-light text-danger" onclick="window.removeDocument('${docId}')"><i class="bx bx-trash"></i></button>
                         </div>
                         <div class="card-body">
-                            <div class="alert alert-danger mb-0 small">
-                                <strong>ERREUR :</strong> Le serveur n'a pas pu traiter ce document. Vérifiez le format ou réessayez.
-                            </div>
+                            <div class="alert alert-danger mb-0 small"><strong>Échec du scan :</strong> <span class="scan-error-message"></span></div>
                         </div>
                     `;
+                    const messageNode = card.querySelector('.scan-error-message');
+                    if (messageNode) messageNode.textContent = item.errorMessage || 'Le serveur n’a pas pu traiter ce document.';
                     return;
                 }
 
