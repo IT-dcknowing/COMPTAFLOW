@@ -136,6 +136,10 @@
         background-color: #fbfcfe !important;
         border: 1px solid #cbd5e1 !important;
     }
+    .scan-workspace{background:#f6f8fc;border:1px solid #e6edf7;border-radius:20px;padding:18px}
+    .card-importer{border-radius:22px!important;border:1px solid #e3eaf5!important;box-shadow:0 8px 24px rgba(24,58,110,.07)!important}
+    .card-info-syscohada{border-radius:22px!important;box-shadow:0 8px 24px rgba(37,99,235,.13)!important}
+    .table-container-card{border:1px solid #e5ebf4;border-radius:20px!important;box-shadow:0 6px 20px rgba(20,48,90,.045)!important}
 </style>
 <body>
     <div class="layout-wrapper layout-content-navbar">
@@ -147,8 +151,11 @@
 
                 <div class="content-wrapper">
                     <div class="container-xxl flex-grow-1 container-p-y">
-                        
-                        <!-- Top Cards Layout: Forced Side-by-Side -->
+                        <div class="scan-workspace mb-4"><div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                         <div><span class="badge bg-primary-subtle text-primary mb-2">TRAITEMENT INTELLIGENT</span><h4 class="fw-bold mb-1">Saisie comptable par scan</h4><p class="text-muted mb-0">Importez une facture, contrôlez les écritures proposées et validez avant enregistrement.</p></div>
+                         <span class="badge bg-white text-primary border px-3 py-2"><i class="bx bx-shield-check me-1"></i>Contrôle avant validation</span>
+                        </div></div>
+                        <!-- Top Cards Layout -->
                         <div class="d-flex gap-3 mb-4" style="overflow-x: auto; flex-wrap: nowrap;">
                             <!-- Card 1: Importer (Narrow but with slightly larger text) -->
                             <div class="card card-importer position-relative" style="width: 180px; min-width: 180px; min-height: 240px !important;">
@@ -708,7 +715,7 @@
 
                             // Un quota épuisé n'est pas une simple surcharge : ne pas relancer inutilement.
                             if (response.status === 429 && responseData.error_type === 'api_quota') {
-                                throw new Error(responseData.error || "Quota API épuisé. Rechargez les crédits ou vérifiez le quota gratuit du fournisseur IA.");
+                                throw new Error("SERVICE_SUPPORT");
                             }
 
                             // Gestion d'une limitation temporaire 429.
@@ -731,7 +738,7 @@
 
                             // Une clé invalide ou une configuration absente ne doit pas déclencher de tentatives inutiles.
                             if (response.status === 503 && ['api_key', 'api_not_configured', 'api_provider'].includes(responseData.error_type)) {
-                                throw new Error(responseData.error || "Vérifiez la configuration de la clé API dans le Super Admin.");
+                                throw new Error("SERVICE_SUPPORT");
                             }
 
                             // Gestion de la surcharge 503 (service temporairement indisponible)
@@ -749,15 +756,22 @@
                             }
 
                             if (!response.ok) {
-                                throw new Error(responseData.error || `Erreur HTTP ${response.status}`);
+                                if (['api_quota','api_key','api_not_configured','api_provider','api_transport_security','api_unavailable'].includes(responseData.error_type)) throw new Error("SERVICE_SUPPORT");
+                                const messages = {
+                                    document_unreadable: "Le document n'est pas suffisamment lisible. Importez une image plus nette ou le PDF original.",
+                                    not_invoice: "Le document transmis ne semble pas être une facture. Aucune écriture n'a été créée.",
+                                    exercise_mismatch: responseData.error || "Cette facture ne correspond pas à l'exercice sélectionné. Changez d'exercice puis recommencez.",
+                                    exercise_missing: responseData.error || "Sélectionnez un exercice comptable avant de lancer le scan."
+                                };
+                                throw new Error(messages[responseData.error_type] || "Le document n'a pas pu être analysé. Vérifiez le fichier et réessayez.");
                             }
 
                             return responseData;
                         } catch (e) {
-                            const msg = e.message;
-                            if (msg.includes('503') || msg.includes('surcharg')) throw new Error("⚠️ L'IA est temporairement indisponible. Réessayez dans 30 secondes.");
-                            if (msg.includes('quota') || msg.includes('429')) throw new Error("⚠️ Quota API épuisé. Rechargez les crédits ou vérifiez le quota gratuit dans le compte du fournisseur IA.");
-                            throw new Error(`Erreur de communication: ${msg}`);
+                            if (e.message === "SERVICE_SUPPORT" || e.message.includes('503') || e.message.includes('429') || e.message.toLowerCase().includes('quota')) {
+                                throw new Error("Le service de traitement intelligent rencontre actuellement une difficulté. Nous vous prions de contacter le support technique DC-KNOWING pour obtenir de l'assistance. Nous sommes désolés pour ce désagrément.");
+                            }
+                            throw e;
                         }
                     };
 
@@ -797,8 +811,9 @@
                     }
 
                     renderTable(result);
-                } catch (e) { 
-                    alert("Erreur: " + e.message); 
+                } catch (e) {
+                    if (window.Swal) await Swal.fire({icon:'warning',title:'Analyse non aboutie',html:'<div class="text-start"><p>'+e.message+'</p><p class="mb-1"><a href="mailto:it.dcknowing@gmail.com">it.dcknowing@gmail.com</a></p><p><a href="https://wa.me/225767131993" target="_blank" rel="noopener">Support WhatsApp : 07 67 13 19 93</a></p></div>',confirmButtonText:'Compris',confirmButtonColor:'#2456bd'});
+                    else alert(e.message);
                     resetUI();
                 } finally { 
                     isScanning = false;
