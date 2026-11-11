@@ -42,9 +42,12 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 
 ## Journal d'avancement
 
-### 11 novembre 2026 — Initialisation
+### 11 novembre 2026 — Initialisation et première livraison technique
 - [x] Confirmation du dépôt de référence et des conventions Git.
 - [x] Inventaire initial des routes : `/bulk-scan`, `/ecriture-scan`, `/analytique/*`, `/compagny_information`, `/admin/habilitations`, `/rapprochement/*`, `/reporting/resultat`, `/notifications`, `/dashboard-compta`.
+- [x] Première version du centre Super Admin (catalogue de routes par sections, règles globales/entreprise, gestion initiale des clés IA chiffrées).
+- [x] Protection serveur des routes masquées (règle entreprise prioritaire sur la règle globale, Super Admin exempté).
+- [x] Corriger l'affichage des notifications lorsque le compte expéditeur a été supprimé (relation nullable).
 - [ ] Auditer les contrôleurs, vues, services, migrations et middleware avant de coder les modules P0.
 - [ ] Implémenter le centre Super Admin de visibilité des pages et de configuration des clés IA.
 - [ ] Poursuivre les groupes fonctionnels avec branches dédiées, PR et fusion après vérification.
