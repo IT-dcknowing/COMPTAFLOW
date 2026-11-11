@@ -31,7 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Throwable $exception, \Illuminate\Http\Request $request) {
-            if (config('app.debug') || $request->expectsJson()) {
+            if (config('app.debug')) {
                 return null;
             }
 
@@ -45,6 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
                 && $exception->getStatusCode() < 500) {
                 return null;
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Le service est momentanément indisponible. Veuillez réessayer plus tard ou contacter le support DC-KNOWING.'], 500);
             }
 
             return response()->view('errors.500', [], 500);
