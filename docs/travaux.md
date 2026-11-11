@@ -180,3 +180,17 @@ Moderniser les interfaces COMPTAFLOW sans régression métier, sécuriser les pa
 - [ ] Déploiement de COMPTAFLOW et du service Python : nécessite l'accès à l'hébergement et aux commandes de déploiement, non fourni par la connexion GitHub.
 - [ ] Le dépôt miroir `guysergekouassi/COMPTAFLOW` est en retard de 59 commits par rapport au dépôt de référence au moment du contrôle. Sa synchronisation n'a pas été forcée pour ne pas écraser ses propres changements.
 - [ ] Les contrôles GitHub ne retournent aucun workflow CI ni statut de commit configuré pour ces deux livraisons ; tests applicatifs non certifiés.
+
+
+## Correctif de l'erreur 500 Super Admin — 11 novembre 2026
+- [x] Cause identifiée : la migration initiale créait `superadmin_page_rules`, alors que la convention Eloquent et la requête SQL attendent `super_admin_page_rules`.
+- [x] Middleware `EnforcePageVisibility` : contrôle désormais l'existence de la table canonique avant d'interroger les règles.
+- [x] Modèle `SuperAdminPageRule` : nom de table explicite `super_admin_page_rules`.
+- [x] Migration corrective non destructive : renomme l'ancienne table si elle existe, ou crée la table canonique si aucune des deux n'existe.
+- [ ] Exécuter `php artisan migrate --force` sur l'environnement de test puis vérifier `/bulk-scan` et le centre Super Admin. Cette action nécessite l'accès au serveur ou au terminal d'hébergement.
+- [ ] Vérifier ensuite le résultat avec `php artisan migrate:status` et confirmer que `2026_11_11_000004_normaliser_nom_table_super_admin_page_rules` est exécutée.
+
+## Dépendances Python du moteur IA — 11 novembre 2026
+- [x] Compléter `requirements-ai.txt` avec les dépendances réellement importées par l'API et `agents.py` : FastAPI, Uvicorn, Pydantic, python-multipart, python-dotenv, Google GenAI, LangChain Anthropic/Core, LangChain Chroma/Text Splitters et ChromaDB.
+- [ ] Recréer/mettre à jour l'environnement virtuel Python de l'hébergement et redémarrer le service Passenger/ASGI.
+- [ ] Valider les versions résolues sur l'hébergement et exécuter un test de santé puis un test de scan anonymisé.
