@@ -75,7 +75,7 @@
                         <div class="glass-card p-4 mb-6 d-flex flex-wrap align-items-center justify-content-between gap-3">
                             <div><span class="text-xs text-slate-400 fw-bold text-uppercase">Exercice comptable actif</span>
                                 <div class="fw-bold text-slate-800">{{ $exerciceEnCours->intitule }}</div>
-                                <small class="text-slate-500">{{ \\Carbon\\Carbon::parse($exerciceEnCours->date_debut)->format('d/m/Y') }} au {{ \\Carbon\\Carbon::parse($exerciceEnCours->date_fin)->format('d/m/Y') }}</small>
+                                <small class="text-slate-500">{{ \Carbon\Carbon::parse($exerciceEnCours->date_debut)->format('d/m/Y') }} au {{ \Carbon\Carbon::parse($exerciceEnCours->date_fin)->format('d/m/Y') }}</small>
                             </div>
                             <span class="badge bg-success-subtle text-success px-3 py-2">Actif</span>
                         </div>
