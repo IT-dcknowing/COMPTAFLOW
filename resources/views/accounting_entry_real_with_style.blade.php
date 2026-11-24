@@ -410,13 +410,13 @@
 
                             <td class="text-center">
                                 @if ($ecriture->piece_justificatif)
-                                    <a href="{{ asset('justificatifs/' . $ecriture->piece_justificatif) }}"
+                                    <a href="{{ \App\Support\PieceJustificative::url($ecriture) }}"
                                         target="_blank"
                                         class="btn p-0 border-0 bg-transparent text-danger"
                                         title="Afficher la pièce justificative">
                                         <i class='bx bx-eye-alt fs-5'></i>
                                     </a>
-                                    <a href="{{ asset('justificatifs/' . $ecriture->piece_justificatif) }}"
+                                    <a href="{{ \App\Support\PieceJustificative::url($ecriture) }}"
                                         download
                                         class="btn p-0 border-0 bg-transparent text-danger"
                                         title="Télécharger la pièce justificative">

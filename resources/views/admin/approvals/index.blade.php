@@ -345,7 +345,7 @@
                         data.ecritures.forEach(e => {
                             tDebit += parseFloat(e.debit || 0);
                             tCredit += parseFloat(e.credit || 0);
-                            if(e.piece_justificatif) attachment = e.piece_justificatif;
+                            if(e.piece_justificatif) attachment = String(e.piece_justificatif).startsWith('private/justificatifs/') && e.id ? ('/ecriture/' + e.id + '/justificatif') : ('/justificatifs/' + String(e.piece_justificatif).replace(/^justificatifs\//, ''));
 
                             const tr = `
                                 <tr>
@@ -388,7 +388,7 @@
                         const attachContent = document.getElementById('attachmentContent');
                         if (attachment) {
                             attachDiv.style.display = 'block';
-                            attachContent.innerHTML = `<a href="/justificatifs/${attachment}" target="_blank" class="btn btn-outline-primary"><i class="fa-solid fa-file-pdf me-2"></i> Voir le document</a>`;
+                            attachContent.innerHTML = `<a href="${attachment}" target="_blank" class="btn btn-outline-primary"><i class="fa-solid fa-file-pdf me-2"></i> Voir le document</a>`;
                         } else {
                             attachDiv.style.display = 'none';
                         }

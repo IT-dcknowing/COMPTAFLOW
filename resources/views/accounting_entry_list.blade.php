@@ -708,7 +708,7 @@
                                                     @if($index === 0)
                                                         <td class="text-center" rowspan="{{ $rowCount }}">
                                                             @if ($ecriture->piece_justificatif)
-                                                                <a href="{{ asset('justificatifs/' . $ecriture->piece_justificatif) }}" target="_blank" 
+                                                                <a href="{{ \App\Support\PieceJustificative::url($ecriture) }}" target="_blank" 
                                                                    class="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors" title="Voir la pièce">
                                                                     <i class='bx bx-file text-lg'></i>
                                                                 </a>
