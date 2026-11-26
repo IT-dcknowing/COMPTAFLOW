@@ -86,10 +86,13 @@ class RegulariserW2IComptabilite extends Command
                     $ordinaryDebit = round((float) $ordinaryRows->sum('debit'), 2);
                     $ordinaryCredit = round((float) $ordinaryRows->sum('credit'), 2);
 
-                    if (abs($resDebit - $resCredit) >= 0.01
+                    if (abs($resDebit - abs($resultatAttendu)) >= 0.01
+                        || abs($resCredit - abs($resultatAttendu)) >= 0.01
                         || !$source->resultat_passe
-                        || $existingRan->isEmpty()
+                        || $existingRan->count() !== 13
                         || $existingRan->contains(fn ($row) => !(bool) $row->is_ran)
+                        || abs($ranDebit - 8301800.00) >= 0.01
+                        || abs($ranCredit - 8301800.00) >= 0.01
                         || abs($ranDebit - $ranCredit) >= 0.01
                         || $ordinaryRows->count() !== 51
                         || abs($ordinaryDebit - 8247735.00) >= 0.01
