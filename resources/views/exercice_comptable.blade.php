@@ -26,8 +26,8 @@
         background-color: #f8fafc !important;
         border-radius: 12px !important;
         padding: 0.75rem 1rem !important;
-        font-size: 0.8rem !important;
-        font-weight: 600 !important;
+        font-size: 1rem !important;
+        font-weight: 700 !important;
         color: #0f172a !important;
         width: 100%;
         box-sizing: border-box;
@@ -374,14 +374,14 @@
                                             <!-- Date de début -->
                                             <div class="space-y-1">
                                                 <label for="date_debut" class="input-label-premium">Date de début</label>
-                                                <input type="date" class="input-field-premium" id="date_debut" name="date_debut" required>
+                                                <input type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="JJ/MM/AAAA" title="Saisir au format JJ/MM/AAAA" class="input-field-premium date-exercice-input" id="date_debut" name="date_debut" required>
                                                 <span id="error_date_debut" class="text-danger small mt-1 d-block"></span>
                                             </div>
 
                                             <!-- Date de fin -->
                                             <div class="space-y-1">
                                                 <label for="date_fin" class="input-label-premium">Date de fin</label>
-                                                <input type="date" class="input-field-premium" id="date_fin" name="date_fin" required>
+                                                <input type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="JJ/MM/AAAA" title="Saisir au format JJ/MM/AAAA" class="input-field-premium date-exercice-input" id="date_fin" name="date_fin" required>
                                                 <span id="error_date_fin" class="text-danger small mt-1 d-block"></span>
                                             </div>
 
@@ -426,8 +426,8 @@
 
                                         <div class="text-center space-y-3 mb-8">
                                             <p class="text-slate-500 text-sm font-medium leading-relaxed">
-                                                Êtes-vous sûr de vouloir supprimer cet exercice ? Cette action est irréversible.
-                                            </p>
+                                                Cette action va <strong>clôturer l'exercice</strong> et effectuer le <strong>report à nouveau</strong> dans l'exercice suivant.<br>
+                                                Si l'écriture de résultat n'a pas encore été passée, COMPTAFLOW la calculera et la passera automatiquement. Si elle existe déjà, elle ne sera pas doublée. Une clôture anticipée ramène la date de fin à aujourd'hui.</p>
                                             <p class="text-slate-900 font-bold" id="projectToDelete"></p>
                                         </div>
 
@@ -788,14 +788,34 @@
                 // sans jamais passer par new Date() : aucun décalage de fuseau possible.
                 function parseIsoDate(value) {
                     if (!value) return null;
-                    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
-                    if (!match) return null;
-
-                    const year = parseInt(match[1], 10);
-                    if (year < 1900) return null; // saisie année encore incomplète
-
-                    return { year: year, month: parseInt(match[2], 10), day: parseInt(match[3], 10) };
+                    const raw = String(value);
+                    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    const fr = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                    const year = parseInt(iso ? iso[1] : (fr ? fr[3] : ''), 10);
+                    const month = parseInt(iso ? iso[2] : (fr ? fr[2] : ''), 10);
+                    const day = parseInt(iso ? iso[3] : (fr ? fr[1] : ''), 10);
+                    if (!year || year < 1900 || month < 1 || month > 12 || day < 1 || day > 31) return null;
+                    const check = new Date(year, month - 1, day);
+                    if (check.getFullYear() !== year || check.getMonth() !== month - 1 || check.getDate() !== day) return null;
+                    return { year, month, day };
                 }
+
+                function toIsoDateValue(value) {
+                    const parts = parseIsoDate(value);
+                    if (!parts) return '';
+                    return String(parts.year).padStart(4, '0') + '-' + String(parts.month).padStart(2, '0') + '-' + String(parts.day).padStart(2, '0');
+                }
+                document.querySelectorAll('.date-exercice-input').forEach(input => {
+                    input.addEventListener('input', function () {
+                        const digits = this.value.replace(/\D/g, '').slice(0, 8);
+                        let formatted = digits;
+                        if (digits.length > 4) formatted = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+                        else if (digits.length > 2) formatted = digits.slice(0, 2) + '/' + digits.slice(2);
+                        else if (digits.length === 2) formatted = digits + '/';
+                        this.value = formatted;
+                        this.setSelectionRange(formatted.length, formatted.length);
+                    });
+                });
 
                 // Objet Date local -> chaîne "AAAA-MM-JJ" attendue par <input type="date">
                 function toIsoDate(date) {
@@ -847,7 +867,9 @@
                     if (!dateDebutInput || !intituleInput) return;
 
                     const parts = parseIsoDate(dateDebutInput.value);
-                    intituleInput.value = parts ? `EXERCICE ${parts.year}` : '';
+                    const finParts = parseIsoDate(dateFinInput?.value);
+                    const annees = parts && finParts && parts.year !== finParts.year ? `${parts.year}-${finParts.year}` : (parts ? String(parts.year) : '');
+                    intituleInput.value = parts ? `EXERCICE ${annees}` : '';
                 }
 
                 // Proposer une date de fin cohérente (un an moins un jour) tant que
@@ -866,11 +888,7 @@
                     // Le calendrier francais garde un champ jumeau visible :
                     // le renseigner directement laisserait l'affichage en arriere.
                     const isoFin = toIsoDate(fin);
-                    if (dateFinInput._flatpickr) {
-                        dateFinInput._flatpickr.setDate(isoFin, false);
-                    } else {
-                        dateFinInput.value = isoFin;
-                    }
+                    dateFinInput.value = formatDate(isoFin);
                     dateFinInput.dataset.autoFilled = '1';
                 }
 
@@ -887,7 +905,10 @@
                             // ISO : fiable et indépendante du fuseau)
                             const debut = dateDebutInput ? dateDebutInput.value : '';
                             const fin = dateFinInput ? dateFinInput.value : '';
-                            if (debut && fin && fin <= debut) {
+                            const debutIso = debut ? toIsoDateValue(debut) : '';
+                            const finIso = fin ? toIsoDateValue(fin) : '';
+                            if ((debut && !debutIso) || (fin && !finIso)) { showAlert('danger', 'Saisissez des dates valides au format JJ/MM/AAAA.'); return; }
+                            if (debutIso && finIso && finIso <= debutIso) {
                                 showAlert('danger', 'La date de fin doit être postérieure à la date de début.');
                                 return;
                             }
@@ -898,6 +919,8 @@
 
                             // Créer un objet FormData pour le formulaire
                             const formData = new FormData(this);
+                            formData.set('date_debut', debutIso);
+                            formData.set('date_fin', finIso);
 
                             // Afficher les données du formulaire dans la console
                             console.log('Données du formulaire :');
@@ -1079,7 +1102,7 @@
                         button.addEventListener('click', function() {
                             const id = this.getAttribute('data-id');
                             const label = this.getAttribute('data-label') || 'cet exercice';
-                            if (!id || !confirm(`Passer l'écriture de résultat pour ${label} ? Cette opération ne clôturera pas l'exercice et ne pourra pas être répétée. Passez le résultat après toutes les saisies.`)) return;
+                            if (!id) return;
                             const form = document.getElementById('passerResultatForm');
                             if (form) { form.action = exercice_comptableResultatUrl.replace('__ID__', id); form.submit(); }
                         });
