@@ -328,8 +328,10 @@ class RegulariserW2IComptabilite extends Command
                         'code_journal_id' => $diagnostic['journal_od']->id,
                         'exercices_comptables_id' => $sourceId,
                         'journaux_saisis_id' => $journalSaisi->id,
-                        'debit' => $amount > 0 ? 0 : abs($amount),
-                        'credit' => $amount > 0 ? $amount : 0,
+                        // Solde source = crédit - débit ; l’écriture de clôture
+                        // porte exactement le solde opposé dans le grand livre.
+                        'debit' => $amount > 0 ? $amount : 0,
+                        'credit' => $amount < 0 ? abs($amount) : 0,
                         'company_id' => $companyId,
                         'user_id' => $source->user_id,
                         'is_ran' => false,
