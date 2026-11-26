@@ -122,7 +122,9 @@ public function index()
                     'is_active' => (bool) $exercice->is_active,
                     'nombre_journaux_saisis' => $exercice->nombre_journaux_saisis ?? 0,
                     'cloturer' => (bool) $exercice->cloturer,
-                    'resultat_passe' => $this->resultatEstPasse($exercice)
+                    'resultat_passe' => $this->resultatEstPasse($exercice),
+                    'resultat_recalculable' => EcritureComptable::where('company_id', $exercice->company_id)
+                        ->where('exercices_comptables_id', $exercice->id)->where('reference_piece', 'RES-'.$exercice->id)->exists()
                 ];
             });
 
@@ -792,8 +794,16 @@ public function index()
         foreach($before as $id=>$balance){if(abs(round($balance+($after[$id]??0),2))>=0.01)return false;}
         foreach($after as $id=>$balance){if(!array_key_exists($id,$before)&&abs(round($balance,2))>=0.01)return false;}
 
-        $sig=$this->reportingService->getSIGData($exercice->id,$exercice->company_id);
-        $net=round((float)($sig['resultat_net']??0),2);
+        // Reconstituer le résultat d'origine depuis les mouvements de gestion avant la pièce RES.
+        // Le SIG recalculé après clôture vaut normalement zéro puisque 6/7/8 sont soldés.
+        $net=0.0;
+        foreach($source as $line){
+            $numero=(string)($line->planComptable?->numero_de_compte??'');
+            if(in_array(substr($numero,0,1),['6','7','8'],true)){
+                $net+=(float)$line->credit-(float)$line->debit;
+            }
+        }
+        $net=round($net,2);
         $resultAccounts=$piece->filter(function($line){$n=(string)($line->planComptable?->numero_de_compte??'');return str_starts_with($n,'1301')||str_starts_with($n,'1309');});
         $resultBalance=round((float)$resultAccounts->sum(fn($line)=>(float)$line->credit-(float)$line->debit),2);
         if(abs($resultBalance-$net)>=0.01)return false;
