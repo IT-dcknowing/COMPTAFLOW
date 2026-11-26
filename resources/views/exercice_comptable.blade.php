@@ -464,15 +464,15 @@
 
                                         <div class="text-center space-y-3 mb-6">
                                             <p class="text-slate-500 text-sm font-medium leading-relaxed">
-                                                Êtes-vous sûr de vouloir <strong>clôturer</strong> cet exercice ?<br>
-                                                Le report à nouveau sera généré. L'écriture de résultat doit déjà avoir été passée séparément. Si la date de fin est future, elle sera ramenée à aujourd'hui.
+                                                Vous allez <strong>clôturer</strong> cet exercice.<br>
+                                                Le report à nouveau sera généré dans le nouvel exercice. Si l'écriture de résultat n'a pas encore été passée, elle sera également créée dans le journal OD. Aucune écriture de résultat ne sera doublée.
+                                                Si la date de fin est future, elle sera ramenée à aujourd'hui.
                                             </p>
                                             <p class="text-slate-900 font-bold" id="exerciceToCloture"></p>
                                         </div>
 
-                                        {{-- Passée à la main, l'écriture de résultat oblige à deux lignes et
-                                             son sens se trompe une fois sur deux. La clôture la porte donc
-                                             elle-même, dans le même mouvement que le report à nouveau. --}}
+                                        {{-- La clôture effectue le RAN dans le nouvel exercice et passe le résultat en OD
+                                             uniquement s'il n'a pas déjà été enregistré. Les deux écritures restent distinctes. --}}
                                         <div class="text-start mb-8 p-3"
                                             style="background:#fefce8;border:1px solid #fde68a;border-radius:12px">
                                             <p class="mb-2" style="font-size:0.78rem;font-weight:800;color:#854d0e">
@@ -481,11 +481,11 @@
                                             <ul class="mb-0 ps-3" style="font-size:0.75rem;color:#713f12;line-height:1.5">
                                                 <li>Le <strong>report à nouveau</strong> des comptes de bilan (classes 1 à 5)
                                                     dans l'exercice suivant.</li>
-                                                <li>L'<strong>écriture de résultat</strong>, dans le même mouvement :
-                                                    un <strong>bénéfice</strong> au <strong>crédit</strong> du compte
-                                                    <strong>1301</strong>, une <strong>perte</strong> au
-                                                    <strong>débit</strong> du compte <strong>1309</strong>.</li>
-                                                <li>Vous n'avez donc pas à la passer à la main.</li>
+                                                <li>L'<strong>écriture de résultat</strong> dans le journal
+                                                    <strong>OD</strong>, seulement si elle n'a pas déjà été passée :
+                                                    bénéfice au compte <strong>1301</strong>, perte au compte
+                                                    <strong>1309</strong>, selon le sens comptable du résultat.</li>
+                                                <li>Le résultat et le report à nouveau sont deux opérations distinctes ; aucune ne sera doublée.</li>
                                             </ul>
                                         </div>
 
@@ -1099,14 +1099,46 @@
                         });
                     });
 
-                    // Passage du résultat indépendant de la clôture.
+                    // Le résultat est une opération distincte : confirmation explicite,
+                    // sans fenêtre native du navigateur, avant envoi du formulaire.
                     document.querySelectorAll('.resultat-btn').forEach(button => {
                         button.addEventListener('click', function() {
                             const id = this.getAttribute('data-id');
                             const label = this.getAttribute('data-label') || 'cet exercice';
                             if (!id) return;
-                            const form = document.getElementById('passerResultatForm');
-                            if (form) { form.action = exercice_comptableResultatUrl.replace('__ID__', id); form.submit(); }
+
+                            const confirmer = () => {
+                                const form = document.getElementById('passerResultatForm');
+                                if (form) {
+                                    form.action = exercice_comptableResultatUrl.replace('__ID__', id);
+                                    form.submit();
+                                }
+                            };
+
+                            if (window.Swal?.fire) {
+                                Swal.fire({
+                                    title: 'Passer l’écriture de résultat ?',
+                                    html: 'L’écriture de résultat de <strong>' + label + '</strong> sera enregistrée dans le journal <strong>OD</strong>. Cette action ne clôture pas l’exercice et ne génère pas le report à nouveau.',
+                                    icon: 'question',
+                                    showCancelButton: true,
+                                    confirmButtonText: 'Oui, passer le résultat',
+                                    cancelButtonText: 'Annuler',
+                                    reverseButtons: true
+                                }).then(result => {
+                                    if (result.isConfirmed) confirmer();
+                                });
+                            } else {
+                                // Repli intégré à la page si SweetAlert n'est pas chargé.
+                                const modal = document.getElementById('resultatConfirmationModal');
+                                const labelEl = document.getElementById('exerciceToResultat');
+                                if (modal && window.bootstrap?.Modal) {
+                                    if (labelEl) labelEl.textContent = label;
+                                    modal.dataset.exerciceId = id;
+                                    bootstrap.Modal.getOrCreateInstance(modal).show();
+                                } else {
+                                    confirmer();
+                                }
+                            }
                         });
                     });
 
