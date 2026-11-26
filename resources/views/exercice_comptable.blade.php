@@ -562,8 +562,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
                     </div>
                     <div class="modal-body">
-                        L’écriture de résultat de <strong id="exerciceToResultat"></strong> sera passée dans le journal <strong>OD</strong>.
-                        Cette action ne clôture pas l’exercice et ne génère pas le report à nouveau.
+                        <span id="resultatConfirmationText">L’écriture de résultat sera passée dans le journal <strong>OD</strong>.</span> Cette action ne clôture pas l’exercice et ne génère pas le report à nouveau.
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -576,6 +575,7 @@
         <form id="passerResultatForm" method="POST" action="" style="display:none;">
             @csrf
             @method('PATCH')
+            <input type="hidden" name="recalculer" id="recalculerResultatInput" value="0">
         </form>
 
         <script>
@@ -729,11 +729,10 @@
                                                         title="Supprimer">
                                                     <i class="bx bx-trash fs-5"></i>
                                                 </button>
-                                                ${!row.resultat_passe ? `
                                                 <button type="button" class="w-10 h-10 flex items-center justify-center rounded-xl border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition shadow-sm bg-white btn-action resultat-btn"
-                                                        data-id="${row.id}" data-label="${row.intitule}" data-bs-toggle="tooltip" title="Passer l’écriture de résultat">
+                                                        data-id="${row.id}" data-label="${row.intitule}" data-resultat-passe="${row.resultat_passe ? '1' : '0'}" data-bs-toggle="tooltip" title="${row.resultat_passe ? 'Recalculer l’écriture de résultat' : 'Passer l’écriture de résultat'}">
                                                     <i class="bx bx-calculator fs-5"></i>
-                                                </button>` : ''}
+                                                </button>
                                                 <button type="button"
                                                         class="w-10 h-10 flex items-center justify-center rounded-xl border border-yellow-100 text-yellow-600 hover:bg-yellow-600 hover:text-white transition shadow-sm bg-white btn-action btn-action-cloturer cloturer-btn"
                                                         data-id="${row.id}"
@@ -1124,35 +1123,42 @@
                         button.addEventListener('click', function() {
                             const id = this.getAttribute('data-id');
                             const label = this.getAttribute('data-label') || 'cet exercice';
+                            const alreadyPassed = this.getAttribute('data-resultat-passe') === '1';
                             if (!id) return;
 
+                            const actionTitle = alreadyPassed ? 'Recalculer l’écriture de résultat ?' : 'Passer l’écriture de résultat ?';
+                            const actionText = alreadyPassed
+                                ? 'La pièce système RES existante sera supprimée puis recalculée. Les écritures manuelles ne seront pas supprimées.'
+                                : 'Le résultat sera enregistré dans OD. L’exercice reste ouvert et aucun report à nouveau ne sera créé.';
                             const confirmer = () => {
                                 const form = document.getElementById('passerResultatForm');
+                                const recalculer = document.getElementById('recalculerResultatInput');
                                 if (form) {
                                     form.action = exercice_comptableResultatUrl.replace('__ID__', id);
+                                    if (recalculer) recalculer.value = alreadyPassed ? '1' : '0';
                                     form.submit();
                                 }
                             };
 
                             if (window.Swal?.fire) {
                                 Swal.fire({
-                                    title: 'Passer l’écriture de résultat ?',
-                                    html: 'L’écriture de résultat de <strong>' + label + '</strong> sera enregistrée dans le journal <strong>OD</strong>. Cette action ne clôture pas l’exercice et ne génère pas le report à nouveau.',
+                                    title: actionTitle,
+                                    html: '<strong>' + label + '</strong><br>' + actionText,
                                     icon: 'question',
                                     showCancelButton: true,
-                                    confirmButtonText: 'Oui, passer le résultat',
+                                    confirmButtonText: alreadyPassed ? 'Oui, recalculer' : 'Oui, passer le résultat',
                                     cancelButtonText: 'Annuler',
                                     reverseButtons: true
-                                }).then(result => {
-                                    if (result.isConfirmed) confirmer();
-                                });
+                                }).then(result => { if (result.isConfirmed) confirmer(); });
                             } else {
-                                // Repli sur la boîte de confirmation Bootstrap, jamais sur confirm() natif.
                                 const modal = document.getElementById('resultatConfirmationModal');
-                                const labelEl = document.getElementById('exerciceToResultat');
+                                const textEl = document.getElementById('resultatConfirmationText');
                                 if (modal && window.bootstrap?.Modal) {
-                                    if (labelEl) labelEl.textContent = label;
+                                    if (textEl) textEl.textContent = label + ' — ' + actionText;
                                     modal.dataset.exerciceId = id;
+                                    modal.dataset.recalculer = alreadyPassed ? '1' : '0';
+                                    const confirmBtn = document.getElementById('confirmerResultatBtn');
+                                    if (confirmBtn) confirmBtn.textContent = alreadyPassed ? 'Oui, recalculer' : 'Oui, passer le résultat';
                                     bootstrap.Modal.getOrCreateInstance(modal).show();
                                 }
                             }
@@ -1168,6 +1174,8 @@
                             const form = document.getElementById('passerResultatForm');
                             if (form) {
                                 form.action = exercice_comptableResultatUrl.replace('__ID__', id);
+                                const recalculer = document.getElementById('recalculerResultatInput');
+                                if (recalculer) recalculer.value = modal.dataset.recalculer || '0';
                                 form.submit();
                             }
                         });
