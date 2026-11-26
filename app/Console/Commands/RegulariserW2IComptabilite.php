@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
- * Réparation ciblée, idempotente et verrouillée du dossier W2I.
+ * Régularisation exceptionnelle, non rejouable sans nouveau diagnostic, et verrouillée pour W2I.
  *
  * Mode par défaut : diagnostic sans écriture.
  * Application : --apply --confirm=W2I-210-331-332
@@ -208,6 +208,9 @@ class RegulariserW2IComptabilite extends Command
                     'ran_credit' => $ranCredit,
                     'resultat' => $sigResult,
                     'source_rows' => $sourceRows,
+                    'source_fingerprint' => $this->fingerprint($sourceRows),
+                    'target_fingerprint' => $this->fingerprint($otherRows),
+                    'ran_fingerprint' => $this->fingerprint($ranRows),
                     'gestion_balances' => $balancesGestion,
                     'bilan_balances' => $balancesBilan,
                     'account_1309' => $comptePerte,
@@ -248,13 +251,35 @@ class RegulariserW2IComptabilite extends Command
                 if ($ran->count() !== 8 || $ran->contains(fn ($row) => !(bool) $row->is_ran)) {
                     throw new RuntimeException('La pièce RAN a changé depuis le diagnostic. Application interrompue.');
                 }
-                $normalCount = EcritureComptable::where('company_id', $companyId)
+                $normalRows = EcritureComptable::where('company_id', $companyId)
                     ->where('exercices_comptables_id', $targetId)
                     ->where(function ($q) use ($ranReference) {
                         $q->whereNull('reference_piece')->orWhere('reference_piece', '!=', $ranReference);
-                    })->count();
-                if ($normalCount !== 51) {
-                    throw new RuntimeException('Les mouvements ordinaires de l’exercice cible ont changé. Application interrompue.');
+                    })->get();
+                if ($normalRows->count() !== 51
+                    || $this->fingerprint($normalRows) !== $diagnostic['target_fingerprint']) {
+                    throw new RuntimeException('Les 51 mouvements ordinaires ont changé depuis le diagnostic. Application interrompue.');
+                }
+                $currentRan = EcritureComptable::where('company_id', $companyId)
+                    ->where('exercices_comptables_id', $targetId)
+                    ->where('reference_piece', $ranReference)->get();
+                if ($this->fingerprint($currentRan) !== $diagnostic['ran_fingerprint']) {
+                    throw new RuntimeException('Le RAN a changé depuis le diagnostic. Application interrompue.');
+                }
+                $currentSource = EcritureComptable::where('company_id', $companyId)
+                    ->where('exercices_comptables_id', $sourceId)
+                    ->where(function ($q) {
+                        $q->whereNull('statut')->orWhereIn('statut', ['approved', 'valid']);
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('is_ran')->orWhere('is_ran', false);
+                    })->with('planComptable')->get();
+                if ($this->fingerprint($currentSource) !== $diagnostic['source_fingerprint']) {
+                    throw new RuntimeException('Les écritures sources ont changé depuis le diagnostic. Application interrompue.');
+                }
+                $currentSig = round((float) ($reporting->getSIGData($sourceId, $companyId)['resultat_net'] ?? 0), 2);
+                if (abs($currentSig - $diagnostic['resultat']) >= 0.01) {
+                    throw new RuntimeException('Le SIG a changé depuis le diagnostic. Application interrompue.');
                 }
 
                 $sourceDate = Carbon::parse($source->date_fin)->toDateString();
@@ -376,5 +401,27 @@ class RegulariserW2IComptabilite extends Command
             $this->error('Régularisation refusée/annulée : ' . $e->getMessage());
             return self::FAILURE;
         }
+    }
+
+    /** Empreinte des lignes : protège contre toute modification entre diagnostic et application. */
+    private function fingerprint($rows): string
+    {
+        $snapshot = $rows->map(function ($row) {
+            return [
+                'id' => (int) $row->id,
+                'plan' => $row->plan_comptable_id,
+                'tiers' => $row->plan_tiers_id,
+                'treso' => $row->compte_tresorerie_id,
+                'poste' => $row->poste_tresorerie_id,
+                'flux' => $row->type_flux,
+                'debit' => number_format((float) $row->debit, 2, '.', ''),
+                'credit' => number_format((float) $row->credit, 2, '.', ''),
+                'status' => $row->statut,
+                'ran' => (bool) $row->is_ran,
+                'reference' => $row->reference_piece,
+            ];
+        })->sortBy('id')->values()->all();
+
+        return hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 }
