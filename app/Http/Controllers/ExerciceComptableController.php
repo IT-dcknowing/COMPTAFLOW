@@ -388,7 +388,9 @@ public function index()
                     throw new \RuntimeException("L'écriture de résultat a déjà été passée pour cet exercice.");
                 }
 
-                return $this->creerEcritureResultat($lockedExercice, $companyId, $user);
+                $resultat = $this->creerEcritureResultat($lockedExercice, $companyId, $user);
+                $this->completerContrepartiesResultat($lockedExercice, $companyId, $user);
+                return $resultat;
             }, 5);
 
             $message = $resultat['sans_ligne']
@@ -476,6 +478,9 @@ public function index()
             } elseif (!$exercice->resultat_passe) {
                 $exercice->update(['resultat_passe' => true, 'resultat_passe_le' => now()]);
             }
+            // Complète aussi les anciennes écritures RES qui ne contenaient que
+            // la ligne 1301/1309, sans recréer le compte de résultat.
+            $this->completerContrepartiesResultat($exercice, $companyId, Auth::user());
 
             // Chercher ou créer l'exercice suivant à partir du lendemain réel.
             $debutNext = Carbon::parse($exercice->date_fin)->addDay()->startOfDay();
@@ -876,6 +881,9 @@ public function index()
 
         if (abs($montant) < 0.01) {
             $exercice->update(['resultat_passe' => true, 'resultat_passe_le' => now()]);
+            // Même avec un résultat net nul, les comptes de gestion peuvent
+            // avoir des soldes individuels à solder (charges et produits).
+            $this->completerContrepartiesResultat($exercice, $companyId, $user);
             return ['montant' => 0.0, 'sans_ligne' => true];
         }
 
@@ -902,7 +910,90 @@ public function index()
         ]);
 
         $exercice->update(['resultat_passe' => true, 'resultat_passe_le' => now()]);
+        $this->completerContrepartiesResultat($exercice, $companyId, $user);
         return ['montant' => $montant, 'sans_ligne' => false];
+    }
+
+    /**
+     * Solde les comptes de gestion (classes 6, 7 et 8) dans la pièce RES.
+     * L'ancienne implémentation ne créait que la ligne 1301/1309 : le total
+     * général restait donc déséquilibré du montant du résultat. L'opération
+     * est idempotente et répare également les pièces RES historiques incomplètes.
+     */
+    private function completerContrepartiesResultat(ExerciceComptable $exercice, int $companyId, $user): void
+    {
+        $reference = 'RES-' . $exercice->id;
+        $resultatLine = EcritureComptable::where('company_id', $companyId)
+            ->where('exercices_comptables_id', $exercice->id)
+            ->where('reference_piece', $reference)
+            ->where(function ($q) {
+                $q->where('description_operation', 'like', 'AFFECTATION DU RESULTAT%');
+            })
+            ->first();
+
+        // Pour une affectation manuelle sans pièce RES générée, ne pas inventer
+        // de contrepartie : elle peut avoir sa propre pièce équilibrée.
+        if (!$resultatLine) {
+            return;
+        }
+
+        $source = EcritureComptable::where('company_id', $companyId)
+            ->where('exercices_comptables_id', $exercice->id)
+            ->where(function ($q) {
+                $q->whereNull('statut')->orWhereIn('statut', ['approved', 'valid']);
+            })
+            ->where(function ($q) {
+                $q->whereNull('is_ran')->orWhere('is_ran', false);
+            })
+            ->where(function ($q) use ($reference) {
+                $q->whereNull('reference_piece')->orWhere('reference_piece', '!=', $reference);
+            })
+            ->with('planComptable')->get();
+
+        $soldes = [];
+        foreach ($source as $ligne) {
+            $plan = $ligne->planComptable;
+            $numero = (string) ($plan?->numero_de_compte ?? '');
+            if ($numero === '' || !in_array(substr($numero, 0, 1), ['6', '7', '8'], true)) {
+                continue;
+            }
+            $soldes[$plan->id] = ($soldes[$plan->id] ?? 0.0)
+                + (float) $ligne->debit - (float) $ligne->credit;
+        }
+
+        $contreparties = EcritureComptable::where('company_id', $companyId)
+            ->where('exercices_comptables_id', $exercice->id)
+            ->where('reference_piece', $reference)
+            ->where('description_operation', 'like', 'CLÔTURE RESULTAT:%')
+            ->get()->groupBy('plan_comptable_id');
+
+        foreach ($soldes as $planId => $soldeSource) {
+            if (abs($soldeSource) < 0.01) continue;
+            $soldeCible = -$soldeSource;
+            $dejaPasse = ($contreparties->get($planId, collect()))
+                ->sum(fn ($l) => (float) $l->debit - (float) $l->credit);
+            $reste = round($soldeCible - $dejaPasse, 2);
+            if (abs($reste) < 0.01) continue;
+
+            EcritureComptable::create([
+                'date' => $resultatLine->date,
+                'n_saisie' => $resultatLine->n_saisie,
+                'n_saisie_user' => $resultatLine->n_saisie_user,
+                'description_operation' => 'CLÔTURE RESULTAT: solde du compte de gestion ' . $planId,
+                'reference_piece' => $reference,
+                'plan_comptable_id' => $planId,
+                'code_journal_id' => $resultatLine->code_journal_id,
+                'exercices_comptables_id' => $exercice->id,
+                'journaux_saisis_id' => $resultatLine->journaux_saisis_id,
+                'debit' => $reste > 0 ? $reste : 0,
+                'credit' => $reste < 0 ? abs($reste) : 0,
+                'company_id' => $companyId,
+                'user_id' => $user->id,
+                'is_ran' => false,
+                'plan_analytique' => 0,
+                'statut' => 'approved',
+            ]);
+        }
     }
 
     /** Le résultat a-t-il déjà été passé manuellement ou par le bouton dédié ? */
