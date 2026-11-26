@@ -385,7 +385,7 @@ public function index()
                     ->whereKey($exercice->id)->lockForUpdate()->firstOrFail();
 
                 if ($this->resultatEstPasse($lockedExercice)) {
-                    throw new \\RuntimeException("L'écriture de résultat a déjà été passée pour cet exercice.");
+                    throw new \RuntimeException("L'écriture de résultat a déjà été passée pour cet exercice.");
                 }
 
                 return $this->creerEcritureResultat($lockedExercice, $companyId, $user);
