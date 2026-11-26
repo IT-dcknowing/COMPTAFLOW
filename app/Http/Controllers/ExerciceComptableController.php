@@ -588,7 +588,8 @@ public function index()
                     ->with('planComptable')->get();
                 $debitTotal = round((float) $finalRows->sum('debit'), 2);
                 $creditTotal = round((float) $finalRows->sum('credit'), 2);
-                if ($finalRows->isEmpty() || $finalRows->contains(fn ($line) => !(bool) $line->is_ran)
+                if (($finalRows->isEmpty() && abs($resultat) >= 0.01)
+                    || $finalRows->contains(fn ($line) => !(bool) $line->is_ran)
                     || abs($debitTotal - $creditTotal) >= 0.01) {
                     throw new RuntimeException(sprintf(
                         'Report à nouveau non équilibré (débit %.2f / crédit %.2f). Transaction annulée ; aucune ligne artificielle ne sera ajoutée.',
@@ -907,22 +908,10 @@ public function index()
     }
 
     /** Vérifie le marqueur système, l’équilibre de la pièce et le solde inverse de toutes les classes 6, 7 et 8. */
-    private function pieceResultatSystemeValide(ExerciceComptable $exercice): bool
-    {
-        return false;
-    }
+    
 
-    private function creerEcritureResultat(ExerciceComptable $exercice, int $companyId, $user): array
-    {
-        throw new RuntimeException('Une écriture de résultat dans l’exercice source est interdite.');
-    }
 
-    private function completerContrepartiesResultat(ExerciceComptable $exercice, int $companyId, $user): void
-    {
-        throw new RuntimeException('Les contreparties des classes 6, 7 et 8 sont interdites.');
-    }
-
-    private function resultatEstPasse(ExerciceComptable $exercice): bool
+private function resultatEstPasse(ExerciceComptable $exercice): bool
     {
         return (bool) $exercice->resultat_passe;
     }
