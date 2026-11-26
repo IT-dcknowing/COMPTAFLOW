@@ -501,16 +501,9 @@ public function index()
                     }
                 }
 
-                $journal = CodeJournal::where('company_id', $companyId)
-                    ->whereIn('code_journal', ['RAN', 'AN'])
-                    ->orderByRaw("CASE WHEN code_journal = 'RAN' THEN 0 ELSE 1 END")->first();
-                if (!$journal) {
-                    $journal = CodeJournal::create([
-                        'company_id' => $companyId, 'code_journal' => 'RAN',
-                        'intitule' => 'REPORT À NOUVEAU', 'type' => 'Opérations Diverses',
-                        'traitement_analytique' => 0, 'user_id' => $user->id
-                    ]);
-                }
+                // Le RAN est un journal système paramétré dans l'entreprise. On le
+                // retrouve par son TYPE, jamais par un code écrit en dur (RAN, RAN1…).
+                $journal = $this->journalReportANouveau($companyId);
 
                 // Premier passage : création du report détaillé des seuls comptes de bilan 1 à 5.
                 if ($ranRows->isEmpty()) {
@@ -567,12 +560,12 @@ public function index()
                     ->where('exercices_comptables_id', $next->id)
                     ->where('reference_piece', $referenceRan)
                     ->with('planComptable')->get();
-                $resultRows = $ranRows->filter(function ($line) {
-                    $numero = (string) ($line->planComptable?->numero_de_compte ?? '');
-                    return str_starts_with($numero, '1301') || str_starts_with($numero, '1309');
-                });
+                // Un résultat antérieur non affecté peut déjà être reporté sur 1301/1309 :
+                // c'est un solde ordinaire. Seule la ligne marquée système est celle
+                // du résultat de l'exercice clôturé.
+                $resultRows = $ranRows->filter(fn ($line) => (bool) $line->is_resultat_systeme);
                 if ($resultRows->count() > 1) {
-                    throw new RuntimeException('Le RAN contient plusieurs lignes 1301/1309. Vérification manuelle requise ; aucun doublon ne sera ajouté.');
+                    throw new RuntimeException('Le RAN contient plusieurs lignes de résultat système. Vérification manuelle requise ; aucun doublon ne sera ajouté.');
                 }
                 if ($resultRows->isNotEmpty()) {
                     if (abs($resultat) < 0.01) {
@@ -599,7 +592,7 @@ public function index()
                         'exercices_comptables_id' => $next->id,
                         'debit' => $sens['debit'], 'credit' => $sens['credit'],
                         'company_id' => $companyId, 'user_id' => $user->id,
-                        'is_ran' => true, 'is_resultat_systeme' => false,
+                        'is_ran' => true, 'is_resultat_systeme' => true,
                         'plan_analytique' => 0, 'statut' => 'approved'
                     ]);
                 }
@@ -627,12 +620,9 @@ public function index()
                         throw new RuntimeException('Une ligne du RAN ne porte pas la date d’ouverture de l’exercice suivant. Transaction annulée.');
                     }
                 }
-                $resultLines = $finalRows->filter(function ($line) {
-                    $numero = (string) ($line->planComptable?->numero_de_compte ?? '');
-                    return str_starts_with($numero, '1301') || str_starts_with($numero, '1309');
-                });
+                $resultLines = $finalRows->filter(fn ($line) => (bool) $line->is_resultat_systeme);
                 if (abs($resultat) < 0.01 ? $resultLines->isNotEmpty() : $resultLines->count() !== 1) {
-                    throw new RuntimeException('Le RAN doit contenir exactement une ligne de résultat 1301/1309, ou aucune si le résultat est nul.');
+                    throw new RuntimeException('Le RAN doit contenir exactement une ligne de résultat système (1301 ou 1309), ou aucune si le résultat est nul.');
                 }
 
                 $source->update(['cloturer' => true, 'resultat_passe' => true, 'resultat_passe_le' => now()]);
@@ -887,6 +877,21 @@ public function index()
             }
         }
     }
+    /**
+     * Journal de report à nouveau de l'entreprise, retrouvé par son type système.
+     * Son code dépend du paramétrage (RAN, RAN1…). Il n'est jamais créé ici.
+     */
+    private function journalReportANouveau(int $companyId): CodeJournal
+    {
+        $journal = CodeJournal::where('company_id', $companyId)
+            ->whereIn('type', ['REPORT A NOUVEAU', 'REPORT À NOUVEAU'])
+            ->orderBy('id')->first();
+        if (!$journal) {
+            throw new RuntimeException('Journal de report à nouveau non paramétré dans les paramètres de l\'entreprise.');
+        }
+        return $journal;
+    }
+
     /** Libellé RAN calculé exclusivement à partir des dates réelles de l'exercice clôturé. */
     private function libelleReportAN(ExerciceComptable $exercice): string
     {
