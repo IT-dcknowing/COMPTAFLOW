@@ -167,7 +167,10 @@ class RegulariserW2IComptabilite extends Command
                 if (!$comptePerte) {
                     throw new RuntimeException('Le compte 1309 de W2I est absent du plan comptable. Création automatique interdite pendant cette réparation.');
                 }
-                $journalOd = CodeJournal::where('company_id', $companyId)->where('code_journal', 'OD')->first();
+                $journalOd = CodeJournal::where('company_id', $companyId)
+                    ->whereIn('code_journal', ['OD', 'OD01'])
+                    ->orderByRaw("CASE WHEN code_journal = 'OD01' THEN 0 ELSE 1 END")
+                    ->first();
                 $journalRan = CodeJournal::where('company_id', $companyId)->where('code_journal', 'RAN')->first()
                     ?: CodeJournal::where('company_id', $companyId)->where('code_journal', 'AN')->first();
                 if (!$journalOd || !$journalRan) {
