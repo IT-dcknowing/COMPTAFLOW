@@ -422,3 +422,7 @@ Branche de traitement : `correction-cloture-resultat-dates-exercice-ecritures-ac
 - Test Feature ajouté pour la clôture sans passage préalable du résultat.
 
 À vérifier sur environnement Laravel : tests PHPUnit, migration/base MySQL, flux réel d'import (date hors exercice), scan, et affichage balance/grand livre avec deux utilisateurs autorisés. Aucun test serveur ni déploiement n'a été exécuté depuis cette session.
+
+### Complément au traitement du 26/11/2026
+- L'import des écritures préselectionne désormais l'exercice choisi dans la barre latérale (sinon l'exercice actif, puis le plus récent) et affiche la période exacte cible. La résolution de l'exercice est bornée au dossier du lot ; un import sans exercice cible est bloqué au lieu d'ignorer le contrôle de période.
+- Le scan de saisie groupée résout l'exercice depuis le contexte de session avant l'ID encore présent dans une page ouverte. Un ancien formulaire peut donc suivre le changement de contexte sans rechargement ; la société, les comptes, journaux, tiers et dates restent validés.
