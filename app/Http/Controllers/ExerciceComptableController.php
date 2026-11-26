@@ -367,7 +367,7 @@ public function index()
         try {
             // Ce bouton calcule et affiche le SIG uniquement. Aucun mouvement comptable
             // n'est créé ici : l'unique ligne 1301/1309 sera portée dans le RAN à la clôture.
-            $sig = $this->reportingService->getSIGData($exercice->id, $companyId);
+            $sig = $this->reportingService->getSIGData($exercice->id, $companyId, null, false, true);
             $montant = round((float) ($sig['resultat_net'] ?? 0), 2);
             $message = abs($montant) < 0.01
                 ? 'Résultat net nul selon le SIG. Aucun mouvement n’a été créé ; l’exercice reste ouvert.'
@@ -453,8 +453,25 @@ public function index()
                     throw new RuntimeException('Clôture bloquée : l’exercice suivant est déjà clôturé ou validé.');
                 }
 
-                $sig = $this->reportingService->getSIGData($source->id, $companyId);
+                $sig = $this->reportingService->getSIGData($source->id, $companyId, null, false, true);
                 $resultat = round((float) ($sig['resultat_net'] ?? 0), 2);
+
+                // Nettoyage transactionnel des anciennes pièces RES système créées
+                // par la logique antérieure. Les écritures manuelles ne sont jamais supprimées.
+                $legacyReference = 'RES-' . $source->id;
+                $legacyRows = EcritureComptable::where('company_id', $companyId)
+                    ->where('exercices_comptables_id', $source->id)
+                    ->where('reference_piece', $legacyReference)->get();
+                if ($legacyRows->contains(fn ($line) => !(bool) $line->is_resultat_systeme)) {
+                    throw new RuntimeException('Une ancienne pièce RES contient des lignes non système. Clôture bloquée ; aucune écriture manuelle ne sera supprimée.');
+                }
+                if ($legacyRows->isNotEmpty()) {
+                    EcritureComptable::where('company_id', $companyId)
+                        ->where('exercices_comptables_id', $source->id)
+                        ->where('reference_piece', $legacyReference)
+                        ->where('is_resultat_systeme', true)->delete();
+                }
+
                 $compteResultat = null;
                 if (abs($resultat) >= 0.01) {
                     $compteResultat = ComptesDeResultat::pour($companyId, $resultat);
