@@ -730,7 +730,7 @@
                                                     <i class="bx bx-trash fs-5"></i>
                                                 </button>
                                                 <button type="button" class="w-10 h-10 flex items-center justify-center rounded-xl border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition shadow-sm bg-white btn-action resultat-btn"
-                                                        data-id="${row.id}" data-label="${row.intitule}" data-resultat-passe="${row.resultat_recalculable ? '1' : '0'}" data-bs-toggle="tooltip" title="${row.resultat_passe ? 'Recalculer l’écriture de résultat' : 'Passer l’écriture de résultat'}">
+                                                        data-id="${row.id}" data-label="${row.intitule}" data-resultat-passe="${row.resultat_recalculable ? '1' : '0'}" data-bs-toggle="tooltip" title="${row.resultat_recalculable ? 'Recalculer l’écriture de résultat' : 'Passer l’écriture de résultat'}">
                                                     <i class="bx bx-calculator fs-5"></i>
                                                 </button>
                                                 <button type="button"
