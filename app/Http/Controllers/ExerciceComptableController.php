@@ -764,9 +764,17 @@ public function index()
             ->where('exercices_comptables_id',$exercice->id)
             ->where(function($q){$q->whereNull('statut')->orWhereNotIn('statut',['rejected','refused']);})
             ->where(function($q){$q->whereNull('is_ran')->orWhere('is_ran',false);})
-            ->where(function($q) use ($exercice){$q->whereNull('reference_piece')->orWhere('reference_piece','!=','RES-'.$exercice->id);})
+            ->where(function($q){
+                $q->whereNull('is_resultat_systeme')->orWhere('is_resultat_systeme',false);
+            })
             ->whereHas('planComptable',function($q){$q->where('numero_de_compte','like','1301%')->orWhere('numero_de_compte','like','1309%');})
-            ->exists();
+            ->where(function($q) use ($exercice) {
+                $q->whereNull('reference_piece')->orWhere('reference_piece','!=','RES-'.$exercice->id)
+                  ->orWhere(function($legacy) {
+                      $legacy->where('n_saisie','not like','RES-%')
+                             ->where('description_operation','not like','AFFECTATION DU RESULTAT%');
+                  });
+            })->exists();
     }
 
     /** Valide l'indicateur système, l'équilibre de la pièce et le solde inverse de toutes les classes 6, 7 et 8. */
@@ -776,7 +784,7 @@ public function index()
         $reference='RES-'.$exercice->id;
         $piece=EcritureComptable::where('company_id',$exercice->company_id)
             ->where('exercices_comptables_id',$exercice->id)->where('reference_piece',$reference)
-            ->where(function($q){$q->where('n_saisie','like','RES-%')->orWhere('description_operation','like','AFFECTATION DU RESULTAT%');})
+            ->where(function($q){$q->where('is_resultat_systeme',true)->orWhere('n_saisie','like','RES-%')->orWhere('description_operation','like','AFFECTATION DU RESULTAT%');})
             ->with('planComptable')->get();
         if ($piece->isEmpty()) return false;
         $debit=round((float)$piece->sum('debit'),2); $credit=round((float)$piece->sum('credit'),2);
