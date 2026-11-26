@@ -138,6 +138,24 @@ class ClotureReportANouveauTest extends TestCase
             ->where('is_ran', true)->with('planComptable')->get();
     }
 
+    public function test_la_cloture_passe_automatiquement_le_resultat_si_absent(): void
+    {
+        $this->piece('ECR-000001', [
+            ['57100000', 5000000, 0],
+            ['70100000', 0, 5000000],
+        ]);
+
+        // Pas d'appel préalable au bouton « Passer le résultat ».
+        $this->cloturer();
+
+        $this->assertTrue((bool) $this->exercice->fresh()->resultat_passe);
+        $resultatSource = EcritureComptable::where('exercices_comptables_id', $this->exercice->id)
+            ->whereHas('planComptable', fn ($q) => $q->where('numero_de_compte', 'like', '1301%')
+                ->orWhere('numero_de_compte', 'like', '1309%'))
+            ->count();
+        $this->assertSame(1, $resultatSource, 'La clôture doit passer le résultat une seule fois dans l’exercice source.');
+    }
+
     public function test_un_benefice_part_au_credit_du_compte_1301(): void
     {
         // Vente de 5 000 000 encaissée : bénéfice de 5 000 000.
