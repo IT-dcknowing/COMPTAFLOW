@@ -436,7 +436,13 @@ public function index()
                 }
 
                 $this->completerContrepartiesResultat($source, $companyId, Auth::user());
-                if (!$this->resultatEstPasse($source)) {
+                $systemPieceExists = EcritureComptable::where('company_id', $companyId)
+                    ->where('exercices_comptables_id', $source->id)->where('reference_piece', 'RES-'.$source->id)->exists();
+                if ($systemPieceExists) {
+                    if (!$this->pieceResultatSystemeValide($source)) {
+                        throw new \\RuntimeException("La pièce système RES existante est incomplète ou invalide. Utilisez le bouton Résultat > Recalculer avant la clôture.");
+                    }
+                } else {
                     $this->creerEcritureResultat($source, $companyId, Auth::user());
                     $this->completerContrepartiesResultat($source, $companyId, Auth::user());
                 }
@@ -953,25 +959,9 @@ public function index()
         }
     }
 
-    /** Le résultat a-t-il déjà été passé manuellement ou par le bouton dédié ? */
+    /** Résultat déjà passé uniquement si l'indicateur et la pièce système sont valides. */
     private function resultatEstPasse(ExerciceComptable $exercice): bool
     {
-        if ((bool) $exercice->resultat_passe) {
-            return true;
-        }
-
-        return EcritureComptable::where('company_id', $exercice->company_id)
-            ->where('exercices_comptables_id', $exercice->id)
-            ->where(function ($q) {
-                $q->whereNull('statut')->orWhereNotIn('statut', ['rejected', 'refused']);
-            })
-            ->where(function ($q) {
-                $q->where('is_ran', false)->orWhereNull('is_ran');
-            })
-            ->whereHas('planComptable', function ($q) {
-                $q->where('numero_de_compte', 'like', '1301%')
-                    ->orWhere('numero_de_compte', 'like', '1309%');
-            })
-            ->exists();
+        return $this->pieceResultatSystemeValide($exercice);
     }
 }
