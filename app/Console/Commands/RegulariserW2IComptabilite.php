@@ -179,9 +179,23 @@ class RegulariserW2IComptabilite extends Command
 
                 $ranDebit = round((float) $ranRows->sum('debit'), 2);
                 $ranCredit = round((float) $ranRows->sum('credit'), 2);
-                if (abs(($ranDebit - $ranCredit) + $resultatAttendu) >= 0.01) {
+                if (abs(($ranDebit - $ranCredit) - $resultatAttendu) >= 0.01) {
                     throw new RuntimeException('L’écart du RAN existant ne correspond pas exactement à la perte identifiée. Aucune suppression.');
                 }
+
+                // La perte en 1309 (débit) fait partie du bilan à reporter.
+                // Le calcul du bilan ci-dessus précède la création de RES :
+                // on ajoute donc explicitement la ligne 1309 de la pièce RES au futur RAN.
+                $key1309 = implode('|', [(string) $comptePerte->id, '', '', '', '']);
+                $balancesBilan[$key1309] ??= [
+                    'plan_comptable_id' => $comptePerte->id,
+                    'plan_tiers_id' => null,
+                    'compte_tresorerie_id' => null,
+                    'poste_tresorerie_id' => null,
+                    'type_flux' => null,
+                    'balance' => 0.0,
+                ];
+                $balancesBilan[$key1309]['balance'] += abs($resultatAttendu);
 
                 return [
                     'source' => $source,
