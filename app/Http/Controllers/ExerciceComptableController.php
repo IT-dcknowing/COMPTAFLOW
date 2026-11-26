@@ -481,6 +481,12 @@ public function index()
                 }
 
                 $referenceRan = 'RAN-' . $source->id;
+                $ranReferenceAilleurs = EcritureComptable::where('company_id', $companyId)
+                    ->where('reference_piece', $referenceRan)
+                    ->where('exercices_comptables_id', '!=', $next->id)->exists();
+                if ($ranReferenceAilleurs) {
+                    throw new RuntimeException('La référence de report ' . $referenceRan . ' existe déjà dans un autre exercice. Vérification manuelle requise ; aucun doublon ne sera créé.');
+                }
                 $ranRows = EcritureComptable::where('company_id', $companyId)
                     ->where('exercices_comptables_id', $next->id)
                     ->where('reference_piece', $referenceRan)
