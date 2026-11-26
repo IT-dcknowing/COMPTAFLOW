@@ -70,7 +70,47 @@ class RegulariserW2IComptabilite extends Command
                     ->where('exercices_comptables_id', $sourceId)
                     ->where('reference_piece', $resReference)->get();
                 if ($resRows->isNotEmpty()) {
-                    throw new RuntimeException('Une pièce RES-331 existe déjà. Ce scénario de régularisation ne la remplace pas automatiquement.');
+                    // Une application déjà réussie doit être reconnue sans jamais rejouer les écritures.
+                    $resDebit = round((float) $resRows->sum('debit'), 2);
+                    $resCredit = round((float) $resRows->sum('credit'), 2);
+                    $existingRan = EcritureComptable::where('company_id', $companyId)
+                        ->where('exercices_comptables_id', $targetId)
+                        ->where('reference_piece', $ranReference)->get();
+                    $ordinaryRows = EcritureComptable::where('company_id', $companyId)
+                        ->where('exercices_comptables_id', $targetId)
+                        ->where(function ($q) use ($ranReference) {
+                            $q->whereNull('reference_piece')->orWhere('reference_piece', '!=', $ranReference);
+                        })->get();
+                    $ranDebit = round((float) $existingRan->sum('debit'), 2);
+                    $ranCredit = round((float) $existingRan->sum('credit'), 2);
+                    $ordinaryDebit = round((float) $ordinaryRows->sum('debit'), 2);
+                    $ordinaryCredit = round((float) $ordinaryRows->sum('credit'), 2);
+
+                    if (abs($resDebit - $resCredit) >= 0.01
+                        || !$source->resultat_passe
+                        || $existingRan->isEmpty()
+                        || $existingRan->contains(fn ($row) => !(bool) $row->is_ran)
+                        || abs($ranDebit - $ranCredit) >= 0.01
+                        || $ordinaryRows->count() !== 51
+                        || abs($ordinaryDebit - 8247735.00) >= 0.01
+                        || abs($ordinaryCredit - 8247735.00) >= 0.01
+                        || abs($ordinaryDebit - $ordinaryCredit) >= 0.01) {
+                        throw new RuntimeException('Une pièce RES-331 existe, mais les contrôles de cohérence de la régularisation déjà appliquée échouent. Aucune donnée modifiée.');
+                    }
+
+                    return [
+                        'already_applied' => true,
+                        'source' => $source,
+                        'target' => $target,
+                        'other_count' => $ordinaryRows->count(),
+                        'other_debit' => $ordinaryDebit,
+                        'other_credit' => $ordinaryCredit,
+                        'ran_count' => $existingRan->count(),
+                        'ran_debit' => $ranDebit,
+                        'ran_credit' => $ranCredit,
+                        'resultat' => $resultatAttendu,
+                        'source_flag' => true,
+                    ];
                 }
 
                 $manualResult = EcritureComptable::where('company_id', $companyId)
@@ -227,10 +267,15 @@ class RegulariserW2IComptabilite extends Command
                     ['Résultat SIG et grand livre', number_format($diagnostic['resultat'], 2, ',', ' ') . ' (perte)'],
                     ['RAN actuel', $diagnostic['ran_count'] . ' lignes : D ' . number_format($diagnostic['ran_debit'], 2, ',', ' ') . ' / C ' . number_format($diagnostic['ran_credit'], 2, ',', ' ')],
                     ['Écritures ordinaires cible', $diagnostic['other_count'] . ' lignes : D=C=' . number_format($diagnostic['other_debit'], 2, ',', ' ')],
-                    ['Indicateur résultat source', $diagnostic['source_flag'] ? 'actif mais pièce RES absente (anomalie)' : 'inactif'],
-                    ['Action', $this->option('apply') ? 'APPLICATION' : 'DIAGNOSTIC SEUL'],
+                    ['Indicateur résultat source', $diagnostic['source_flag'] ? 'actif' : 'inactif'],
+                    ['Action', !empty($diagnostic['already_applied']) ? 'DÉJÀ RÉGULARISÉE — AUCUNE ÉCRITURE' : ($this->option('apply') ? 'APPLICATION' : 'DIAGNOSTIC SEUL')],
                 ]
             );
+
+            if (!empty($diagnostic['already_applied'])) {
+                $this->info('Régularisation W2I déjà appliquée et contrôlée : RES-331 et RAN-331 sont équilibrés, les 51 écritures ordinaires sont intactes. Aucune donnée modifiée.');
+                return self::SUCCESS;
+            }
 
             if (!$this->option('apply')) {
                 $this->warn('Aucune donnée modifiée. Pour appliquer après sauvegarde, relancez avec --apply --confirm=W2I-210-331-332.');
