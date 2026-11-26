@@ -45,7 +45,7 @@ class ClotureReportANouveauTest extends TestCase
 
         $this->user = User::factory()->create(['company_id' => $this->company->id]);
 
-        // La clôture peut être anticipée ; la date théorique ne bloque plus l'opération.
+        // L'exercice source est terminé ; son successeur immédiat est créé dans le jeu de test.
         $this->exercice = ExerciceComptable::create([
             'company_id' => $this->company->id,
             'user_id' => $this->user->id,
