@@ -878,6 +878,7 @@ public function index()
             'company_id' => $companyId,
             'user_id' => $user->id,
             'is_ran' => false,
+            'is_resultat_systeme' => true,
             'plan_analytique' => 0,
             'statut' => 'approved',
         ]);
@@ -963,6 +964,7 @@ public function index()
                 'company_id' => $companyId,
                 'user_id' => $user->id,
                 'is_ran' => false,
+                'is_resultat_systeme' => true,
                 'plan_analytique' => 0,
                 'statut' => 'approved',
             ]);
