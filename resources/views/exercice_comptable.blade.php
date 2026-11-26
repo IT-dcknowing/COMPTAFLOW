@@ -554,6 +554,25 @@
         <form id="activateForm" method="POST" action="" style="display: none;">
             @csrf
         </form>
+        <div class="modal fade" id="resultatConfirmationModal" tabindex="-1" aria-labelledby="resultatModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content premium-modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="resultatModalLabel">Passer l’écriture de résultat ?</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    <div class="modal-body">
+                        L’écriture de résultat de <strong id="exerciceToResultat"></strong> sera passée dans le journal <strong>OD</strong>.
+                        Cette action ne clôture pas l’exercice et ne génère pas le report à nouveau.
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="button" class="btn btn-success" id="confirmerResultatBtn">Oui, passer le résultat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <form id="passerResultatForm" method="POST" action="" style="display:none;">
             @csrf
             @method('PATCH')
@@ -1128,19 +1147,31 @@
                                     if (result.isConfirmed) confirmer();
                                 });
                             } else {
-                                // Repli intégré à la page si SweetAlert n'est pas chargé.
+                                // Repli sur la boîte de confirmation Bootstrap, jamais sur confirm() natif.
                                 const modal = document.getElementById('resultatConfirmationModal');
                                 const labelEl = document.getElementById('exerciceToResultat');
                                 if (modal && window.bootstrap?.Modal) {
                                     if (labelEl) labelEl.textContent = label;
                                     modal.dataset.exerciceId = id;
                                     bootstrap.Modal.getOrCreateInstance(modal).show();
-                                } else {
-                                    confirmer();
                                 }
                             }
                         });
                     });
+
+                    const confirmerResultatBtn = document.getElementById('confirmerResultatBtn');
+                    if (confirmerResultatBtn) {
+                        confirmerResultatBtn.addEventListener('click', function() {
+                            const modal = document.getElementById('resultatConfirmationModal');
+                            const id = modal?.dataset.exerciceId;
+                            if (!id) return;
+                            const form = document.getElementById('passerResultatForm');
+                            if (form) {
+                                form.action = exercice_comptableResultatUrl.replace('__ID__', id);
+                                form.submit();
+                            }
+                        });
+                    }
 
                     // Gestionnaire pour le bouton de clôture (bouton généré par DataTable)
                     document.querySelectorAll('.cloturer-btn').forEach(button => {
