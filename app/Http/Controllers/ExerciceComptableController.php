@@ -188,7 +188,7 @@ public function index()
 
             // Génération automatique de l'intitulé (l'intitulé posté par le formulaire
             // est ignoré : seule l'année de la date de début fait foi)
-            $exercice->intitule = $this->genererIntitule($dateDebut);
+            $exercice->intitule = $this->genererIntitule($dateDebut, $dateFin);
             $exercice->user_id = $user->id;
             $exercice->company_id = $companyId;
             $exercice->nombre_journaux_saisis = 0;
@@ -381,72 +381,14 @@ public function index()
 
         try {
             $resultat = DB::transaction(function () use ($exercice, $companyId, $user) {
-                $exercice = ExerciceComptable::where('company_id', $companyId)
+                $lockedExercice = ExerciceComptable::where('company_id', $companyId)
                     ->whereKey($exercice->id)->lockForUpdate()->firstOrFail();
 
-                if ($this->resultatEstPasse($exercice)) {
-                    throw new \RuntimeException("L'écriture de résultat a déjà été passée pour cet exercice.");
+                if ($this->resultatEstPasse($lockedExercice)) {
+                    throw new \\RuntimeException("L'écriture de résultat a déjà été passée pour cet exercice.");
                 }
 
-                $resultatData = $this->reportingService->getSIGData($exercice->id, $companyId);
-                $montant = round((float) ($resultatData['resultat_net'] ?? 0), 2);
-
-                $journal = CodeJournal::where('company_id', $companyId)
-                    ->where(fn ($q) => $q->where('code_journal', 'RAN')->orWhere('code_journal', 'REP'))
-                    ->first();
-
-                if (!$journal) {
-                    $journal = CodeJournal::create([
-                        'company_id' => $companyId,
-                        'code_journal' => 'RAN',
-                        'intitule' => 'REPORT À NOUVEAU',
-                        'type' => 'Opérations Diverses',
-                        'traitement_analytique' => 0,
-                        'user_id' => $user->id,
-                    ]);
-                }
-
-                $date = Carbon::parse($exercice->date_fin)->startOfDay();
-                if ($date->gt(now()->startOfDay())) {
-                    $date = now()->startOfDay();
-                }
-                $journalSaisi = JournalSaisi::firstOrCreate([
-                    'annee' => $date->year,
-                    'mois' => $date->month,
-                    'exercices_comptables_id' => $exercice->id,
-                    'code_journals_id' => $journal->id,
-                    'company_id' => $companyId,
-                ], ['user_id' => $user->id]);
-
-                if (abs($montant) < 0.01) {
-                    $exercice->update(['resultat_passe' => true, 'resultat_passe_le' => now()]);
-                    return ['montant' => 0.0, 'sans_ligne' => true];
-                }
-
-                $compte = ComptesDeResultat::pourOuCreer($companyId, $montant, $user->id);
-                $sens = ComptesDeResultat::sens($montant);
-
-                EcritureComptable::create([
-                    'date' => $date->toDateString(),
-                    'n_saisie' => 'RES-' . $date->format('Y'),
-                    'n_saisie_user' => 'RES-' . $date->format('Y'),
-                    'description_operation' => 'AFFECTATION DU RESULTAT ' . $exercice->intitule,
-                    'reference_piece' => 'RES-' . $exercice->id,
-                    'plan_comptable_id' => $compte->id,
-                    'code_journal_id' => $journal->id,
-                    'exercices_comptables_id' => $exercice->id,
-                    'journaux_saisis_id' => $journalSaisi->id,
-                    'debit' => $sens['debit'],
-                    'credit' => $sens['credit'],
-                    'company_id' => $companyId,
-                    'user_id' => $user->id,
-                    'is_ran' => false,
-                    'plan_analytique' => 0,
-                    'statut' => 'approved',
-                ]);
-
-                $exercice->update(['resultat_passe' => true, 'resultat_passe_le' => now()]);
-                return ['montant' => $montant, 'sans_ligne' => false];
+                return $this->creerEcritureResultat($lockedExercice, $companyId, $user);
             }, 5);
 
             $message = $resultat['sans_ligne']
@@ -492,10 +434,6 @@ public function index()
             return back()->with('error', "Sécurité : Il reste $pendingEntries écritures en attente de validation. Veuillez les traiter avant la clôture.");
         }
 
-        if (!$this->resultatEstPasse($exercice)) {
-            return back()->with('error', "Veuillez d'abord passer l'écriture de résultat avec le bouton dédié avant de clôturer l'exercice.");
-        }
-
         try {
             DB::beginTransaction();
 
@@ -524,6 +462,19 @@ public function index()
 
                 $exercice->update(['date_fin' => $dateCloture->toDateString()]);
                 $exercice->refresh();
+            }
+
+            // La clôture pilote le résultat et le RAN dans la même transaction.
+            // Si une écriture 1301/1309 existe déjà (passage manuel ou bouton),
+            // on la reconnaît et on ne la duplique pas.
+            $exercice = ExerciceComptable::where('company_id', $companyId)
+                ->whereKey($exercice->id)->lockForUpdate()->firstOrFail();
+            $resultatCreePendantCloture = false;
+            if (!$this->resultatEstPasse($exercice)) {
+                $this->creerEcritureResultat($exercice, $companyId, Auth::user());
+                $resultatCreePendantCloture = true;
+            } elseif (!$exercice->resultat_passe) {
+                $exercice->update(['resultat_passe' => true, 'resultat_passe_le' => now()]);
             }
 
             // Chercher ou créer l'exercice suivant à partir du lendemain réel.
@@ -567,7 +518,7 @@ public function index()
                     }
 
                     $nextExercice->update([
-                        'intitule' => 'EXERCICE ' . $debutNext->year,
+                        'intitule' => $this->genererIntitule($debutNext, $finNext),
                         'date_debut' => $debutNext->toDateString(),
                         'date_fin' => $finNext->toDateString(),
                     ]);
@@ -601,7 +552,7 @@ public function index()
 
                 $nextExercice = ExerciceComptable::create([
                     'company_id' => $companyId,
-                    'intitule' => 'EXERCICE ' . $debutNext->year,
+                    'intitule' => $this->genererIntitule($debutNext, $finNext),
                     'date_debut' => $debutNext,
                     'date_fin' => $finNext,
                     'is_active' => 0,
@@ -808,7 +759,7 @@ public function index()
         $exercice->update([
             'date_debut' => $dateDebut->format('Y-m-d'),
             'date_fin' => $dateFin->format('Y-m-d'),
-            'intitule' => $this->genererIntitule($dateDebut),
+            'intitule' => $this->genererIntitule($dateDebut, $dateFin),
         ]);
 
         return redirect()->route('exercice_comptable')
@@ -834,9 +785,13 @@ public function index()
      * Le calcul est fait ici (côté serveur) et non dans le navigateur, afin qu'aucun
      * fuseau horaire client ne puisse décaler l'année.
      */
-    private function genererIntitule($dateDebut)
+    private function genererIntitule($dateDebut, $dateFin = null)
     {
-        return 'EXERCICE ' . Carbon::parse($dateDebut)->year;
+        $debut = Carbon::parse($dateDebut);
+        $fin = $dateFin ? Carbon::parse($dateFin) : $debut->copy();
+        $annees = $debut->year === $fin->year ? (string) $debut->year : $debut->year . '-' . $fin->year;
+
+        return 'EXERCICE ' . $annees;
     }
 
     private function checkUpcomingDeadlines($companyId)
@@ -883,6 +838,73 @@ public function index()
             }
         }
     }
+    /**
+     * Crée l'écriture 1301/1309 dans la transaction appelante.
+     * Le verrou de l'exercice et le contrôle d'idempotence sont gérés par l'appelant.
+     */
+    private function creerEcritureResultat(ExerciceComptable $exercice, int $companyId, $user): array
+    {
+        $resultatData = $this->reportingService->getSIGData($exercice->id, $companyId);
+        $montant = round((float) ($resultatData['resultat_net'] ?? 0), 2);
+
+        $journal = CodeJournal::where('company_id', $companyId)
+            ->where(fn ($q) => $q->where('code_journal', 'RAN')->orWhere('code_journal', 'REP'))
+            ->first();
+
+        if (!$journal) {
+            $journal = CodeJournal::create([
+                'company_id' => $companyId,
+                'code_journal' => 'RAN',
+                'intitule' => 'REPORT À NOUVEAU',
+                'type' => 'Opérations Diverses',
+                'traitement_analytique' => 0,
+                'user_id' => $user->id,
+            ]);
+        }
+
+        $date = Carbon::parse($exercice->date_fin)->startOfDay();
+        if ($date->gt(now()->startOfDay())) {
+            $date = now()->startOfDay();
+        }
+        $journalSaisi = JournalSaisi::firstOrCreate([
+            'annee' => $date->year,
+            'mois' => $date->month,
+            'exercices_comptables_id' => $exercice->id,
+            'code_journals_id' => $journal->id,
+            'company_id' => $companyId,
+        ], ['user_id' => $user->id]);
+
+        if (abs($montant) < 0.01) {
+            $exercice->update(['resultat_passe' => true, 'resultat_passe_le' => now()]);
+            return ['montant' => 0.0, 'sans_ligne' => true];
+        }
+
+        $compte = ComptesDeResultat::pourOuCreer($companyId, $montant, $user->id);
+        $sens = ComptesDeResultat::sens($montant);
+
+        EcritureComptable::create([
+            'date' => $date->toDateString(),
+            'n_saisie' => 'RES-' . $date->format('Y'),
+            'n_saisie_user' => 'RES-' . $date->format('Y'),
+            'description_operation' => 'AFFECTATION DU RESULTAT ' . $exercice->intitule,
+            'reference_piece' => 'RES-' . $exercice->id,
+            'plan_comptable_id' => $compte->id,
+            'code_journal_id' => $journal->id,
+            'exercices_comptables_id' => $exercice->id,
+            'journaux_saisis_id' => $journalSaisi->id,
+            'debit' => $sens['debit'],
+            'credit' => $sens['credit'],
+            'company_id' => $companyId,
+            'user_id' => $user->id,
+            'is_ran' => false,
+            'plan_analytique' => 0,
+            'statut' => 'approved',
+        ]);
+
+        $exercice->update(['resultat_passe' => true, 'resultat_passe_le' => now()]);
+        return ['montant' => $montant, 'sans_ligne' => false];
+    }
+
     /** Le résultat a-t-il déjà été passé manuellement ou par le bouton dédié ? */
     private function resultatEstPasse(ExerciceComptable $exercice): bool
     {
