@@ -85,7 +85,7 @@ class ImportCommitJob implements ShouldQueue
         );
 
         $totalRows     = count($data);
-        $exercice      = ExerciceComptable::find($import->exercice_id);
+        $exercice      = ExerciceComptable::withoutGlobalScopes()->where('company_id', $targetCompanyId)->find($import->exercice_id);
         $accountDigits = $targetCompany->account_digits ?? 8;
         $journalDigits = $targetCompany->journal_code_digits ?? 4;
         $tierDigits    = $targetCompany->tier_digits ?? 8;
