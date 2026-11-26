@@ -16,9 +16,9 @@ use Tests\TestCase;
 /**
  * Passage indépendant de l'écriture de résultat et report à nouveau.
  *
- * Le résultat est enregistré une seule fois dans l'exercice d'origine, sur
- * 1301 au crédit ou 1309 au débit. La clôture reporte ensuite ces soldes avec
- * les autres comptes de bilan, sans recréer l'écriture de résultat.
+ * Le bouton Résultat ne crée aucun mouvement. À la clôture, le résultat SIG
+ * est porté par une seule ligne 1301/1309 dans le RAN du prochain exercice.
+ * Aucune contrepartie n'est créée sur les comptes de gestion 6, 7 ou 8.
  */
 class ClotureReportANouveauTest extends TestCase
 {
@@ -27,6 +27,7 @@ class ClotureReportANouveauTest extends TestCase
     private Company $company;
     private User $user;
     private ExerciceComptable $exercice;
+    private ExerciceComptable $exerciceSuivant;
     private CodeJournal $journal;
 
     protected function setUp(): void
@@ -52,6 +53,16 @@ class ClotureReportANouveauTest extends TestCase
             'date_debut' => '2024-01-01',
             'date_fin' => '2024-12-31',
             'is_active' => true,
+            'cloturer' => 0,
+        ]);
+
+        $this->exerciceSuivant = ExerciceComptable::create([
+            'company_id' => $this->company->id,
+            'user_id' => $this->user->id,
+            'intitule' => 'EXERCICE 2025',
+            'date_debut' => '2025-01-01',
+            'date_fin' => '2025-12-31',
+            'is_active' => false,
             'cloturer' => 0,
         ]);
 
@@ -148,12 +159,15 @@ class ClotureReportANouveauTest extends TestCase
         // Pas d'appel préalable au bouton « Passer le résultat ».
         $this->cloturer();
 
-        $this->assertTrue((bool) $this->exercice->fresh()->resultat_passe);
+        $this->assertTrue((bool) $this->exercice->fresh()->cloturer);
         $resultatSource = EcritureComptable::where('exercices_comptables_id', $this->exercice->id)
             ->whereHas('planComptable', fn ($q) => $q->where('numero_de_compte', 'like', '1301%')
                 ->orWhere('numero_de_compte', 'like', '1309%'))
             ->count();
-        $this->assertSame(1, $resultatSource, 'La clôture doit passer le résultat une seule fois dans l’exercice source.');
+        $this->assertSame(0, $resultatSource, 'Aucune ligne de résultat ne doit être créée dans l’exercice source.');
+        $this->assertSame(1, $this->lignesDuReport()->filter(
+            fn ($l) => ComptesDeResultat::estCompteDeResultat($l->planComptable->numero_de_compte)
+        )->count(), 'Le RAN doit porter une seule ligne de résultat.');
     }
 
     public function test_les_ecritures_du_dossier_sont_visibles_a_un_autre_utilisateur_autorise(): void
@@ -245,40 +259,38 @@ class ClotureReportANouveauTest extends TestCase
 
         $this->passerResultat();
 
-        $this->assertTrue($this->exercice->fresh()->resultat_passe);
-        $this->assertFalse($this->exercice->fresh()->cloturer);
+        $this->assertFalse((bool) $this->exercice->fresh()->resultat_passe);
+        $this->assertFalse((bool) $this->exercice->fresh()->cloturer);
 
         $second = $this->patch(route('exercice_comptable.resultat', $this->exercice->id));
-        $this->assertNotNull($second->baseResponse->getSession()?->get('error'));
+        $this->assertNull($second->baseResponse->getSession()?->get('error'));
 
         $lignesResultat = EcritureComptable::where('exercices_comptables_id', $this->exercice->id)
             ->whereHas('planComptable', fn ($q) => $q->where('numero_de_compte', 'like', '1301%')
                 ->orWhere('numero_de_compte', 'like', '1309%'))
             ->count();
 
-        $this->assertSame(1, $lignesResultat);
+        $this->assertSame(0, $lignesResultat, 'Le bouton Résultat calcule le SIG mais ne crée aucune écriture.');
     }
 
-    public function test_la_cloture_peut_etre_anticipee_avant_la_date_de_fin(): void
+    public function test_la_cloture_est_refusee_si_la_date_de_fin_n_est_pas_atteinte(): void
     {
-        $this->exercice->update(['date_fin' => now()->addDays(30)->toDateString()]);
-
+        $dateFinFuture = now()->addDays(30)->startOfDay();
+        $this->exercice->update(['date_fin' => $dateFinFuture->toDateString()]);
+        $this->exerciceSuivant->update([
+            'date_debut' => $dateFinFuture->copy()->addDay()->toDateString(),
+            'date_fin' => $dateFinFuture->copy()->addYear()->toDateString(),
+        ]);
         $this->piece('ECR-000001', [
             ['57100000', 5000000, 0],
             ['70100000', 0, 5000000],
         ]);
 
-        $this->passerResultat();
-        $this->cloturer();
-
-        $exerciceCloture = $this->exercice->fresh();
-        $this->assertTrue((bool) $exerciceCloture->cloturer);
-        $this->assertSame(now()->toDateString(), $exerciceCloture->date_fin->toDateString());
-
-        $suivant = ExerciceComptable::where('company_id', $this->exercice->company_id)
-            ->whereDate('date_debut', now()->addDay()->toDateString())
-            ->first();
-        $this->assertNotNull($suivant, 'Le nouvel exercice doit commencer le lendemain de la clôture anticipée.');
+        $reponse = $this->patch(route('exercice_comptable.cloturer', $this->exercice->id));
+        $this->assertNotNull($reponse->baseResponse->getSession()?->get('error'));
+        $this->assertFalse((bool) $this->exercice->fresh()->cloturer);
+        $this->assertSame($dateFinFuture->toDateString(), $this->exercice->fresh()->date_fin->toDateString());
+        $this->assertSame(2, EcritureComptable::where('exercices_comptables_id', $this->exercice->id)->count());
     }
 
     public function test_le_passage_du_resultat_equilibre_la_balance_de_lexercice_source(): void
@@ -291,16 +303,63 @@ class ClotureReportANouveauTest extends TestCase
         $this->passerResultat();
 
         $lignes = EcritureComptable::where('company_id', $this->company->id)
-            ->where('exercices_comptables_id', $this->exercice->id)->get();
+            ->where('exercices_comptables_id', $this->exercice->id)->with('planComptable')->get();
         $this->assertEqualsWithDelta(
             $lignes->sum(fn ($l) => (float) $l->debit),
             $lignes->sum(fn ($l) => (float) $l->credit),
             0.01,
-            'L affectation du résultat doit solder les comptes 6/7/8 et équilibrer la balance source.'
+            'Le calcul du résultat ne doit pas modifier la balance source.'
         );
-
+        $resultatSource = $lignes->filter(fn ($l) => ComptesDeResultat::estCompteDeResultat($l->planComptable->numero_de_compte));
+        $this->assertSame(0, $resultatSource->count(), 'Aucune ligne 1301/1309 ne doit être créée dans la source.');
         $contreparties = $lignes->filter(fn ($l) => str_starts_with((string) $l->description_operation, 'CLÔTURE RESULTAT:'));
-        $this->assertGreaterThan(0, $contreparties->count(), 'Les lignes de contrepartie de clôture des comptes de gestion doivent être générées.');
+        $this->assertSame(0, $contreparties->count(), 'Aucune contrepartie de gestion ne doit être générée.');
+    }
+
+    public function test_cloture_sans_exercice_suivant_ne_modifie_aucune_donnee(): void
+    {
+        $this->exerciceSuivant->delete();
+        $this->piece('ECR-000001', [
+            ['57100000', 5000000, 0],
+            ['70100000', 0, 5000000],
+        ]);
+        $avant = EcritureComptable::where('company_id', $this->company->id)->count();
+
+        $reponse = $this->patch(route('exercice_comptable.cloturer', $this->exercice->id));
+        $message = $reponse->baseResponse->getSession()?->get('error');
+
+        $this->assertSame(
+            "L'exercice 2025 (du 01/01/2025 au 31/12/2025) n'existe pas encore. Veuillez le créer avant de clôturer l'exercice 2024.",
+            $message
+        );
+        $this->assertFalse((bool) $this->exercice->fresh()->cloturer);
+        $this->assertFalse((bool) $this->exercice->fresh()->resultat_passe);
+        $this->assertSame($avant, EcritureComptable::where('company_id', $this->company->id)->count());
+        $this->assertSame(0, EcritureComptable::where('reference_piece', 'RAN-' . $this->exercice->id)->count());
+    }
+
+    public function test_apres_creation_de_l_exercice_suivant_la_cloture_fonctionne(): void
+    {
+        $this->exerciceSuivant->delete();
+        $this->piece('ECR-000001', [
+            ['57100000', 5000000, 0],
+            ['70100000', 0, 5000000],
+        ]);
+        $this->exerciceSuivant = ExerciceComptable::create([
+            'company_id' => $this->company->id,
+            'user_id' => $this->user->id,
+            'intitule' => 'EXERCICE 2025',
+            'date_debut' => '2025-01-01',
+            'date_fin' => '2025-12-31',
+            'is_active' => false,
+            'cloturer' => 0,
+        ]);
+
+        $this->cloturer();
+        $this->assertTrue((bool) $this->exercice->fresh()->cloturer);
+        $this->assertSame(1, $this->lignesDuReport()->filter(
+            fn ($l) => ComptesDeResultat::estCompteDeResultat($l->planComptable->numero_de_compte)
+        )->count());
     }
 
     public function test_le_sens_du_resultat_est_annonce_en_clair(): void
