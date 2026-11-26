@@ -1056,6 +1056,7 @@
                     const onDateDebutChange = function() {
                         genererIntitule();
                         suggererDateFin();
+                        genererIntitule();
                     };
                     dateDebutInput.addEventListener('change', onDateDebutChange);
                     dateDebutInput.addEventListener('input', onDateDebutChange);
@@ -1065,6 +1066,7 @@
                 if (dateFinInput) {
                     dateFinInput.addEventListener('input', function() {
                         this.dataset.autoFilled = '0';
+                        genererIntitule();
                     });
                 }
 
