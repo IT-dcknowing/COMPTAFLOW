@@ -124,8 +124,7 @@ public function index()
                     'nombre_journaux_saisis' => $exercice->nombre_journaux_saisis ?? 0,
                     'cloturer' => (bool) $exercice->cloturer,
                     'resultat_passe' => $this->resultatEstPasse($exercice),
-                    'resultat_recalculable' => EcritureComptable::where('company_id', $exercice->company_id)
-                        ->where('exercices_comptables_id', $exercice->id)->where('reference_piece', 'RES-'.$exercice->id)->exists()
+                    'resultat_recalculable' => false
                 ];
             });
 
