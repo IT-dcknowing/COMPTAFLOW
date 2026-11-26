@@ -398,7 +398,7 @@ public function index()
                 ? 'Résultat nul : les soldes des classes 6, 7 et 8 ont été vérifiés. L’exercice reste ouvert.'
                 : ComptesDeResultat::annonce($resultat['montant']) . ' Le résultat est enregistré dans OD ; l’exercice reste ouvert.';
             return back()->with('success', $message);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             Log::warning('Passage/recalcul du résultat refusé', ['exercice_id' => $exercice->id, 'company_id' => $companyId, 'erreur' => $e->getMessage()]);
             return back()->with('error', $e->getMessage());
         }
@@ -522,7 +522,7 @@ public function index()
             }, 5);
 
             return back()->with('success', 'Clôture terminée : résultat vérifié dans OD, report à nouveau détaillé créé dans RAN à la date d’ouverture suivante et contrôlé équilibré.');
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             Log::error('Erreur clôture exercice', ['exercice_id'=>$id, 'company_id'=>$companyId, 'message'=>$e->getMessage()]);
             return back()->with('error', 'Clôture annulée : '.$e->getMessage());
         }
@@ -574,7 +574,7 @@ public function index()
                 'type'=>'warning', 'sender_id'=>Auth::id(), 'receiver_id'=>Auth::id(), 'company_id'=>$exercice->company_id
             ]);
             return back()->with('success', 'Exercice réouvert : le report à nouveau cible a été supprimé après contrôle, ainsi que la pièce système de résultat. L’indicateur a été remis à zéro.');
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             Log::error('Erreur réouverture exercice', ['exercice_id'=>$id, 'message'=>$e->getMessage()]);
             return back()->with('error', 'Réouverture annulée : '.$e->getMessage());
         }
