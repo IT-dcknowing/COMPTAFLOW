@@ -281,6 +281,28 @@ class ClotureReportANouveauTest extends TestCase
         $this->assertNotNull($suivant, 'Le nouvel exercice doit commencer le lendemain de la clôture anticipée.');
     }
 
+    public function test_le_passage_du_resultat_equilibre_la_balance_de_lexercice_source(): void
+    {
+        $this->piece('ECR-000001', [
+            ['57100000', 5000000, 0],
+            ['70100000', 0, 5000000],
+        ]);
+
+        $this->passerResultat();
+
+        $lignes = EcritureComptable::where('company_id', $this->company->id)
+            ->where('exercices_comptables_id', $this->exercice->id)->get();
+        $this->assertEqualsWithDelta(
+            $lignes->sum(fn ($l) => (float) $l->debit),
+            $lignes->sum(fn ($l) => (float) $l->credit),
+            0.01,
+            'L affectation du résultat doit solder les comptes 6/7/8 et équilibrer la balance source.'
+        );
+
+        $contreparties = $lignes->where('description_operation', 'like', 'CLÔTURE RESULTAT:%');
+        $this->assertGreaterThan(0, $contreparties->count(), 'Les lignes de contrepartie de clôture des comptes de gestion doivent être générées.');
+    }
+
     public function test_le_sens_du_resultat_est_annonce_en_clair(): void
     {
         $this->assertStringContainsString('CRÉDIT', ComptesDeResultat::annonce(5000000));
