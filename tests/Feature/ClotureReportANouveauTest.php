@@ -299,7 +299,7 @@ class ClotureReportANouveauTest extends TestCase
             'L affectation du résultat doit solder les comptes 6/7/8 et équilibrer la balance source.'
         );
 
-        $contreparties = $lignes->where('description_operation', 'like', 'CLÔTURE RESULTAT:%');
+        $contreparties = $lignes->filter(fn ($l) => str_starts_with((string) $l->description_operation, 'CLÔTURE RESULTAT:'));
         $this->assertGreaterThan(0, $contreparties->count(), 'Les lignes de contrepartie de clôture des comptes de gestion doivent être générées.');
     }
 
