@@ -441,3 +441,21 @@ Branche de traitement : `correction-cloture-resultat-dates-exercice-ecritures-ac
 - Le traitement reste distinct du RAN : la pièce RES clôture les comptes de gestion dans l'exercice d'origine ; le report à nouveau continue à transférer uniquement les soldes des comptes de bilan dans l'exercice suivant.
 - Ajout d'un test Feature qui contrôle l'égalité des totaux débit/crédit après passage du résultat et la présence des contreparties.
 - Test PHPUnit non exécuté depuis cette session ; à lancer sur le serveur après récupération de la branche.
+
+
+## 26/11/2026 — Rectification définitive des règles Résultat / Clôture / RAN
+
+Branche : `correction-ran-detaille-idempotence`
+
+Cette section remplace les anciennes consignes ci-dessus qui demandaient à tort des contreparties de clôture sur les classes 6, 7 et 8 dans une pièce RES.
+
+- Le bouton **Résultat** calcule et affiche uniquement le résultat net issu du SIG. Il ne crée aucune écriture, ne modifie pas la balance et ne dépend pas de l'existence de l'exercice suivant.
+- La clôture vérifie d'abord, avant tout calcul SIG et toute écriture, qu'un exercice de la même société commence exactement le lendemain de la date de fin source. S'il manque, elle affiche les dates attendues et un lien vers la page de création ; aucune écriture ni aucun changement d'état n'est effectué.
+- Le résultat est repris dans le RAN du prochain exercice par une seule ligne : 1301 au crédit pour un bénéfice, 1309 au débit pour une perte. Aucune ligne RES n'est créée dans l'exercice source.
+- Le RAN reprend les comptes de bilan 1 à 5 avec leurs dimensions auxiliaires. Les classes 6, 7 et 8 (dont 89) sont exclues du RAN et ne reçoivent aucune contrepartie de clôture.
+- Les anciennes pièces RES système issues de la logique erronée sont exclues du calcul SIG puis supprimées transactionnellement lors de la clôture. Une pièce RES contenant une ligne non système bloque le traitement ; aucune écriture manuelle n'est supprimée.
+- Un RAN existant est contrôlé : sa ligne 1301/1309 est reconnue et n'est pas dupliquée ; si elle manque, une seule ligne est ajoutée. Les doublons, les classes 6/7/8 et les écarts débit/crédit bloquent la transaction. Aucun compte d'équilibrage artificiel n'est créé.
+- La réouverture supprime le RAN uniquement si l'exercice suivant ne contient aucun autre mouvement et n'est pas clôturé/validé. Les anciennes lignes RES ne sont supprimées que si elles sont toutes marquées système.
+- Les tests Feature ont été réécrits pour ces règles, y compris l'absence d'exercice suivant, l'absence totale d'écriture en cas de blocage, la création ultérieure de l'exercice suivant, le calcul sans mouvement source, le sens 1301/1309 et l'équilibre du RAN.
+
+**État de vérification :** fichiers relus sur GitHub et contrôles structurels des méthodes effectués. Les tests PHPUnit et `php -l` n'ont pas pu être exécutés dans cette session ; ils restent obligatoires avant déploiement sur comptaflow-dev.
