@@ -523,7 +523,7 @@
                                         <div class="text-center space-y-3 mb-8">
                                             <p class="text-slate-500 text-sm font-medium leading-relaxed">
                                                 Êtes-vous sûr de vouloir <strong>réouvrir</strong> cet exercice ?<br>
-                                                Les reports à nouveau générés seront <strong>supprimés</strong>.
+                                                Le report à nouveau généré dans l’exercice suivant et la pièce système de résultat de cet exercice seront <strong>supprimés</strong>. La réouverture sera bloquée si l’exercice suivant contient d’autres mouvements.
                                             </p>
                                             <p class="text-slate-900 font-bold" id="exerciceToReouvrir"></p>
                                         </div>
