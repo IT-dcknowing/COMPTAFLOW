@@ -624,7 +624,7 @@ public function index()
             $exercice->update(['cloturer' => 1]);
 
             DB::commit();
-            return back()->with('success', 'Exercice clôturé avec succès. L\'exercice ' . $nextExercice->intitule . ' a été créé/utilisé pour les reports à nouveau.');
+            return back()->with('success', 'Clôture terminée : report à nouveau effectué et ' . ($resultatCreePendantCloture ? 'écriture de résultat passée automatiquement. ' : 'écriture de résultat déjà passée, non dupliquée. ') . 'L\\'exercice ' . $nextExercice->intitule . ' a été créé/utilisé.');
 
         } catch (\Exception $e) {
             DB::rollBack();
