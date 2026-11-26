@@ -378,7 +378,8 @@ public function index()
                         ->where('exercices_comptables_id', $locked->id)
                         ->where('reference_piece', $piece)
                         ->where(function ($q) {
-                            $q->where('n_saisie', 'like', 'RES-%')
+                            $q->where('is_resultat_systeme', true)
+                              ->orWhere('n_saisie', 'like', 'RES-%')
                               ->orWhere('description_operation', 'like', 'AFFECTATION DU RESULTAT%')
                               ->orWhere('description_operation', 'like', 'CLÔTURE RESULTAT:%');
                         })->delete();
@@ -560,7 +561,8 @@ public function index()
                 EcritureComptable::where('company_id', $source->company_id)
                     ->where('exercices_comptables_id', $source->id)->where('reference_piece', 'RES-'.$source->id)
                     ->where(function ($q) {
-                        $q->where('n_saisie', 'like', 'RES-%')
+                        $q->where('is_resultat_systeme', true)
+                          ->orWhere('n_saisie', 'like', 'RES-%')
                           ->orWhere('description_operation', 'like', 'AFFECTATION DU RESULTAT%')
                           ->orWhere('description_operation', 'like', 'CLÔTURE RESULTAT:%');
                     })->delete();
@@ -749,10 +751,10 @@ public function index()
     {
         if ((bool)$exercice->cloturer) return true;
         $attributes = $exercice->getAttributes();
-        foreach (['valide','validated','is_validated','validation'] as $field) {
+        foreach (['valide','validated','is_validated','validation','validation_status','statut','status'] as $field) {
             if (!array_key_exists($field, $attributes)) continue;
             $value = $attributes[$field];
-            if (in_array(strtolower((string)$value), ['1','true','validé','valide','validated','approved'], true)) return true;
+            if (in_array(strtolower((string)$value), ['1','true','validé','validée','valide','validated','approved','closed','cloture','clôturé'], true)) return true;
         }
         return false;
     }
@@ -785,8 +787,9 @@ public function index()
         $piece=EcritureComptable::where('company_id',$exercice->company_id)
             ->where('exercices_comptables_id',$exercice->id)->where('reference_piece',$reference)
             ->where(function($q){$q->where('is_resultat_systeme',true)->orWhere('n_saisie','like','RES-%')->orWhere('description_operation','like','AFFECTATION DU RESULTAT%');})
-            ->with('planComptable')->get();
+            ->with(['planComptable','codeJournal'])->get();
         if ($piece->isEmpty()) return false;
+        if ($piece->contains(fn($line) => ($line->codeJournal?->code_journal ?? null) !== 'OD')) return false;
         $debit=round((float)$piece->sum('debit'),2); $credit=round((float)$piece->sum('credit'),2);
         if (abs($debit-$credit)>=0.01) return false;
 
