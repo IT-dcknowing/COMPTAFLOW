@@ -237,7 +237,7 @@ class RegulariserW2IComptabilite extends Command
                 return self::SUCCESS;
             }
 
-            DB::transaction(function () use ($diagnostic, $companyId, $sourceId, $targetId, $ranReference, $resReference) {
+            DB::transaction(function () use ($diagnostic, $companyId, $sourceId, $targetId, $ranReference, $resReference, $reporting) {
                 $source = ExerciceComptable::where('company_id', $companyId)->whereKey($sourceId)->lockForUpdate()->firstOrFail();
                 $target = ExerciceComptable::where('company_id', $companyId)->whereKey($targetId)->lockForUpdate()->firstOrFail();
 
