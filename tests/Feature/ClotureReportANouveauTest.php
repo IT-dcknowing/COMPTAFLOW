@@ -362,6 +362,91 @@ class ClotureReportANouveauTest extends TestCase
         )->count());
     }
 
+    public function test_les_anciennes_lignes_res_systeme_sont_exclues_du_sig_et_nettoyees(): void
+    {
+        $this->piece('ECR-000001', [
+            ['57100000', 5000000, 0],
+            ['70100000', 0, 5000000],
+        ]);
+
+        // Ancienne pièce erronée : contrepartie de gestion + ligne 1301.
+        foreach ([
+            ['70100000', 5000000, 0],
+            ['13010000', 0, 5000000],
+        ] as [$numero, $debit, $credit]) {
+            EcritureComptable::create([
+                'company_id' => $this->company->id,
+                'code_journal_id' => $this->journal->id,
+                'user_id' => $this->user->id,
+                'exercices_comptables_id' => $this->exercice->id,
+                'date' => '2024-12-31',
+                'n_saisie' => 'RES-2024',
+                'description_operation' => 'Ancienne affectation système',
+                'reference_piece' => 'RES-' . $this->exercice->id,
+                'plan_comptable_id' => $this->compte($numero)->id,
+                'debit' => $debit,
+                'credit' => $credit,
+                'is_resultat_systeme' => true,
+                'is_ran' => false,
+                'statut' => 'approved',
+            ]);
+        }
+
+        $this->cloturer();
+
+        $this->assertSame(0, EcritureComptable::where('exercices_comptables_id', $this->exercice->id)
+            ->where('reference_piece', 'RES-' . $this->exercice->id)->count());
+        $resultat = $this->lignesDuReport()->first(
+            fn ($line) => str_starts_with($line->planComptable->numero_de_compte, '1301')
+        );
+        $this->assertNotNull($resultat);
+        $this->assertEqualsWithDelta(5000000, (float) $resultat->credit, 0.01);
+    }
+
+    public function test_une_ligne_resultat_deja_presente_dans_le_ran_n_est_pas_dupliquee(): void
+    {
+        $this->piece('ECR-000001', [
+            ['57100000', 5000000, 0],
+            ['70100000', 0, 5000000],
+        ]);
+        $journalRan = CodeJournal::create([
+            'company_id' => $this->company->id,
+            'user_id' => $this->user->id,
+            'code_journal' => 'RAN',
+            'intitule' => 'REPORT À NOUVEAU',
+            'traitement_analytique' => 0,
+        ]);
+        foreach ([
+            ['57100000', 5000000, 0],
+            ['13010000', 0, 5000000],
+        ] as [$numero, $debit, $credit]) {
+            EcritureComptable::create([
+                'company_id' => $this->company->id,
+                'code_journal_id' => $journalRan->id,
+                'user_id' => $this->user->id,
+                'exercices_comptables_id' => $this->exerciceSuivant->id,
+                'date' => '2025-01-01',
+                'n_saisie' => 'RAN-2024',
+                'description_operation' => 'Report à nouveau exercice 2024',
+                'reference_piece' => 'RAN-' . $this->exercice->id,
+                'plan_comptable_id' => $this->compte($numero)->id,
+                'debit' => $debit,
+                'credit' => $credit,
+                'is_ran' => true,
+                'statut' => 'approved',
+            ]);
+        }
+
+        $this->cloturer();
+
+        $resultLines = $this->lignesDuReport()->filter(
+            fn ($line) => str_starts_with($line->planComptable->numero_de_compte, '1301')
+                || str_starts_with($line->planComptable->numero_de_compte, '1309')
+        );
+        $this->assertSame(1, $resultLines->count());
+        $this->assertSame(2, $this->lignesDuReport()->count(), 'Aucune ligne du RAN existant ne doit être dupliquée.');
+    }
+
     public function test_le_sens_du_resultat_est_annonce_en_clair(): void
     {
         $this->assertStringContainsString('CRÉDIT', ComptesDeResultat::annonce(5000000));
