@@ -156,6 +156,21 @@ class ClotureReportANouveauTest extends TestCase
         $this->assertSame(1, $resultatSource, 'La clôture doit passer le résultat une seule fois dans l’exercice source.');
     }
 
+    public function test_les_ecritures_du_dossier_sont_visibles_a_un_autre_utilisateur_autorise(): void
+    {
+        $this->piece('ECR-000001', [
+            ['57100000', 5000000, 0],
+            ['70100000', 0, 5000000],
+        ]);
+
+        $secondUser = User::factory()->create(['company_id' => $this->company->id]);
+        $this->actingAs($secondUser);
+        session(['current_company_id' => $this->company->id]);
+
+        $visible = EcritureComptable::where('company_id', $this->company->id)->count();
+        $this->assertSame(2, $visible, 'Le filtre de dossier ne doit pas masquer les écritures selon leur auteur.');
+    }
+
     public function test_un_benefice_part_au_credit_du_compte_1301(): void
     {
         // Vente de 5 000 000 encaissée : bénéfice de 5 000 000.
