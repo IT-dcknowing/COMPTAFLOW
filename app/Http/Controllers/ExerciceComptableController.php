@@ -117,7 +117,7 @@ public function index()
                     'date_debut_fr' => $dateDebut->format('d/m/Y'),
                     'date_fin_fr' => $dateFin->format('d/m/Y'),
                     // Repli pour les anciens exercices enregistrés sans intitulé
-                    'intitule' => $exercice->intitule ?: $this->genererIntitule($dateDebut),
+                    'intitule' => $exercice->intitule ?: $this->genererIntitule($dateDebut, $dateFin),
                     'nb_mois' => $this->calculerNbMois($exercice->date_debut, $exercice->date_fin),
                     'is_active' => (bool) $exercice->is_active,
                     'nombre_journaux_saisis' => $exercice->nombre_journaux_saisis ?? 0,
