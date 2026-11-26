@@ -432,3 +432,12 @@ Branche de traitement : `correction-cloture-resultat-dates-exercice-ecritures-ac
 - Le premier lancement de `ClotureReportANouveauTest` échouait avant toute assertion métier : la migration `2026_11_16_000001_make_ai_scan_settings_id_auto_increment.php` exécutait une syntaxe `ALTER TABLE ... MODIFY ... AUTO_INCREMENT` réservée à MySQL dans la base SQLite `:memory:` de PHPUnit.
 - La migration est désormais protégée par une vérification du pilote : elle ne s'exécute que sur MySQL. SQLite conserve l'auto-incrément défini par la migration initiale.
 - Les 8 tests étaient bloqués par cette même erreur de préparation et ne validaient ni n'invalidaient les scénarios de clôture. Relancer la suite après récupération du commit ; examiner ensuite les éventuelles assertions métier distinctes.
+
+
+### Correction complémentaire — pièce d'affectation du résultat déséquilibrée
+- Diagnostic sur capture : l'écriture `RES-336 – AFFECTATION DU RESULTAT EXERCICE 2023` ne montrait que le compte 130900 au débit de 880 000 FCFA. Les totaux de la liste étaient débit 2 910 000 FCFA, crédit 2 030 000 FCFA, soit exactement l'écart de 880 000 FCFA.
+- Cause confirmée dans `ExerciceComptableController::creerEcritureResultat()` : la méthode ne créait qu'une seule ligne 1301/1309. Elle ne soldait pas les comptes de gestion 6/7/8, laissant la balance de l'exercice source déséquilibrée.
+- Correction : l'affectation génère maintenant les contreparties de clôture des soldes individuels des comptes 6, 7 et 8 dans la même pièce RES, en plus de la ligne 1301 (bénéfice) ou 1309 (perte). Une pièce RES historique partielle est complétée sans recréer le compte de résultat ni dupliquer les lignes déjà passées.
+- Le traitement reste distinct du RAN : la pièce RES clôture les comptes de gestion dans l'exercice d'origine ; le report à nouveau continue à transférer uniquement les soldes des comptes de bilan dans l'exercice suivant.
+- Ajout d'un test Feature qui contrôle l'égalité des totaux débit/crédit après passage du résultat et la présence des contreparties.
+- Test PHPUnit non exécuté depuis cette session ; à lancer sur le serveur après récupération de la branche.
