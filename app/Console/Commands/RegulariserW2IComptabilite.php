@@ -119,9 +119,6 @@ class RegulariserW2IComptabilite extends Command
                     ->where(function ($q) {
                         $q->whereNull('statut')->orWhereIn('statut', ['approved', 'valid']);
                     })
-                    ->where(function ($q) {
-                        $q->whereNull('is_ran')->orWhere('is_ran', false);
-                    })
                     ->with('planComptable')->get();
 
                 $ledgerResult = 0.0;
@@ -271,9 +268,7 @@ class RegulariserW2IComptabilite extends Command
                     ->where(function ($q) {
                         $q->whereNull('statut')->orWhereIn('statut', ['approved', 'valid']);
                     })
-                    ->where(function ($q) {
-                        $q->whereNull('is_ran')->orWhere('is_ran', false);
-                    })->with('planComptable')->get();
+                    ->with('planComptable')->get();
                 if ($this->fingerprint($currentSource) !== $diagnostic['source_fingerprint']) {
                     throw new RuntimeException('Les écritures sources ont changé depuis le diagnostic. Application interrompue.');
                 }
