@@ -3890,7 +3890,7 @@ class AdminConfigController extends Controller
                 'currentPage', 'totalPages', 'totalRows', 'perPage',
                 'statusFilter', 'searchFilter', 'mapping',
                 'missingAccounts', 'missingJournals', 'missingTiers',
-                'viewStats'
+                'viewStats', 'exercice'
             ));
         }
 
