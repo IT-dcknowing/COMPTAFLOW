@@ -298,7 +298,7 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label font-bold text-slate-600">Exercice cible</label>
                                                         @php
-                                                            $exercicesImport = \\App\\Models\\ExerciceComptable::where('company_id', session('current_company_id', auth()->user()->company_id))
+                                                            $exercicesImport = \App\\Models\\ExerciceComptable::where('company_id', session('current_company_id', auth()->user()->company_id))
                                                                 ->where('cloturer', 0)->orderBy('date_debut', 'desc')->get();
                                                             $exerciceImportSelectionne = $exercicesImport->firstWhere('id', session('current_exercice_id'))
                                                                 ?? $exercicesImport->firstWhere('is_active', true)
