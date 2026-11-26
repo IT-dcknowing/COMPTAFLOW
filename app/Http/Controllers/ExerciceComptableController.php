@@ -440,7 +440,7 @@ public function index()
                     ->where('exercices_comptables_id', $source->id)->where('reference_piece', 'RES-'.$source->id)->exists();
                 if ($systemPieceExists) {
                     if (!$this->pieceResultatSystemeValide($source)) {
-                        throw new \\RuntimeException("La pièce système RES existante est incomplète ou invalide. Utilisez le bouton Résultat > Recalculer avant la clôture.");
+                        throw new \RuntimeException("La pièce système RES existante est incomplète ou invalide. Utilisez le bouton Résultat > Recalculer avant la clôture.");
                     }
                 } else {
                     $this->creerEcritureResultat($source, $companyId, Auth::user());
