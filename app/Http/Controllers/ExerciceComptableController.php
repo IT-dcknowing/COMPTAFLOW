@@ -927,9 +927,9 @@ public function index()
     
 
 
-private function resultatEstPasse(ExerciceComptable $exercice): bool
+    /** Le résultat n'est matérialisé qu'à la clôture, dans le RAN. */
+    private function resultatEstPasse(ExerciceComptable $exercice): bool
     {
-        return (bool) $exercice->resultat_passe;
+        return (bool) $exercice->cloturer;
     }
-
-    
+}
