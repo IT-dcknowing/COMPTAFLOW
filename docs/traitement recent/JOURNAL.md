@@ -426,3 +426,9 @@ Branche de traitement : `correction-cloture-resultat-dates-exercice-ecritures-ac
 ### Complément au traitement du 26/11/2026
 - L'import des écritures préselectionne désormais l'exercice choisi dans la barre latérale (sinon l'exercice actif, puis le plus récent) et affiche la période exacte cible. La résolution de l'exercice est bornée au dossier du lot ; un import sans exercice cible est bloqué au lieu d'ignorer le contrôle de période.
 - Le scan de saisie groupée résout l'exercice depuis le contexte de session avant l'ID encore présent dans une page ouverte. Un ancien formulaire peut donc suivre le changement de contexte sans rechargement ; la société, les comptes, journaux, tiers et dates restent validés.
+
+
+### Correctif de test SQLite — 26/11/2026
+- Le premier lancement de `ClotureReportANouveauTest` échouait avant toute assertion métier : la migration `2026_11_16_000001_make_ai_scan_settings_id_auto_increment.php` exécutait une syntaxe `ALTER TABLE ... MODIFY ... AUTO_INCREMENT` réservée à MySQL dans la base SQLite `:memory:` de PHPUnit.
+- La migration est désormais protégée par une vérification du pilote : elle ne s'exécute que sur MySQL. SQLite conserve l'auto-incrément défini par la migration initiale.
+- Les 8 tests étaient bloqués par cette même erreur de préparation et ne validaient ni n'invalidaient les scénarios de clôture. Relancer la suite après récupération du commit ; examiner ensuite les éventuelles assertions métier distinctes.
