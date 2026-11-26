@@ -406,3 +406,19 @@ Le code et les tests sont sur `main`. La migration sur la base de production, le
 - Correction de l'erreur `Undefined variable $validityDays` : la durée est validée, initialisée, utilisée pour l'expiration en base et transmise à l'écran. La valeur de secours est un an si un client ancien n'envoie pas le champ.
 - Après création, l'utilisateur arrive directement dans l'espace de l'application et voit son code de liaison avec la durée choisie.
 - Vérification effectuée par relecture des fichiers source GitHub. Les commandes PHP, le rendu Blade et les parcours navigateur doivent encore être testés sur comptaflow-dev après déploiement.
+
+
+## 26/11/2026 — Corrections comptables : résultat, clôture, dates et accès dossier
+
+Branche de traitement : `correction-cloture-resultat-dates-exercice-ecritures-acces-comptable`
+
+- Correction de la stratégie d'ajout du compte résultat : valeur `auto` alignée sur l'ENUM MySQL.
+- Clôture conçue pour calculer et passer le résultat si absent, puis réaliser le report à nouveau dans une transaction ; une écriture 1301/1309 existante est reconnue pour éviter le doublon.
+- Message de clôture reformulé pour préciser les traitements et leur condition.
+- Suppression de la confirmation navigateur du bouton de passage indépendant du résultat.
+- Nommage des exercices avec les deux années lorsque la période traverse deux années civiles.
+- Saisie des dates d'ouverture en masque JJ/MM/AAAA, conversion ISO côté soumission.
+- Ajustement du scope : écritures et balances visibles aux utilisateurs autorisés du même dossier, isolation conservée par société ; exercices clôturés consultables.
+- Test Feature ajouté pour la clôture sans passage préalable du résultat.
+
+À vérifier sur environnement Laravel : tests PHPUnit, migration/base MySQL, flux réel d'import (date hors exercice), scan, et affichage balance/grand livre avec deux utilisateurs autorisés. Aucun test serveur ni déploiement n'a été exécuté depuis cette session.
