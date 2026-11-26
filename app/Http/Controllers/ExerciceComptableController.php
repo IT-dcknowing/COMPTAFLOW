@@ -852,15 +852,17 @@ public function index()
         $resultatData = $this->reportingService->getSIGData($exercice->id, $companyId);
         $montant = round((float) ($resultatData['resultat_net'] ?? 0), 2);
 
+        // L'affectation du résultat est une écriture d'OD.
+        // Le journal RAN reste réservé au report à nouveau de l'exercice suivant.
         $journal = CodeJournal::where('company_id', $companyId)
-            ->where(fn ($q) => $q->where('code_journal', 'RAN')->orWhere('code_journal', 'REP'))
+            ->where('code_journal', 'OD')
             ->first();
 
         if (!$journal) {
             $journal = CodeJournal::create([
                 'company_id' => $companyId,
-                'code_journal' => 'RAN',
-                'intitule' => 'REPORT À NOUVEAU',
+                'code_journal' => 'OD',
+                'intitule' => 'OPÉRATIONS DIVERSES',
                 'type' => 'Opérations Diverses',
                 'traitement_analytique' => 0,
                 'user_id' => $user->id,
