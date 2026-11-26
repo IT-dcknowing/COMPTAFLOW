@@ -271,6 +271,11 @@
                                 <div class="flex items-center gap-3">
                                     <i class="fas fa-exclamation-circle text-xl"></i>
                                     <span class="font-medium">{{ session('error') }}</span>
+                                @if (session('creation_url'))
+                                    <a href="{{ session('creation_url') }}" class="ms-2 fw-bold text-decoration-underline">
+                                        Créer l’exercice suivant
+                                    </a>
+                                @endif
                                 </div>
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
                             </div>
