@@ -43,11 +43,11 @@ tr.grand td, tr.total td { background: #d9eaf7; font-weight: 700; }
 @foreach($rows as $row)
 @php
     $first = (string)($row[0] ?? '');
-    $type = str_starts_with($first, 'TOTAL GÉNÉRAL') ? 'grand' : (str_starts_with($first, 'TOTAL ') ? 'subtotal' : (str_starts_with($first, 'SOLDE INITIAL') ? 'opening' : (str_contains($first, ' — ') && count(array_filter(array_slice($row,1), fn($v)=>$v !== '' && $v !== null)) === 0 ? 'account' : '')));
+    $type = str_starts_with($first, 'TOTAL GÉNÉRAL') || str_contains((string)($row[1] ?? ''), 'TOTAUX') ? 'grand' : (str_starts_with($first, 'TOTAL ') ? 'subtotal' : (str_starts_with($first, 'SOLDE INITIAL') ? 'opening' : (str_contains($first, ' — ') && count(array_filter(array_slice($row,1), fn($v)=>$v !== '' && $v !== null)) === 0 ? 'account' : '')));
 @endphp
 <tr class="{{ $type }}">
 @foreach($row as $i => $cell)
-<td class="{{ is_numeric($cell) && $i >= (count($headers)-3) ? 'num' : '' }}">{{ is_numeric($cell) && $i >= (count($headers)-3) ? number_format((float)$cell, 2, ',', ' ') : $cell }}</td>
+<td class="{{ is_numeric($cell) && $i >= 2 ? 'num' : '' }}">{{ is_numeric($cell) && $i >= (count($headers)-3) ? number_format((float)$cell, 2, ',', ' ') : $cell }}</td>
 @endforeach
 </tr>
 @endforeach
