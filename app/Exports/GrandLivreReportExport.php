@@ -50,8 +50,9 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
             $original = (string)($plan->numero_original ?? '');
             $account = $this->display($num, $original);
             $label = (string)($plan->intitule ?? '');
-            // Ligne de séparation du compte : numéro et intitulé dans leurs colonnes dédiées.
-            $this->previewRows[] = ['', '', '', '', $account, '', mb_strtoupper($label), '', '', '', ''];
+            // En-tête de compte : le numéro et l'intitulé restent visibles ensemble,
+            // chacun dans sa colonne dédiée (Compte et Libellé).
+            $this->previewRows[] = ['', '', '', '', $account, '', $label, '', '', '', ''];
 
             $si = $soldesInitiaux[$id] ?? ['debit'=>0,'credit'=>0,'solde'=>0];
             $running = (float)($si['solde'] ?? 0);
@@ -179,14 +180,24 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                     } elseif (str_starts_with($first, 'SOLDE INITIAL')) {
                         $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['italic'=>true,'bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'FFF2CC']]]);
                     } elseif ((string)$sheet->getCell("E{$row}")->getValue() !== '' && (string)$sheet->getCell("G{$row}")->getValue() !== ''
-                        && count(array_filter(array_map(fn($col) => $sheet->getCell($col . $row)->getValue(), ['A','B','C','D','F','H','I','J','K']), fn($v) => $v !== '' && $v !== null)) === 0) {
+                        && trim((string)$sheet->getCell("A{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("B{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("C{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("D{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("F{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("H{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("I{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("J{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("K{$row}")->getValue()) === '') {
                         $sheet->getStyle("A{$row}:K{$row}")->applyFromArray([
                             'font'=>['bold'=>true,'color'=>['rgb'=>'1F4E78'],'size'=>11],
                             'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'E2E8F0']],
-                            'borders'=>['bottom'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'CBD5E1']]],
+                            'borders'=>['top'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'CBD5E1']],'bottom'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'CBD5E1']]],
                             'alignment'=>['vertical'=>Alignment::VERTICAL_CENTER],
                         ]);
                         $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                        $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                        $sheet->getRowDimension($row)->setRowHeight(21);
                     }
                 }
                 $sheet->getStyle("I9:K{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00;[Red]-#,##0.00;–');
