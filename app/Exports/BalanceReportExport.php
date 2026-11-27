@@ -190,7 +190,6 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
                 $sheet->getPageMargins()->setTop(0.55)->setBottom(0.55)->setLeft(0.25)->setRight(0.25);
                 $sheet->getHeaderFooter()->setOddHeader('&C&"Arial,Bold"&16COMPTAFLOW');
                 $sheet->getHeaderFooter()->setOddFooter('&L© ComptaFlow&CImprimé le &D à &T&RPage &P / &N');
-                $sheet->getSheetView()->setShowGridLines(false);
             },
         ];
     }
