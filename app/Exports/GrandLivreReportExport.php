@@ -17,11 +17,6 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
 {
     private array $rows = [];
     private array $previewRows = [];
-    private array $rowTypes = [];
-    private string $company;
-    private string $dateDebut;
-    private string $dateFin;
-    private string $range;
     private string $displayMode;
 
     public function __construct(
@@ -33,13 +28,73 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
         string $range = '',
         string $displayMode = 'comptaflow'
     ) {
-        $this->company = $company;
-        $this->dateDebut = $dateDebut;
-        $this->dateFin = $dateFin;
-        $this->range = $range;
         $this->displayMode = $displayMode;
-
         $headers = ['Date', 'Journal', 'N° Saisie', 'N° Pièce', 'Compte', 'Tiers', 'Libellé', 'Lettrage', 'Débit', 'Crédit', 'Solde'];
+
+        $sorted = $ecritures->sort(function ($a, $b) {
+            $cmp = strcmp((string)($a->planComptable->numero_de_compte ?? ''), (string)($b->planComptable->numero_de_compte ?? ''));
+            if ($cmp !== 0) return $cmp;
+            $cmp = strcmp((string)($a->date ?? ''), (string)($b->date ?? ''));
+            return $cmp !== 0 ? $cmp : strcmp((string)($a->n_saisie ?? ''), (string)($b->n_saisie ?? ''));
+        });
+
+        $grandDebit = 0.0;
+        $grandCredit = 0.0;
+
+        foreach ($sorted->groupBy('plan_comptable_id') as $id => $operations) {
+            $first = $operations->first();
+            $plan = $first->planComptable;
+            if (!$plan) continue;
+
+            $num = (string)($plan->numero_de_compte ?? '-');
+            $original = (string)($plan->numero_original ?? '');
+            $account = $this->display($num, $original);
+            $label = (string)($plan->intitule ?? '');
+            $this->previewRows[] = array_merge([$account . ' — ' . mb_strtoupper($label)], array_fill(0, 10, ''));
+
+            $si = $soldesInitiaux[$id] ?? ['debit'=>0,'credit'=>0,'solde'=>0];
+            $running = (float)($si['solde'] ?? 0);
+            $accountDebit = (float)($si['debit'] ?? 0);
+            $accountCredit = (float)($si['credit'] ?? 0);
+
+            if ($accountDebit != 0.0 || $accountCredit != 0.0) {
+                $this->previewRows[] = ['SOLDE INITIAL','','','','','','','',$accountDebit,$accountCredit,$running];
+            }
+
+            foreach ($operations as $entry) {
+                $debit = (float)($entry->debit ?? 0);
+                $credit = (float)($entry->credit ?? 0);
+                $running += $debit - $credit;
+                $accountDebit += $debit;
+                $accountCredit += $credit;
+
+                $journal = (string)($entry->codeJournal?->code_journal ?? '-');
+                $journalOriginal = (string)($entry->codeJournal?->numero_original ?? '');
+                $tier = (string)($entry->planTiers?->numero_de_tiers ?? '');
+                $tierOriginal = (string)($entry->planTiers?->numero_original ?? '');
+
+                $this->previewRows[] = [
+                    $this->formatDate((string)($entry->date ?? '')),
+                    $this->display($journal, $journalOriginal),
+                    $this->cleanNumber((string)($entry->n_saisie ?? '')),
+                    (string)($entry->reference_piece ?? ''),
+                    $this->display($num, $original),
+                    $tier !== '' ? $this->display($tier, $tierOriginal) : '',
+                    (string)($entry->description_operation ?? ''),
+                    (string)($entry->lettrage ?? ''),
+                    $debit,
+                    $credit,
+                    $running,
+                ];
+            }
+
+            $this->previewRows[] = ['TOTAL ' . $account,'','','','','','','',$accountDebit,$accountCredit,$running];
+            $grandDebit += $accountDebit;
+            $grandCredit += $accountCredit;
+        }
+
+        $this->previewRows[] = ['TOTAL GÉNÉRAL','','','','','','','',$grandDebit,$grandCredit,$grandDebit-$grandCredit];
+
         $this->rows = [
             ['COMPTAFLOW'],
             [$company],
@@ -49,85 +104,8 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
             ['Date de tirage : ' . now()->format('d/m/Y à H:i:s')],
             [],
             $headers,
-        ];
-
-        $sorted = $ecritures->sort(function ($a, $b) {
-            $cmp = strcmp((string)($a->planComptable->numero_de_compte ?? ''), (string)($b->planComptable->numero_de_compte ?? ''));
-            if ($cmp !== 0) return $cmp;
-            $cmp = strcmp((string)($a->date ?? ''), (string)($b->date ?? ''));
-            if ($cmp !== 0) return $cmp;
-            return strcmp((string)($a->n_saisie ?? ''), (string)($b->n_saisie ?? ''));
-        });
-        $grouped = $sorted->groupBy('plan_comptable_id');
-        $grandDebit = 0.0;
-        $grandCredit = 0.0;
-
-        foreach ($grouped as $id => $operations) {
-            $first = $operations->first();
-            $plan = $first->planComptable;
-            if (!$plan) continue;
-            $num = (string)($plan->numero_de_compte ?? '-');
-            $original = (string)($plan->numero_original ?? '');
-            $account = $this->display($num, $original);
-            $label = (string)($plan->intitule ?? '');
-            $this->append(array_merge(["{$account} — " . mb_strtoupper($label)], array_fill(0, 10, '')), 'account');
-
-            $si = $soldesInitiaux[$id] ?? ['debit'=>0,'credit'=>0,'solde'=>0];
-            $running = (float)($si['solde'] ?? 0);
-            $accountDebit = (float)($si['debit'] ?? 0);
-            $accountCredit = (float)($si['credit'] ?? 0);
-            if (($si['debit'] ?? 0) != 0 || ($si['credit'] ?? 0) != 0) {
-                $this->append(['SOLDE INITIAL','','','','','','','','' => 0], 'opening');
-                $idx = array_key_last($this->rows);
-                $this->rows[$idx] = ['SOLDE INITIAL','','','','','','','',(float)$si['debit'],(float)$si['credit'],$running];
-                $this->previewRows[] = $this->rows[$idx];
-            }
-            foreach ($operations as $entry) {
-                $debit = (float)($entry->debit ?? 0);
-                $credit = (float)($entry->credit ?? 0);
-                $running += $debit - $credit;
-                $accountDebit += $debit;
-                $accountCredit += $credit;
-                $journal = $entry->codeJournal?->code_journal ?? '-';
-                $journalOrig = $entry->codeJournal?->numero_original ?? '';
-                $tier = $entry->planTiers?->numero_de_tiers ?? '';
-                $tierOrig = $entry->planTiers?->numero_original ?? '';
-                $this->append([
-                    $this->formatDate((string)($entry->date ?? '')),
-                    $this->display((string)$journal, (string)$journalOrig),
-                    $this->cleanNumber((string)($entry->n_saisie ?? '')),
-                    (string)($entry->reference_piece ?? ''),
-                    $this->display($num, $original),
-                    $tier !== '' ? $this->display((string)$tier, (string)$tierOrig) : '',
-                    (string)($entry->description_operation ?? ''),
-                    (string)($entry->lettrage ?? ''),
-                    $debit,
-                    $credit,
-                    $running,
-                ], 'entry');
-            }
-            $this->append(['TOTAL ' . $account,'','','','','','','',$accountDebit,$accountCredit,$running], 'subtotal');
-            $grandDebit += $accountDebit;
-            $grandCredit += $accountCredit;
-        }
-
-        $this->append(['TOTAL GÉNÉRAL','','','','','','','',$grandDebit,$grandCredit,$grandDebit-$grandCredit], 'grand');
-        $this->rows = array_merge(array_slice($this->rows, 0, 8), $this->previewRows);
-        // Le total général est ajouté dans append() après les lignes détaillées.
-        $this->rows = [
-            ['COMPTAFLOW'], [$company], ['GRAND LIVRE DES COMPTES'],
-            ['Période du ' . $dateDebut . ' au ' . $dateFin],
-            ['Plage des comptes : ' . $range],
-            ['Date de tirage : ' . now()->format('d/m/Y à H:i:s')],
-            [], $headers,
             ...$this->previewRows,
         ];
-    }
-
-    private function append(array $row, string $type): void
-    {
-        $this->previewRows[] = $row;
-        $this->rowTypes[] = $type;
     }
 
     private function display(string $system, string $original): string
@@ -142,15 +120,13 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
     private function cleanNumber(string $value): string
     {
         if (preg_match('/^(.*-\d{6}-)(\d+)$/', $value, $m)) {
-            $n = ltrim($m[2], '0');
-            return $m[1] . ($n === '' ? '0' : $n);
+            $number = ltrim($m[2], '0');
+            return $m[1] . ($number === '' ? '0' : $number);
         }
-        if (str_starts_with($value, 'ECR_') || str_contains($value, '_')) {
-            $parts = explode('_', $value, 2);
-            if (count($parts) === 2) {
-                $n = ltrim($parts[1], '0');
-                return $parts[0] . '_' . ($n === '' ? '0' : $n);
-            }
+        if (str_contains($value, '_')) {
+            [$prefix, $number] = explode('_', $value, 2);
+            $number = ltrim($number, '0');
+            return $prefix . '_' . ($number === '' ? '0' : $number);
         }
         return $value;
     }
@@ -177,7 +153,7 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                 $sheet->mergeCells('A1:K1');
                 $sheet->mergeCells('A2:K2');
                 $sheet->mergeCells('A3:K3');
-                foreach ([4,5,6] as $r) $sheet->mergeCells("A{$r}:K{$r}");
+                foreach ([4,5,6] as $row) $sheet->mergeCells("A{$row}:K{$row}");
                 $sheet->getStyle('A1')->applyFromArray(['font'=>['bold'=>true,'size'=>22,'color'=>['rgb'=>'1F4E78']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
                 $sheet->getStyle('A2')->applyFromArray(['font'=>['bold'=>true,'size'=>14], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
                 $sheet->getStyle('A3')->applyFromArray(['font'=>['bold'=>true,'size'=>16], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
@@ -188,17 +164,17 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                     'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER,'wrapText'=>true],
                     'borders'=>['allBorders'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'B7C9D6']]],
                 ]);
-                for ($r=9; $r<=$lastRow; $r++) {
-                    $first = (string)$sheet->getCell("A{$r}")->getValue();
+                for ($row=9; $row<=$lastRow; $row++) {
+                    $first = (string)$sheet->getCell("A{$row}")->getValue();
                     if (str_starts_with($first, 'TOTAL GÉNÉRAL')) {
-                        $sheet->getStyle("A{$r}:K{$r}")->applyFromArray(['font'=>['bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9EAF7']],'borders'=>['top'=>['borderStyle'=>Border::BORDER_MEDIUM,'color'=>['rgb'=>'1F4E78']]]]);
+                        $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9EAF7']],'borders'=>['top'=>['borderStyle'=>Border::BORDER_MEDIUM,'color'=>['rgb'=>'1F4E78']]]]);
                     } elseif (str_starts_with($first, 'TOTAL ')) {
-                        $sheet->getStyle("A{$r}:K{$r}")->applyFromArray(['font'=>['bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'EAF0F6']]]);
+                        $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'EAF0F6']]]);
                     } elseif (str_starts_with($first, 'SOLDE INITIAL')) {
-                        $sheet->getStyle("A{$r}:K{$r}")->applyFromArray(['font'=>['italic'=>true,'bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'FFF2CC']]]);
+                        $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['italic'=>true,'bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'FFF2CC']]]);
                     } elseif (str_contains($first, ' — ')) {
-                        $sheet->mergeCells("A{$r}:K{$r}");
-                        $sheet->getStyle("A{$r}:K{$r}")->applyFromArray(['font'=>['bold'=>true,'color'=>['rgb'=>'1F1F1F']],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9D9D9']]]);
+                        $sheet->mergeCells("A{$row}:K{$row}");
+                        $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9D9D9']]]);
                     }
                 }
                 $sheet->getStyle("I9:K{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00;[Red]-#,##0.00;–');
