@@ -77,7 +77,6 @@ class GrandLivreController extends Controller
                 'plan_comptable_id_2' => 'required|exists:plan_comptables,id',
                 'format_fichier'      => 'nullable|in:pdf,excel,csv',
                 'display_mode'        => 'nullable|in:origine,comptaflow,both',
-                'format_fichier'      => 'nullable|in:pdf,excel',
             ]);
 
             $user          = Auth::user();
@@ -174,6 +173,7 @@ class GrandLivreController extends Controller
                 'plan_comptable_id_1' => 'required|exists:plan_comptables,id',
                 'plan_comptable_id_2' => 'required|exists:plan_comptables,id',
                 'display_mode'        => 'nullable|in:origine,comptaflow,both',
+                'format_fichier'      => 'nullable|in:pdf,excel',
             ]);
 
             $user        = Auth::user();
