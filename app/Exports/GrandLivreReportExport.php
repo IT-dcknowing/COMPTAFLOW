@@ -50,9 +50,9 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
             $original = (string)($plan->numero_original ?? '');
             $account = $this->display($num, $original);
             $label = (string)($plan->intitule ?? '');
-            // En-tête de compte : le numéro et l'intitulé restent visibles ensemble,
-            // chacun dans sa colonne dédiée (Compte et Libellé).
-            $this->previewRows[] = ['', '', '', '', $account, '', $label, '', '', '', ''];
+            // Présentation demandée : numéro et intitulé dans une seule cellule,
+            // en début de ligne, comme sur l'exemple fourni (sans cellule dédiée).
+            $this->previewRows[] = [$account . ' — ' . $label, '', '', '', '', '', '', '', '', '', ''];
 
             $si = $soldesInitiaux[$id] ?? ['debit'=>0,'credit'=>0,'solde'=>0];
             $running = (float)($si['solde'] ?? 0);
@@ -183,12 +183,13 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                         $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'EAF0F6']]]);
                     } elseif (str_starts_with($first, 'SOLDE INITIAL')) {
                         $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['italic'=>true,'bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'FFF2CC']]]);
-                    } elseif ((string)$sheet->getCell("E{$row}")->getValue() !== '' && (string)$sheet->getCell("G{$row}")->getValue() !== ''
-                        && trim((string)$sheet->getCell("A{$row}")->getValue()) === ''
+                    } elseif (str_contains($first, ' — ')
                         && trim((string)$sheet->getCell("B{$row}")->getValue()) === ''
                         && trim((string)$sheet->getCell("C{$row}")->getValue()) === ''
                         && trim((string)$sheet->getCell("D{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("E{$row}")->getValue()) === ''
                         && trim((string)$sheet->getCell("F{$row}")->getValue()) === ''
+                        && trim((string)$sheet->getCell("G{$row}")->getValue()) === ''
                         && trim((string)$sheet->getCell("H{$row}")->getValue()) === ''
                         && trim((string)$sheet->getCell("I{$row}")->getValue()) === ''
                         && trim((string)$sheet->getCell("J{$row}")->getValue()) === ''
@@ -199,8 +200,7 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                             'borders'=>['top'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'CBD5E1']],'bottom'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'CBD5E1']]],
                             'alignment'=>['vertical'=>Alignment::VERTICAL_CENTER],
                         ]);
-                        $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                        $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                        $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                         $sheet->getRowDimension($row)->setRowHeight(21);
                     }
                 }
