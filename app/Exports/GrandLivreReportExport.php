@@ -99,7 +99,7 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
             ['COMPTAFLOW'],
             [$company],
             ['GRAND LIVRE DES COMPTES'],
-            ['Période du ' . $dateDebut . ' au ' . $dateFin],
+            ['Période du ' . $this->formatDate($dateDebut) . ' au ' . $this->formatDate($dateFin)],
             ['Plage des comptes : ' . $range],
             ['Date de tirage : ' . now()->format('d/m/Y à H:i:s')],
             [],
@@ -135,6 +135,12 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
     {
         try { return \Carbon\Carbon::parse($value)->format('d/m/Y'); }
         catch (\Throwable) { return $value; }
+    }
+
+    private function formatDate(string $value): string
+    {
+        try { return \\Carbon\\Carbon::parse($value)->format('d/m/Y'); }
+        catch (\\Throwable) { return $value; }
     }
 
     public function array(): array { return $this->rows; }
