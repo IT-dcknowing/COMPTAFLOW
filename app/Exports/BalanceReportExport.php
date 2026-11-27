@@ -146,6 +146,9 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
+                // La ligne 8 doit toujours contenir les colonnes, jamais le premier compte.
+                $sheet->insertNewRowBefore(8, 1);
+                $sheet->fromArray([$this->headers], null, 'A8', true);
                 $lastCol = $sheet->getHighestColumn();
                 $lastRow = $sheet->getHighestRow();
                 $sheet->mergeCells("A1:{$lastCol}1");
