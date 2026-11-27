@@ -139,8 +139,8 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
 
     private function formatDate(string $value): string
     {
-        try { return \\Carbon\\Carbon::parse($value)->format('d/m/Y'); }
-        catch (\\Throwable) { return $value; }
+        try { return \Carbon\Carbon::parse($value)->format('d/m/Y'); }
+        catch (\Throwable) { return $value; }
     }
 
     public function array(): array { return $this->rows; }
