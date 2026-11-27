@@ -54,6 +54,10 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
         }
 
         $totals = array_fill(0, count($this->headers), 0.0);
+        $classTotals = [
+            'bilan' => ['debit' => 0.0, 'credit' => 0.0],
+            'gestion' => ['debit' => 0.0, 'credit' => 0.0],
+        ];
         foreach ($grouped as $operations) {
             $plan = $operations->first()->planComptable;
             if (!$plan) continue;
@@ -69,6 +73,12 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
             $net = $debit - $credit;
             $sd = max($net, 0);
             $sc = max(-$net, 0);
+            $firstClass = substr($numero, 0, 1);
+            $bucket = in_array($firstClass, ['1','2','3','4','5'], true) ? 'bilan' : (in_array($firstClass, ['6','7'], true) ? 'gestion' : null);
+            if ($bucket !== null) {
+                $classTotals[$bucket]['debit'] += $debit;
+                $classTotals[$bucket]['credit'] += $credit;
+            }
             if ($this->type === '4') {
                 $line = [$display, (string) ($plan->intitule ?? ''), $debit, $credit, $sd, $sc];
                 for ($i=2; $i<6; $i++) $totals[$i] += $line[$i];
@@ -84,9 +94,21 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
             $this->dataRows[] = $line;
         }
         $this->totals = $totals;
-        $totalLine = array_fill(0, count($this->headers), 0);
-        $totalLine[1] = $this->type === '4' ? 'TOTAUX DE LA BALANCE' : 'TOTAUX GÉNÉRAUX';
-        foreach ($totals as $i => $value) if ($i >= 2) $totalLine[$i] = $value;
+        if ($this->type === '4') {
+            // La balance PDF présente les soldes globaux comme différence des mouvements,
+            // et non comme somme des soldes débiteurs/créditeurs de chaque compte.
+            foreach (['bilan', 'gestion'] as $bucket) {
+                $net = $classTotals[$bucket]['debit'] - $classTotals[$bucket]['credit'];
+                $line = ['', 'TOTAUX COMPTES DE ' . strtoupper($bucket), $classTotals[$bucket]['debit'], $classTotals[$bucket]['credit'], max($net, 0), max(-$net, 0)];
+                $this->dataRows[] = $line;
+            }
+            $net = $totals[2] - $totals[3];
+            $totalLine = ['', 'TOTAUX DE LA BALANCE', $totals[2], $totals[3], max($net, 0), max(-$net, 0)];
+        } else {
+            $totalLine = array_fill(0, count($this->headers), 0);
+            $totalLine[1] = 'TOTAUX GÉNÉRAUX';
+            foreach ($totals as $i => $value) if ($i >= 2) $totalLine[$i] = $value;
+        }
         $this->dataRows[] = $totalLine;
 
         $this->rows = [
