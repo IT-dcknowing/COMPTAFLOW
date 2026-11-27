@@ -391,15 +391,16 @@ public function index()
                 $resultatData = $this->reportingService->getSIGData($exercice->id, $companyId);
                 $montant = round((float) ($resultatData['resultat_net'] ?? 0), 2);
 
+                // Le passage du résultat est une écriture d'OD, distincte du report à nouveau.
                 $journal = CodeJournal::where('company_id', $companyId)
-                    ->where(fn ($q) => $q->where('code_journal', 'RAN')->orWhere('code_journal', 'REP'))
+                    ->where('code_journal', 'OD')
                     ->first();
 
                 if (!$journal) {
                     $journal = CodeJournal::create([
                         'company_id' => $companyId,
-                        'code_journal' => 'RAN',
-                        'intitule' => 'REPORT À NOUVEAU',
+                        'code_journal' => 'OD',
+                        'intitule' => 'OPÉRATIONS DIVERSES',
                         'type' => 'Opérations Diverses',
                         'traitement_analytique' => 0,
                         'user_id' => $user->id,
@@ -426,12 +427,16 @@ public function index()
                 $compte = ComptesDeResultat::pourOuCreer($companyId, $montant, $user->id);
                 $sens = ComptesDeResultat::sens($montant);
 
+                // Numéro spécial identique à la référence, basé sur l'année de l'exercice
+                // (et non sur l'année de la date réelle de passage).
+                $numeroResultat = 'RESULTAT-' . Carbon::parse($exercice->date_fin)->format('Y');
+
                 EcritureComptable::create([
                     'date' => $date->toDateString(),
-                    'n_saisie' => 'RES-' . $date->format('Y'),
-                    'n_saisie_user' => 'RES-' . $date->format('Y'),
+                    'n_saisie' => $numeroResultat,
+                    'n_saisie_user' => $numeroResultat,
                     'description_operation' => 'AFFECTATION DU RESULTAT ' . $exercice->intitule,
-                    'reference_piece' => 'RES-' . $exercice->id,
+                    'reference_piece' => $numeroResultat,
                     'plan_comptable_id' => $compte->id,
                     'code_journal_id' => $journal->id,
                     'exercices_comptables_id' => $exercice->id,
