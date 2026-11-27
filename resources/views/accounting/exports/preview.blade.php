@@ -47,7 +47,7 @@ tr.grand td, tr.total td { background: #d9eaf7; font-weight: 700; }
 @endphp
 <tr class="{{ $type }}">
 @foreach($row as $i => $cell)
-<td class="{{ is_numeric($cell) && $i >= 2 ? 'num' : '' }}">{{ is_numeric($cell) && $i >= (count($headers)-3) ? number_format((float)$cell, 2, ',', ' ') : $cell }}</td>
+<td class="{{ is_numeric($cell) && $i >= 2 ? 'num' : '' }}">{{ is_numeric($cell) && $i >= 2 ? number_format((float)$cell, 2, ',', ' ') : $cell }}</td>
 @endforeach
 </tr>
 @endforeach
