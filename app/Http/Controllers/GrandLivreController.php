@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\GrandLivreExport;
+use App\Exports\GrandLivreReportExport;
 use App\Models\ExerciceComptable;
 
 class GrandLivreController extends Controller
@@ -76,6 +77,7 @@ class GrandLivreController extends Controller
                 'plan_comptable_id_2' => 'required|exists:plan_comptables,id',
                 'format_fichier'      => 'nullable|in:pdf,excel,csv',
                 'display_mode'        => 'nullable|in:origine,comptaflow,both',
+                'format_fichier'      => 'nullable|in:pdf,excel',
             ]);
 
             $user          = Auth::user();
@@ -100,16 +102,32 @@ class GrandLivreController extends Controller
             );
 
             // ── Excel / CSV ────────────────────────────────────────────────
-            if ($format === 'excel' || $format === 'csv') {
-                $ext      = $format === 'excel' ? 'xlsx' : 'csv';
-                $disk     = 'grand_livres';
-                $filename = "grand_livre_{$format}_{$compte1->numero_de_compte}_{$compte2->numero_de_compte}_" . now()->format('YmdHis') . ".{$ext}";
-
-                Excel::store(new GrandLivreExport($ecritures, $soldesInitiaux), $filename, $disk);
+            if ($format === 'excel') {
+                $filename = "grand_livre_excel_{$compte1->numero_de_compte}_{$compte2->numero_de_compte}_" . now()->format('YmdHis') . '.xlsx';
+                $export = new GrandLivreReportExport(
+                    $ecritures,
+                    $soldesInitiaux,
+                    $company->company_name ?? 'Non défini',
+                    $request->date_debut,
+                    $request->date_fin,
+                    $compte1->numero_de_compte . ' à ' . $compte2->numero_de_compte,
+                    $displayMode
+                );
+                Excel::store($export, $filename, 'grand_livres');
                 GrandLivre::create($this->livreData($request, $user, $format, $filename));
 
                 return back()
-                    ->with('success', ucfirst($format) . " Grand Livre généré avec succès ! ({$count} écritures)")
+                    ->with('success', "Excel Grand Livre généré avec succès ! ({$count} écritures)")
+                    ->with('generated_file', asset('grand_livres/' . rawurlencode($filename)));
+            }
+
+            if ($format === 'csv') {
+                $filename = "grand_livre_csv_{$compte1->numero_de_compte}_{$compte2->numero_de_compte}_" . now()->format('YmdHis') . '.csv';
+                Excel::store(new GrandLivreExport($ecritures, $soldesInitiaux), $filename, 'grand_livres');
+                GrandLivre::create($this->livreData($request, $user, $format, $filename));
+
+                return back()
+                    ->with('success', "CSV Grand Livre généré avec succès ! ({$count} écritures)")
                     ->with('generated_file', asset('grand_livres/' . rawurlencode($filename)));
             }
 
@@ -168,6 +186,35 @@ class GrandLivreController extends Controller
 
             $ecritures      = $this->fetchEcrituresFlat($companyId, $min, $max, $request->date_debut, $request->date_fin, $exerciceId);
             $soldesInitiaux = $this->fetchSoldesInitiaux($companyId, $min, $max, $request->date_debut, $exerciceId);
+
+            if (($request->format_fichier ?? 'pdf') === 'excel') {
+                $export = new GrandLivreReportExport(
+                    $ecritures,
+                    $soldesInitiaux,
+                    $company->company_name ?? 'Non défini',
+                    $request->date_debut,
+                    $request->date_fin,
+                    $compte1->numero_de_compte . ' à ' . $compte2->numero_de_compte,
+                    $displayMode
+                );
+                $preview = $export->previewData();
+                $fileName = 'preview_grand_livre_excel_' . uniqid() . '.html';
+                $directory = public_path('previews');
+                if (!is_dir($directory)) mkdir($directory, 0775, true);
+                $html = view('accounting.exports.preview', [
+                    'title' => 'Grand livre des comptes',
+                    'company' => $company->company_name ?? 'Non défini',
+                    'dateDebut' => \\Carbon\\Carbon::parse($request->date_debut)->format('d/m/Y'),
+                    'dateFin' => \\Carbon\\Carbon::parse($request->date_fin)->format('d/m/Y'),
+                    'range' => $compte1->numero_de_compte . ' à ' . $compte2->numero_de_compte,
+                    'printedAt' => now()->format('d/m/Y à H:i:s'),
+                    'headers' => $preview['headers'],
+                    'rows' => $preview['rows'],
+                ])->render();
+                file_put_contents($directory . '/' . $fileName, $html);
+                return response()->json(['success' => true, 'format' => 'excel', 'url' => asset('previews/' . $fileName)]);
+            }
+
 
             $titre = 'Prévisualisation Grand-livre des comptes';
 
