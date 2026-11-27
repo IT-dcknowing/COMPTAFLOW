@@ -152,10 +152,15 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
                 $sheet->mergeCells("A2:{$lastCol}2");
                 $sheet->mergeCells("A3:{$lastCol}3");
                 foreach ([4,5,6] as $r) $sheet->mergeCells("A{$r}:{$lastCol}{$r}");
-                $sheet->getStyle('A1')->applyFromArray(['font'=>['bold'=>true,'size'=>22,'color'=>['rgb'=>'1F4E78']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
-                $sheet->getStyle('A2')->applyFromArray(['font'=>['bold'=>true,'size'=>14], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
-                $sheet->getStyle('A3')->applyFromArray(['font'=>['bold'=>true,'size'=>16], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
-                $sheet->getStyle("A4:A6")->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF666666'));
+                $sheet->getStyle("A1:{$lastCol}1")->applyFromArray(['font'=>['bold'=>true,'size'=>15,'color'=>['rgb'=>'1F4E78']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER]]);
+                $sheet->getStyle("A2:{$lastCol}2")->applyFromArray(['font'=>['bold'=>true,'size'=>11,'color'=>['rgb'=>'334155']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER]]);
+                $sheet->getStyle("A3:{$lastCol}3")->applyFromArray(['font'=>['bold'=>true,'size'=>13,'color'=>['rgb'=>'FFFFFF']], 'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'1F4E78']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER]]);
+                $sheet->getStyle("A4:{$lastCol}6")->applyFromArray(['font'=>['italic'=>true,'size'=>9,'color'=>['rgb'=>'666666']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER]]);
+                $sheet->getRowDimension(1)->setRowHeight(21);
+                $sheet->getRowDimension(2)->setRowHeight(17);
+                $sheet->getRowDimension(3)->setRowHeight(22);
+                foreach ([4,5,6] as $headerRow) $sheet->getRowDimension($headerRow)->setRowHeight(14);
+                $sheet->getRowDimension(7)->setRowHeight(4);
                 $sheet->getStyle("A8:{$lastCol}8")->applyFromArray([
                     'font'=>['bold'=>true,'color'=>['rgb'=>'FFFFFF']],
                     'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'1F4E78']],
