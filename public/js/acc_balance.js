@@ -247,8 +247,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         if (data.success) {
                             const frame = document.getElementById("pdfPreviewFrame");
                             if (frame) {
-                                // Ajouter le paramètre #view=FitH pour ajuster à la largeur
-                                frame.src = data.url + '#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&view=FitH';
+                                frame.src = data.format === 'excel'
+                                    ? data.url
+                                    : data.url + '#toolbar=0&navpanes=0&scrollbar=1&statusbar=0&view=FitH';
                             }
                             const modalEl = document.getElementById("modalPreviewPDF");
                             if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
