@@ -155,10 +155,15 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                 $sheet->mergeCells('A2:K2');
                 $sheet->mergeCells('A3:K3');
                 foreach ([4,5,6] as $row) $sheet->mergeCells("A{$row}:K{$row}");
-                $sheet->getStyle('A1')->applyFromArray(['font'=>['bold'=>true,'size'=>22,'color'=>['rgb'=>'1F4E78']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
-                $sheet->getStyle('A2')->applyFromArray(['font'=>['bold'=>true,'size'=>14], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
-                $sheet->getStyle('A3')->applyFromArray(['font'=>['bold'=>true,'size'=>16], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER]]);
-                $sheet->getStyle('A4:A6')->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF666666'));
+                $sheet->getStyle('A1:K1')->applyFromArray(['font'=>['bold'=>true,'size'=>15,'color'=>['rgb'=>'1F4E78']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER]]);
+                $sheet->getStyle('A2:K2')->applyFromArray(['font'=>['bold'=>true,'size'=>11,'color'=>['rgb'=>'334155']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER]]);
+                $sheet->getStyle('A3:K3')->applyFromArray(['font'=>['bold'=>true,'size'=>13,'color'=>['rgb'=>'FFFFFF']], 'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'1F4E78']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER]]);
+                $sheet->getStyle('A4:K6')->applyFromArray(['font'=>['italic'=>true,'size'=>9,'color'=>['rgb'=>'666666']], 'alignment'=>['horizontal'=>Alignment::HORIZONTAL_CENTER,'vertical'=>Alignment::VERTICAL_CENTER]]);
+                $sheet->getRowDimension(1)->setRowHeight(21);
+                $sheet->getRowDimension(2)->setRowHeight(17);
+                $sheet->getRowDimension(3)->setRowHeight(22);
+                foreach ([4,5,6] as $headerRow) $sheet->getRowDimension($headerRow)->setRowHeight(14);
+                $sheet->getRowDimension(7)->setRowHeight(4);
                 $sheet->getStyle('A8:K8')->applyFromArray([
                     'font'=>['bold'=>true,'color'=>['rgb'=>'FFFFFF']],
                     'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'1F4E78']],
@@ -177,8 +182,8 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                         && count(array_filter(array_map(fn($col) => $sheet->getCell($col . $row)->getValue(), ['A','B','C','D','F','H','I','J','K']), fn($v) => $v !== '' && $v !== null)) === 0) {
                         $sheet->getStyle("A{$row}:K{$row}")->applyFromArray([
                             'font'=>['bold'=>true,'color'=>['rgb'=>'1F4E78'],'size'=>11],
-                            'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9EAF7']],
-                            'borders'=>['bottom'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'9FBAD0']]],
+                            'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'E2E8F0']],
+                            'borders'=>['bottom'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'CBD5E1']]],
                             'alignment'=>['vertical'=>Alignment::VERTICAL_CENTER],
                         ]);
                         $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
