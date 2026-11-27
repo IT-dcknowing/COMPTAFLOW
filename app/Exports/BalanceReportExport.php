@@ -164,10 +164,18 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
                 ]);
                 if ($lastRow >= 9) {
                     $sheet->getStyle("A9:{$lastCol}{$lastRow}")->applyFromArray([
+                        'font'=>['name'=>'Arial','size'=>10,'color'=>['rgb'=>'243247']],
                         'borders'=>['allBorders'=>['borderStyle'=>Border::BORDER_HAIR,'color'=>['rgb'=>'D9E2F3']]],
                         'alignment'=>['vertical'=>Alignment::VERTICAL_CENTER],
                     ]);
+                    $sheet->getStyle("A9:B{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                    $sheet->getStyle("C9:{$lastCol}{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     $sheet->getStyle("C9:{$lastCol}{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00;[Red]-#,##0.00;–');
+                    for ($r = 9; $r <= $lastRow; $r++) {
+                        if (($r - 9) % 2 === 1) {
+                            $sheet->getStyle("A{$r}:{$lastCol}{$r}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F7FAFD');
+                        }
+                    }
                 }
                 for ($r = 9; $r <= $lastRow; $r++) {
                     if (str_starts_with((string) $sheet->getCell("B{$r}")->getValue(), 'TOTAUX')) {
@@ -182,7 +190,7 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
                     'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9EAF7']],
                     'borders'=>['top'=>['borderStyle'=>Border::BORDER_MEDIUM,'color'=>['rgb'=>'1F4E78']]],
                 ]);
-                $sheet->getRowDimension(8)->setRowHeight(32);
+                $sheet->getRowDimension(8)->setRowHeight(26);
                 $sheet->freezePane('A9');
                 $sheet->setAutoFilter("A8:{$lastCol}" . max(8, $lastRow - 1));
                 $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)->setPaperSize(PageSetup::PAPERSIZE_A4)->setFitToWidth(1)->setFitToHeight(0);
