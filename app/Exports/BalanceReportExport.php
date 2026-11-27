@@ -163,6 +163,14 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
                     ]);
                     $sheet->getStyle("C9:{$lastCol}{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00;[Red]-#,##0.00;–');
                 }
+                for ($r = 9; $r <= $lastRow; $r++) {
+                    if (str_starts_with((string) $sheet->getCell("B{$r}")->getValue(), 'TOTAUX')) {
+                        $sheet->getStyle("A{$r}:{$lastCol}{$r}")->applyFromArray([
+                            'font'=>['bold'=>true],
+                            'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'EAF0F6']],
+                        ]);
+                    }
+                }
                 $sheet->getStyle("A{$lastRow}:{$lastCol}{$lastRow}")->applyFromArray([
                     'font'=>['bold'=>true],
                     'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9EAF7']],
