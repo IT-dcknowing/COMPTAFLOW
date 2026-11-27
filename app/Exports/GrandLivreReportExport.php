@@ -186,7 +186,6 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                 $sheet->getPageMargins()->setTop(0.55)->setBottom(0.55)->setLeft(0.2)->setRight(0.2);
                 $sheet->getHeaderFooter()->setOddHeader('&C&"Arial,Bold"&16COMPTAFLOW');
                 $sheet->getHeaderFooter()->setOddFooter('&L© ComptaFlow&CImprimé le &D à &T&RPage &P / &N');
-                $sheet->getSheetView()->setShowGridLines(false);
             },
         ];
     }
