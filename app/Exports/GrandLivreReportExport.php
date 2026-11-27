@@ -151,6 +151,10 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
+                // Réserve explicitement la ligne 8 aux intitulés : les exports actuels
+                // présentent parfois le premier compte à cet emplacement.
+                $sheet->insertNewRowBefore(8, 1);
+                $sheet->fromArray([['Date','Journal','N° Saisie','N° Pièce','Compte','Tiers','Libellé','Lettrage','Débit','Crédit','Solde']], null, 'A8', true);
                 $lastRow = $sheet->getHighestRow();
                 $sheet->mergeCells('A1:K1');
                 $sheet->mergeCells('A2:K2');
