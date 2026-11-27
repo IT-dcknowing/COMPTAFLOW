@@ -204,8 +204,8 @@ class GrandLivreController extends Controller
                 $html = view('accounting.exports.preview', [
                     'title' => 'Grand livre des comptes',
                     'company' => $company->company_name ?? 'Non défini',
-                    'dateDebut' => \\Carbon\\Carbon::parse($request->date_debut)->format('d/m/Y'),
-                    'dateFin' => \\Carbon\\Carbon::parse($request->date_fin)->format('d/m/Y'),
+                    'dateDebut' => \Carbon\Carbon::parse($request->date_debut)->format('d/m/Y'),
+                    'dateFin' => \Carbon\Carbon::parse($request->date_fin)->format('d/m/Y'),
                     'range' => $compte1->numero_de_compte . ' à ' . $compte2->numero_de_compte,
                     'printedAt' => now()->format('d/m/Y à H:i:s'),
                     'headers' => $preview['headers'],
