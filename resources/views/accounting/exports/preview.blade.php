@@ -11,11 +11,11 @@ body { margin: 0; padding: 24px; font-family: Arial, Helvetica, sans-serif; colo
 .sheet { position: relative; max-width: 1500px; margin: auto; padding: 30px; background: #fff; box-shadow: 0 8px 30px rgba(15,23,42,.12); overflow: hidden; }
 .watermark { position: fixed; top: 42%; left: 50%; transform: translate(-50%,-50%) rotate(-28deg); font-size: 100px; font-weight: 800; letter-spacing: 8px; color: rgba(31,78,121,.055); white-space: nowrap; pointer-events: none; z-index: 0; }
 .header, .report { position: relative; z-index: 1; }
-.brand { text-align: center; color: #1f4e78; font-size: 25px; font-weight: 800; letter-spacing: 2px; }
-.company { text-align: center; margin-top: 5px; font-size: 17px; font-weight: 700; }
-h1 { margin: 10px 0 6px; text-align: center; font-size: 20px; }
-.meta { text-align: center; color: #64748b; font-size: 12px; line-height: 1.7; }
-table { position: relative; z-index: 1; width: 100%; border-collapse: collapse; margin-top: 22px; font-size: 11px; }
+.brand { text-align: center; color: #1f4e78; font-size: 18px; font-weight: 800; letter-spacing: 1.5px; }
+.company { text-align: center; margin-top: 2px; font-size: 13px; font-weight: 700; }
+h1 { margin: 5px 0 3px; text-align: center; font-size: 16px; }
+.meta { text-align: center; color: #64748b; font-size: 10px; line-height: 1.4; }
+table { position: relative; z-index: 1; width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10px; }
 th { padding: 9px 7px; color: #fff; background: #1f4e78; border: 1px solid #b7c9d6; text-align: center; }
 td { padding: 7px; border: 1px solid #d9e2f3; vertical-align: top; }
 td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -43,7 +43,8 @@ tr.grand td, tr.total td { background: #d9eaf7; font-weight: 700; }
 @foreach($rows as $row)
 @php
     $first = (string)($row[0] ?? '');
-    $type = str_starts_with($first, 'TOTAL GÉNÉRAL') || str_contains((string)($row[1] ?? ''), 'TOTAUX') ? 'grand' : (str_starts_with($first, 'TOTAL ') ? 'subtotal' : (str_starts_with($first, 'SOLDE INITIAL') ? 'opening' : (str_contains($first, ' — ') && count(array_filter(array_slice($row,1), fn($v)=>$v !== '' && $v !== null)) === 0 ? 'account' : '')));
+    $isAccountHeading = isset($row[4], $row[6]) && $row[4] !== '' && $row[6] !== '' && count(array_filter(array_merge(array_slice($row, 0, 4), [$row[5] ?? ''], array_slice($row, 7)), fn($v) => $v !== '' && $v !== null)) === 0;
+    $type = str_starts_with($first, 'TOTAL GÉNÉRAL') || str_contains((string)($row[1] ?? ''), 'TOTAUX') ? 'grand' : (str_starts_with($first, 'TOTAL ') ? 'subtotal' : (str_starts_with($first, 'SOLDE INITIAL') ? 'opening' : ($isAccountHeading || (str_contains($first, ' — ') && count(array_filter(array_slice($row,1), fn($v)=>$v !== '' && $v !== null)) === 0) ? 'account' : '')));
 @endphp
 <tr class="{{ $type }}">
 @foreach($row as $i => $cell)
