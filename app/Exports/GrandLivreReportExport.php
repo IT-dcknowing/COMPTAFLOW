@@ -50,7 +50,8 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
             $original = (string)($plan->numero_original ?? '');
             $account = $this->display($num, $original);
             $label = (string)($plan->intitule ?? '');
-            $this->previewRows[] = array_merge([$account . ' — ' . mb_strtoupper($label)], array_fill(0, 10, ''));
+            // Ligne de séparation du compte : numéro et intitulé dans leurs colonnes dédiées.
+            $this->previewRows[] = ['', '', '', '', $account, '', mb_strtoupper($label), '', '', '', ''];
 
             $si = $soldesInitiaux[$id] ?? ['debit'=>0,'credit'=>0,'solde'=>0];
             $running = (float)($si['solde'] ?? 0);
@@ -172,13 +173,20 @@ class GrandLivreReportExport implements FromArray, WithEvents, WithColumnWidths,
                         $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'EAF0F6']]]);
                     } elseif (str_starts_with($first, 'SOLDE INITIAL')) {
                         $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['italic'=>true,'bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'FFF2CC']]]);
-                    } elseif (str_contains($first, ' — ')) {
-                        $sheet->mergeCells("A{$row}:K{$row}");
-                        $sheet->getStyle("A{$row}:K{$row}")->applyFromArray(['font'=>['bold'=>true],'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9D9D9']]]);
+                    } elseif ((string)$sheet->getCell("E{$row}")->getValue() !== '' && (string)$sheet->getCell("G{$row}")->getValue() !== ''
+                        && count(array_filter(array_map(fn($col) => $sheet->getCell($col . $row)->getValue(), ['A','B','C','D','F','H','I','J','K']), fn($v) => $v !== '' && $v !== null)) === 0) {
+                        $sheet->getStyle("A{$row}:K{$row}")->applyFromArray([
+                            'font'=>['bold'=>true,'color'=>['rgb'=>'1F4E78'],'size'=>11],
+                            'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'D9EAF7']],
+                            'borders'=>['bottom'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'9FBAD0']]],
+                            'alignment'=>['vertical'=>Alignment::VERTICAL_CENTER],
+                        ]);
+                        $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     }
                 }
                 $sheet->getStyle("I9:K{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00;[Red]-#,##0.00;–');
                 $sheet->getStyle("A9:K{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_HAIR);
+                $sheet->getRowDimension(8)->setRowHeight(26);
                 $sheet->freezePane('A9');
                 $sheet->setAutoFilter("A8:K{$lastRow}");
                 $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)->setPaperSize(PageSetup::PAPERSIZE_A4)->setFitToWidth(1)->setFitToHeight(0);
