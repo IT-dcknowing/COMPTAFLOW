@@ -203,6 +203,7 @@ class GrandLivreController extends Controller
                 if (!is_dir($directory)) mkdir($directory, 0775, true);
                 $html = view('accounting.exports.preview', [
                     'title' => 'Grand livre des comptes',
+                    'note' => 'Impression définitive',
                     'company' => $company->company_name ?? 'Non défini',
                     'dateDebut' => \Carbon\Carbon::parse($request->date_debut)->format('d/m/Y'),
                     'dateFin' => \Carbon\Carbon::parse($request->date_fin)->format('d/m/Y'),
