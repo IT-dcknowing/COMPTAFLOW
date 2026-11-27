@@ -215,6 +215,17 @@ class ClotureReportANouveauTest extends TestCase
         $this->assertTrue($this->exercice->fresh()->resultat_passe);
         $this->assertFalse($this->exercice->fresh()->cloturer);
 
+        $ecritureResultat = EcritureComptable::where('exercices_comptables_id', $this->exercice->id)
+            ->whereHas('planComptable', fn ($q) => $q->where('numero_de_compte', 'like', '1301%')
+                ->orWhere('numero_de_compte', 'like', '1309%'))
+            ->with('codeJournal')
+            ->firstOrFail();
+
+        $this->assertSame('RESULTAT-2024', $ecritureResultat->n_saisie);
+        $this->assertSame('RESULTAT-2024', $ecritureResultat->n_saisie_user);
+        $this->assertSame('RESULTAT-2024', $ecritureResultat->reference_piece);
+        $this->assertSame('OD', $ecritureResultat->codeJournal->code_journal);
+
         $second = $this->patch(route('exercice_comptable.resultat', $this->exercice->id));
         $this->assertNotNull($second->baseResponse->getSession()?->get('error'));
 
