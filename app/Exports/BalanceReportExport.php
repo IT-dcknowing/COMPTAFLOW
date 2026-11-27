@@ -168,17 +168,19 @@ class BalanceReportExport implements FromArray, WithEvents, WithColumnWidths, Wi
                     'borders'=>['allBorders'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'B7C9D6']]],
                 ]);
                 if ($lastRow >= 9) {
+                    // Style de base appliqué à toute la zone de données, dès le premier compte.
                     $sheet->getStyle("A9:{$lastCol}{$lastRow}")->applyFromArray([
                         'font'=>['name'=>'Arial','size'=>10,'color'=>['rgb'=>'243247']],
-                        'borders'=>['allBorders'=>['borderStyle'=>Border::BORDER_HAIR,'color'=>['rgb'=>'D9E2F3']]],
+                        'fill'=>['fillType'=>Fill::FILL_SOLID,'startColor'=>['rgb'=>'FFFFFF']],
+                        'borders'=>['allBorders'=>['borderStyle'=>Border::BORDER_THIN,'color'=>['rgb'=>'D9E2F3']]],
                         'alignment'=>['vertical'=>Alignment::VERTICAL_CENTER],
                     ]);
                     $sheet->getStyle("A9:B{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     $sheet->getStyle("C9:{$lastCol}{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     $sheet->getStyle("C9:{$lastCol}{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00;[Red]-#,##0.00;–');
-                    for ($r = 9; $r <= $lastRow; $r++) {
-                        if (($r - 9) % 2 === 1) {
-                            $sheet->getStyle("A{$r}:{$lastCol}{$r}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F7FAFD');
+                    for ($r = 9; $r < $lastRow; $r++) {
+                        if (($r - 9) % 2 === 1 && !str_starts_with((string)$sheet->getCell("B{$r}")->getValue(), 'TOTAUX')) {
+                            $sheet->getStyle("A{$r}:{$lastCol}{$r}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F3F6FA');
                         }
                     }
                 }
