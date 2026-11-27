@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Exports\BalanceExport;
+use App\Exports\BalanceReportExport;
 use Illuminate\Support\Facades\Auth;
 use App\Models\PlanComptable;
 use App\Models\EcritureComptable;
@@ -169,7 +170,8 @@ class BalanceController extends Controller
             'plan_comptable_id_1' => 'required|exists:plan_comptables,id',
             'plan_comptable_id_2' => 'required|exists:plan_comptables,id',
             'format_fichier' => 'nullable|in:pdf,excel,csv',
-            'display_mode' => 'nullable|in:origine,comptaflow,both' // Mode d'affichage des numéros de compte
+            'display_mode' => 'nullable|in:origine,comptaflow,both',
+            'type' => 'nullable|in:4,6,8' // Même format de balance que le PDF
         ], [
             'date_debut.required' => 'La date de début est obligatoire.',
             'date_fin.required' => 'La date de fin est obligatoire.',
@@ -236,9 +238,19 @@ class BalanceController extends Controller
 
             if ($format_fichier === 'excel') {
                 $filename = 'balance_excel_' . $compte1->numero_de_compte . '_' . $compte2->numero_de_compte . '_' . now()->format('YmdHis') . '.xlsx';
-
-                // Sauvegarde dans public/grand_livres/
-                Excel::store(new BalanceExport($ecritures, $request->display_mode ?? 'comptaflow'), $filename, 'balances');
+                $comptesUtilises = $ecritures->pluck('planComptable.numero_de_compte')->filter()->sort();
+                $premierCompte = $comptesUtilises->first() ?? $compte1->numero_de_compte;
+                $dernierCompte = $comptesUtilises->last() ?? $compte2->numero_de_compte;
+                $export = new BalanceReportExport(
+                    $ecritures,
+                    (string) ($request->type ?? '4'),
+                    $request->display_mode ?? 'comptaflow',
+                    $company->company_name ?? 'Non défini',
+                    $request->date_debut,
+                    $request->date_fin,
+                    $premierCompte . ' à ' . $dernierCompte
+                );
+                Excel::store($export, $filename, 'balances');
 
                 // Enregistrement en BD
                 Balance::create([
@@ -481,6 +493,39 @@ class BalanceController extends Controller
             }
 
             $ecritures = $query->get();
+
+            if (($request->format_fichier ?? 'pdf') === 'excel') {
+                $comptesUtilises = $ecritures->pluck('planComptable.numero_de_compte')->filter()->sort();
+                $premierCompte = $comptesUtilises->first() ?? $compte1->numero_de_compte;
+                $dernierCompte = $comptesUtilises->last() ?? $compte2->numero_de_compte;
+                $export = new BalanceReportExport(
+                    $ecritures,
+                    (string) ($request->type ?? '4'),
+                    $request->display_mode ?? 'comptaflow',
+                    $company->company_name ?? 'Non défini',
+                    $request->date_debut,
+                    $request->date_fin,
+                    $premierCompte . ' à ' . $dernierCompte
+                );
+                $preview = $export->previewData();
+                $fileName = 'preview_balance_excel_' . uniqid() . '.html';
+                $directory = public_path('previews');
+                if (!is_dir($directory)) mkdir($directory, 0775, true);
+                $html = view('accounting.exports.preview', [
+                    'title' => 'Balance des comptes',
+                    'company' => $company->company_name ?? 'Non défini',
+                    'dateDebut' => \\Carbon\\Carbon::parse($request->date_debut)->format('d/m/Y'),
+                    'dateFin' => \\Carbon\\Carbon::parse($request->date_fin)->format('d/m/Y'),
+                    'range' => $premierCompte . ' à ' . $dernierCompte,
+                    'printedAt' => now()->format('d/m/Y à H:i:s'),
+                    'headers' => $preview['headers'],
+                    'rows' => $preview['rows'],
+                ])->render();
+                file_put_contents($directory . '/' . $fileName, $html);
+                return response()->json(['success' => true, 'format' => 'excel', 'url' => asset('previews/' . $fileName)]);
+            }
+
+
             \Illuminate\Support\Facades\Log::info('Result Count: ' . $ecritures->count());
 
             // On autorise la prévisualisation vide
