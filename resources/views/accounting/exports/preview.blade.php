@@ -34,7 +34,7 @@ tr.grand td, tr.total td { background: #d9eaf7; font-weight: 700; }
 <div class="brand">COMPTAFLOW</div>
 <div class="company">{{ $company }}</div>
 <h1>{{ $title }}</h1>
-<div class="meta">Période du {{ $dateDebut }} au {{ $dateFin }}<br>Plage des comptes : {{ $range }}<br>Date de tirage : {{ $printedAt }}</div>
+<div class="meta">Période du {{ $dateDebut }} au {{ $dateFin }}<br>{{ $note ?? 'Impression définitive' }}<br>Plage des comptes : {{ $range }}<br>Date de tirage : {{ $printedAt }}</div>
 </div>
 <div class="report">
 <table>
